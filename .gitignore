@@ -1,2 +1,8 @@
+# Block node_modules everywhere in the project
 node_modules/
+**/node_modules/
+
+# Block environment secret files everywhere
 .env
+**/.env
+.env.local
