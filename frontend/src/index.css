@@ -114,5 +114,5 @@ code {
 }
 
 .leaflet-popup-content {
-  margin: 12px !important; /* Tightens the default spacing so your popup card fits perfectly */
+  margin: 12px !important; 
 }

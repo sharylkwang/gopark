@@ -1,46 +1,40 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Search, Clock, Navigation, ArrowLeft, Zap } from 'lucide-react';
-// NEW: Imported useMap to control the camera
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet'; 
+import React, { useState, useEffect, useRef } from 'react';
+import { Zap, Mail, Lock, User, ArrowRight, Heart, MapPin, LogOut, Clock, Navigation, Search, Calendar } from 'lucide-react';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
-// NEW: This invisible component grabs the Leaflet map and flies the camera
-const MapCameraFlyer = ({ selectedId, results }) => {
+const MapCameraFlyer = ({ selectedId, results, hasSearched }) => {
   const map = useMap();
 
   useEffect(() => {
-    if (selectedId) {
+    if (hasSearched && selectedId) {
       const target = results.find(carpark => carpark.id === selectedId);
       if (target) {
-        // 1. Convert the target GPS coordinates to screen pixels at our target zoom level (16)
         const targetPoint = map.project([target.lat, target.lng], 16);
-        
-        // 2. Shift the target camera position UP by 180 pixels 
-        // (This forces the pin to sit lower on your screen, making room for the popup)
         targetPoint.y -= 180; 
-        
-        // 3. Convert those shifted screen pixels back into GPS coordinates
         const offsetLatLng = map.unproject(targetPoint, 16);
 
-        // 4. Fly to the new offset location!
         map.flyTo(offsetLatLng, 16, {
-          duration: 1.5, 
+          duration: 1.5,
           easeLinearity: 0.25
         });
       }
+    } else if (hasSearched && !selectedId && results.length > 0) {
+      map.flyTo([results[0].lat, results[0].lng], 14, { duration: 1.5 });
     }
-  }, [selectedId, results, map]);
+  }, [selectedId, results, map, hasSearched]);
 
   return null;
 };
 
 const GoParkApp = () => {
-  const [currentView, setCurrentView] = useState('search');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('price');
+  const [appState, setAppState] = useState('login'); 
+  const [hasSearched, setHasSearched] = useState(false);
   const [selectedCarparkId, setSelectedCarparkId] = useState(null);
-
-  const markerRefs = useRef({}); 
+  
+  const [favorites, setFavorites] = useState([]); 
+  
+  const markerRefs = useRef({});
 
   const mockResults = [
     { id: 1, name: "Century Square", price: 3.95, walkTime: 3, lots: 298, type: "Flat Rate", lat: 1.352, lng: 103.944, weekday: "$3.95 / entry", weekend: "$3.95 / entry" },
@@ -73,148 +67,257 @@ const GoParkApp = () => {
     });
   };
 
-  if (currentView === 'search') {
+  const handleSearch = (e) => {
+    e.preventDefault();
+    setHasSearched(true);
+    setSelectedCarparkId(mockResults[0].id);
+  };
+
+  const toggleFavorite = (e, carpark) => {
+    e.stopPropagation(); 
+    
+    if (appState === 'guest') {
+      alert("Please log in to save your favorite parking spots!");
+      return;
+    }
+
+    const isAlreadyFav = favorites.find(fav => fav.id === carpark.id);
+    
+    if (isAlreadyFav) {
+      setFavorites(favorites.filter(fav => fav.id !== carpark.id)); 
+    } else {
+      setFavorites([...favorites, carpark]); 
+    }
+  };
+
+  if (appState === 'login') {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-neutral-900 p-4">
-        <div className="max-w-md w-full text-center mb-8">
-          <h1 className="text-6xl font-black text-white italic tracking-tight flex items-center justify-center gap-2 mb-2 uppercase drop-shadow-lg">
-            Go<span className="text-red-600">Park</span> <Zap className="text-yellow-400 fill-yellow-400 h-10 w-10" />
+      <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 font-sans">
+        <div className="text-center mb-8">
+          <h1 className="text-6xl font-black text-white italic tracking-tight flex items-center justify-center gap-1 uppercase drop-shadow-lg leading-none">
+            GoPark <Zap className="text-yellow-400 fill-yellow-400 h-10 w-10" />
           </h1>
-          <p className="text-yellow-400 font-bold tracking-widest uppercase text-sm">Smart parking. Fast.</p>
+          <p className="text-yellow-400 font-bold tracking-widest uppercase text-xs mt-2">Smart parking. Fast.</p>
         </div>
 
-        <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-8 space-y-6 border-b-8 border-red-600 relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-2 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,#000_10px,#000_20px)] opacity-10"></div>
-          <div className="space-y-4 pt-2">
-            <div>
-              <label className="block text-xs font-black text-gray-800 uppercase tracking-widest mb-2">Destination</label>
-              <div className="flex items-center bg-gray-100 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-red-500 transition border border-gray-200">
-                <div className="pl-4 text-red-600"><Search size={20} /></div>
-                <input 
-                  type="text" 
-                  placeholder="e.g. Orchard Gateway" 
-                  className="w-full p-4 outline-none text-lg bg-transparent font-medium"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+        <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border-t-8 border-red-600">
+          <div className="p-6 space-y-4">
+            <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-4 border-b-2 border-gray-100 pb-2">
+              Driver Login
+            </h2>
+            <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3 focus-within:border-red-500 transition">
+              <Mail className="text-gray-400 mr-3" size={18} />
+              <input type="email" placeholder="Email Address" className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" />
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                 <label className="block text-xs font-black text-gray-800 uppercase tracking-widest mb-2">Arrival</label>
-                 <div className="flex items-center bg-gray-100 border border-gray-200 rounded-xl p-3 focus-within:ring-2 focus-within:ring-red-500 transition">
-                   <Clock size={18} className="text-red-600 mr-2" />
-                   <input type="time" className="w-full outline-none bg-transparent font-medium" defaultValue="14:00" />
-                 </div>
-              </div>
-              <div>
-                 <label className="block text-xs font-black text-gray-800 uppercase tracking-widest mb-2">Duration</label>
-                 <select className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3 outline-none focus-within:ring-2 focus-within:ring-red-500 transition font-medium">
-                   <option>1 Hour</option>
-                   <option>2 Hours</option>
-                   <option>3 Hours</option>
-                   <option>Whole Day</option>
-                 </select>
-              </div>
+            <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3 focus-within:border-red-500 transition">
+              <Lock className="text-gray-400 mr-3" size={18} />
+              <input type="password" placeholder="Password" className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" />
             </div>
+            <button 
+              onClick={() => { setAppState('user'); setHasSearched(false); }}
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 mt-2"
+            >
+              Log In <ArrowRight size={18} />
+            </button>
+            <div className="flex items-center gap-3 my-4">
+              <div className="h-px bg-gray-200 flex-1"></div>
+              <span className="text-xs font-black text-gray-400 uppercase tracking-widest">OR</span>
+              <div className="h-px bg-gray-200 flex-1"></div>
+            </div>
+            <button 
+              onClick={() => { setAppState('guest'); setHasSearched(false); }}
+              className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded shadow-sm transition flex justify-center items-center gap-2"
+            >
+              Continue as Guest <User size={18} />
+            </button>
           </div>
-
-          <button 
-            onClick={() => setCurrentView('results')}
-            className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-wider text-lg py-4 rounded-xl transition duration-200 shadow-[0_4px_0_rgb(180,140,0)] active:shadow-none active:translate-y-1"
-          >
-            Find Parking
-          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans">
+    <div className="flex h-[100dvh] bg-gray-100 font-sans overflow-hidden">
       
-      {/* Left Sidebar (Results) */}
-      <div className="w-full md:w-[420px] bg-white shadow-2xl flex flex-col z-20 border-r border-gray-200">
-        <div className="p-5 bg-red-600 border-b-4 border-yellow-400 flex flex-col justify-between sticky top-0 shadow-md">
-          <button 
-            onClick={() => setCurrentView('search')}
-            className="flex items-center text-xs font-bold text-white/80 hover:text-white transition uppercase tracking-wider mb-3 w-fit"
-          >
-            <ArrowLeft size={16} className="mr-1" /> Back
-          </button>
-          <h2 className="font-black text-white text-xl flex items-center gap-2 uppercase tracking-wide">
-             {searchQuery || "Nearby Parking"} <Zap size={20} className="text-yellow-400 fill-yellow-400"/>
-          </h2>
+      {/* Left Sidebar */}
+      <div className="w-full md:w-[420px] bg-white shadow-2xl flex flex-col z-20 border-r border-gray-200 h-full overflow-y-auto">
+        
+        {/* Navbar */}
+        <div className="bg-neutral-900 p-4 flex justify-between items-center border-b-4 border-yellow-400 sticky top-0 z-30">
+          <h1 className="text-xl font-black italic text-white flex items-center uppercase cursor-pointer" onClick={() => setHasSearched(false)}>
+            GoPark <Zap className="text-yellow-400 fill-yellow-400 h-4 w-4 ml-1" />
+          </h1>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Status</p>
+              <p className={`text-xs font-bold ${appState === 'user' ? 'text-green-400' : 'text-yellow-400'}`}>
+                {appState === 'user' ? 'User (Pro)' : 'Guest Driver'}
+              </p>
+            </div>
+            <button onClick={() => setAppState('login')} className="bg-gray-800 p-2 rounded text-gray-400 hover:text-white transition">
+              <LogOut size={16} />
+            </button>
+          </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 bg-gray-50">
-          <div className="flex justify-between items-center mb-5 px-1 border-b-2 border-dashed border-gray-200 pb-3">
-            <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">{mockResults.length} options</span>
-            <div className="flex bg-gray-200 rounded-lg p-1 shadow-inner">
-              <button onClick={() => setSortBy('price')} className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition ${sortBy === 'price' ? 'bg-white shadow text-red-600' : 'text-gray-500'}`}>Cheapest</button>
-              <button onClick={() => setSortBy('distance')} className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wide rounded-md transition ${sortBy === 'distance' ? 'bg-white shadow text-red-600' : 'text-gray-500'}`}>Closest</button>
+        {/* Search Input Form */}
+        <div className="p-5 bg-white border-b border-gray-200 shadow-sm relative z-10">
+          <form onSubmit={handleSearch} className="space-y-4">
+            
+            <div>
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Destination</label>
+              <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-3 focus-within:border-red-500 transition">
+                <Search className="text-red-500 mr-2" size={18} />
+                <input required type="text" placeholder="e.g. Orchard Gateway" className="bg-transparent w-full outline-none text-sm font-bold text-gray-800 placeholder-gray-400" />
+              </div>
             </div>
-          </div>
 
-          <div className="space-y-4">
-            {mockResults.map((carpark) => (
-              <div 
-                key={carpark.id} 
-                onClick={() => setSelectedCarparkId(carpark.id)}
-                className={`bg-white border-2 rounded-xl p-5 cursor-pointer group relative transition-all duration-200 ${
-                  selectedCarparkId === carpark.id 
-                    ? 'border-red-600 shadow-lg ring-4 ring-red-100 scale-[1.02]' 
-                    : 'border-gray-100 hover:border-red-400 hover:shadow-md'
-                }`}
-              >
-                <div className="flex justify-between items-start mb-3">
-                  <h3 className="font-black text-gray-800 text-lg leading-tight w-3/4">{carpark.name}</h3>
-                  <div className="bg-yellow-400 text-gray-900 text-xs font-black px-2 py-1 rounded shadow-sm">
-                    {carpark.lots} LOTS
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-end mt-4">
-                  <div>
-                    <p className="text-4xl font-black text-gray-900 tracking-tighter">${carpark.price.toFixed(2)}</p>
-                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider">{carpark.type}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-bold text-gray-600 flex items-center justify-end gap-1 mb-2">
-                       <Clock size={14} className="text-red-500"/> {carpark.walkTime} min walk
-                    </p>
-                    <button className="text-xs font-black uppercase tracking-wider text-gray-900 bg-yellow-400 hover:bg-yellow-500 px-4 py-2 rounded-lg transition flex items-center gap-1 shadow-[0_3px_0_rgb(180,140,0)] active:shadow-none active:translate-y-1">
-                      <Navigation size={14} /> Route
-                    </button>
-                  </div>
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Arrival Time</label>
+                <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-3 focus-within:border-red-500 transition">
+                  <Clock className="text-red-500 mr-2" size={18} />
+                  <input required type="time" defaultValue="14:00" className="bg-transparent w-full outline-none text-sm font-bold text-gray-800" />
                 </div>
               </div>
-            ))}
-          </div>
+              <div className="flex-1">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Duration</label>
+                <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-3 focus-within:border-red-500 transition">
+                  <Calendar className="text-red-500 mr-2" size={18} />
+                  <select className="bg-transparent w-full outline-none text-sm font-bold text-gray-800 appearance-none">
+                    <option>1 Hour</option>
+                    <option>2 Hours</option>
+                    <option defaultValue>3 Hours</option>
+                    <option>4+ Hours</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3.5 rounded-lg shadow-[0_4px_0_rgb(180,140,0)] active:shadow-none active:translate-y-1 transition text-sm">
+              Find Parking
+            </button>
+          </form>
         </div>
+
+        {/* Dynamic Area: Favorites OR Results */}
+        {!hasSearched ? (
+          <div className="p-5 flex-1 bg-gray-50">
+            {appState === 'guest' ? (
+              <div className="bg-white border-2 border-dashed border-gray-300 rounded-lg p-6 text-center mt-4">
+                <Heart className="text-gray-300 mx-auto mb-3" size={32} />
+                <p className="text-sm font-bold text-gray-600 mb-4">Guests cannot save favorite spots.</p>
+                <button onClick={() => setAppState('login')} className="bg-red-600 text-white text-xs font-black uppercase px-4 py-2 rounded shadow transition hover:bg-red-700">
+                  Create Account
+                </button>
+              </div>
+            ) : (
+              <div className="bg-white border border-red-200 rounded-xl p-4 shadow-sm mt-4">
+                <h2 className="text-sm font-black text-gray-900 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <Heart className="text-red-600 fill-red-600" size={16} /> Saved Lots
+                </h2>
+                
+                {/* NEW: Dynamically render the favorites array */}
+                {favorites.length === 0 ? (
+                  <p className="text-sm text-gray-500 font-bold italic text-center py-4">No saved lots yet. Search for parking to add some!</p>
+                ) : (
+                  <div className="space-y-3">
+                    {favorites.map((lot) => (
+                      <div key={lot.id} className="border border-gray-200 rounded-lg p-3 flex justify-between items-center hover:border-red-400 cursor-pointer transition">
+                        <div>
+                          <h3 className="font-black text-gray-800 text-sm">{lot.name}</h3>
+                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mt-0.5">{lot.type}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                           <button onClick={(e) => toggleFavorite(e, lot)} className="text-red-500 hover:scale-110 transition">
+                             <Heart size={18} fill="currentColor" />
+                           </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+ 
+          <div className="p-4 space-y-4 bg-gray-50 flex-1">
+            <div className="flex justify-between items-center mb-2 px-1 border-b-2 border-dashed border-gray-200 pb-2">
+              <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">{mockResults.length} options found</span>
+            </div>
+
+            {mockResults.map((carpark) => {
+        
+              const isFav = favorites.some(fav => fav.id === carpark.id);
+              
+              return (
+                <div 
+                  key={carpark.id} 
+                  onClick={() => setSelectedCarparkId(carpark.id)}
+                  className={`bg-white border-2 rounded-xl p-4 cursor-pointer transition-all duration-200 ${
+                    selectedCarparkId === carpark.id 
+                      ? 'border-red-600 shadow-lg ring-4 ring-red-100 scale-[1.02]' 
+                      : 'border-gray-100 hover:border-red-400'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="font-black text-gray-800 text-md leading-tight w-3/4">{carpark.name}</h3>
+                    
+                    {/* NEW: Heart Fav Button inside the result card */}
+                    <div className="flex items-center gap-2">
+                      <button 
+                        onClick={(e) => toggleFavorite(e, carpark)} 
+                        className={`transition hover:scale-110 ${isFav ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}
+                        title={appState === 'guest' ? 'Login to save' : 'Toggle Favorite'}
+                      >
+                        <Heart size={20} fill={isFav ? "currentColor" : "none"} strokeWidth={2.5}/>
+                      </button>
+                      <div className="bg-yellow-400 text-gray-900 text-[10px] font-black px-1.5 py-0.5 rounded shadow-sm">
+                        {carpark.lots} LOTS
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-end mt-3">
+                    <div>
+                      <p className="text-3xl font-black text-gray-900 tracking-tighter">${carpark.price.toFixed(2)}</p>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{carpark.type}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-xs font-bold text-gray-600 flex items-center justify-end gap-1 mb-1.5">
+                         <Clock size={12} className="text-red-500"/> {carpark.walkTime} min walk
+                      </p>
+                      <button className="text-[10px] font-black uppercase tracking-wider text-gray-900 bg-yellow-400 hover:bg-yellow-500 px-3 py-1.5 rounded-lg transition flex items-center gap-1 shadow-[0_3px_0_rgb(180,140,0)] active:shadow-none active:translate-y-1">
+                        <Navigation size={12} /> Route
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      {/* Right Main Area (Leaflet Map) */}
+      {/* Right Map Area (Leaflet) */}
       <div className="hidden md:block flex-1 bg-gray-200 relative z-0">
         <MapContainer 
           center={[1.3521, 103.8198]} 
           zoom={11} 
-          className="h-full w-full"
+          className="h-full w-full z-0"
           zoomSnap={0} 
           zoomDelta={0.5} 
           wheelPxPerZoomLevel={60} 
           zoomAnimation={true}
         >
-          {/* NEW: Here is the invisible camera flyer! */}
-          <MapCameraFlyer selectedId={selectedCarparkId} results={mockResults} />
+          <MapCameraFlyer selectedId={selectedCarparkId} results={mockResults} hasSearched={hasSearched} />
 
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
             url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
           />
           
-          {mockResults.map(carpark => (
+          {hasSearched && mockResults.map(carpark => (
             <Marker 
               key={carpark.id} 
               position={[carpark.lat, carpark.lng]}
@@ -238,7 +341,7 @@ const GoParkApp = () => {
                   </div>
                   
                   <div className="bg-gray-50 p-2 rounded-md border border-gray-200 mb-3">
-                    <p className="text-xs text-gray-500 font-bold uppercase mb-1">Est. Total (3 Hours)</p>
+                    <p className="text-xs text-gray-500 font-bold uppercase mb-1">Est. Total</p>
                     <p className="text-2xl font-black text-red-600">${carpark.price.toFixed(2)}</p>
                   </div>
                   
