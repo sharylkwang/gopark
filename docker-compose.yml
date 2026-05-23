@@ -1,11 +1,20 @@
+version: '3.8'
+
 services:
   backend:
     build: ./backend
     container_name: gopark-backend
     ports:
       - "3000:3000"
+    env_file:
+      - ./backend/.env
     environment:
       - PORT=3000
+      # linking our express server straight to the database service below
+      - DATABASE_URL=postgresql://postgres:password123@gopark:5432/gopark
+    depends_on:
+      gopark:
+        condition: service_healthy # holds off on booting the backend until the db is fully ready to go
 
   frontend:
     build: ./frontend
@@ -15,3 +24,26 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
+    depends_on:
+      - backend
+
+  gopark: 
+    image: postgres:15-alpine
+    container_name: gopark 
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=gopark
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data 
+    healthcheck:
+      # checking in on the database to make sure it's responsive
+      test: ["CMD-SHELL", "pg_isready -U postgres -d gopark"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata: 
