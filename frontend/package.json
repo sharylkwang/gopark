@@ -1,16 +1,15 @@
 {
-  "name": "gopark-ui",
+  "name": "gopark-frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
+    "dev": "vite --host",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint ."
   },
   "dependencies": {
-    "@tailwindcss/postcss": "^4.2.4",
     "axios": "^1.16.1",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.14.0",
@@ -20,16 +19,17 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/leaflet": "^1.9.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
-    "autoprefixer": "^10.5.0",
     "eslint": "^10.2.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.5.0",
-    "postcss": "^8.5.14",
     "tailwindcss": "^4.2.4",
+    "typescript": "^5.8.0",
     "vite": "^8.0.10"
   }
 }
