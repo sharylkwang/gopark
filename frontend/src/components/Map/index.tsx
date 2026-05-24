@@ -18,6 +18,7 @@ interface Props {
   onSelectCarpark: (id: number) => void;
   markerRefs: React.MutableRefObject<Record<number, L.Marker>>;
   eventHandlers?: MapEventHandlers;
+  userLocation?: [number, number] | null;
 }
 
 export function MapView({
@@ -28,6 +29,7 @@ export function MapView({
   onSelectCarpark,
   markerRefs,
   eventHandlers,
+  userLocation,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
   const tile = getTileProvider(tileId) ?? getTileProvider(DEFAULT_TILE)!;
@@ -70,6 +72,20 @@ export function MapView({
               <strong>{destinationPoint.name}</strong>
               <br />
               {destinationPoint.formatted}
+            </Popup>
+          </Marker>
+        )}
+
+        {userLocation && (
+          <Marker 
+            position={userLocation}
+            icon={L.divIcon({
+              className: 'user-marker',
+              html: `<div style="background-color: #3b82f6; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`
+              })}
+              >
+            <Popup>
+              You are here
             </Popup>
           </Marker>
         )}

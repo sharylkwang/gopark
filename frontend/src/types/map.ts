@@ -19,4 +19,5 @@ export interface MapEventHandlers {
   onMapClick?: (latlng: { lat: number; lng: number }) => void;
   onZoomEnd?: (zoom: number) => void;
   onMoveEnd?: (center: { lat: number; lng: number }) => void;
+  userLocation?: [number, number] | null;
 }
