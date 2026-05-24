@@ -63,7 +63,17 @@ export default function GoParkApp() {
   const [destination, setDestination] = useState('');
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
   const [favorites, setFavorites] = useState<Carpark[]>([]);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const markerRefs = useRef<Record<number, L.Marker>>({});
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        (err) => console.error(err)
+      );
+    }
+  }, []);
 
   useEffect(() => {
     if (selectedCarparkId && markerRefs.current[selectedCarparkId]) {
@@ -320,6 +330,7 @@ export default function GoParkApp() {
           hasSearched={hasSearched}
           onSelectCarpark={setSelectedCarparkId}
           markerRefs={markerRefs}
+          userLocation={userLocation}
         />
       </div>
     </div>
