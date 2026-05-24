@@ -1,49 +1,57 @@
-version: '3.8'
-
 services:
+  nginx:
+    image: nginx:alpine
+    container_name: gopark-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+
   backend:
     build: ./backend
     container_name: gopark-backend
-    ports:
-      - "3000:3000"
+    command: npm run dev
     env_file:
-      - ./backend/.env
+      - path: ./backend/.env
+        required: false
     environment:
       - PORT=3000
-      # linking our express server straight to the database service below
       - DATABASE_URL=postgresql://postgres:password123@gopark:5432/gopark
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
     depends_on:
       gopark:
-        condition: service_healthy # holds off on booting the backend until the db is fully ready to go
+        condition: service_healthy
 
   frontend:
     build: ./frontend
     container_name: gopark-frontend
-    ports:
-      - "5173:5173"
     volumes:
       - ./frontend:/app
       - /app/node_modules
     depends_on:
       - backend
 
-  gopark: 
+  gopark:
     image: postgres:15-alpine
-    container_name: gopark 
+    container_name: gopark
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password123
       - POSTGRES_DB=gopark
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data 
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      # checking in on the database to make sure it's responsive
       test: ["CMD-SHELL", "pg_isready -U postgres -d gopark"]
       interval: 5s
       timeout: 5s
       retries: 5
 
 volumes:
-  pgdata: 
+  pgdata:
