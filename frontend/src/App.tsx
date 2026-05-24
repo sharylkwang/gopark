@@ -16,6 +16,7 @@ import L from 'leaflet';
 import { MapView } from './components/Map';
 import { geocodeLocation } from './services/api';
 import type { Carpark, DestinationPoint, AppState } from './types';
+import { getWeatherForCoords, getIconForWeather } from './services/weather';
 
 const MOCK_RESULTS: Carpark[] = [
   {
@@ -65,6 +66,7 @@ export default function GoParkApp() {
   const [favorites, setFavorites] = useState<Carpark[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const markerRefs = useRef<Record<number, L.Marker>>({});
+  const [weather, setWeather] = useState<string>('Loading...');
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -74,6 +76,14 @@ export default function GoParkApp() {
       );
     }
   }, []);
+
+  useEffect(() => {
+    if (userLocation) {
+      getWeatherForCoords(userLocation[0], userLocation[1]).then(setWeather);
+    }
+  }, [userLocation]);
+
+  const WeatherIcon = getIconForWeather(weather);
 
   useEffect(() => {
     if (selectedCarparkId && markerRefs.current[selectedCarparkId]) {
@@ -186,6 +196,12 @@ export default function GoParkApp() {
           >
             GoPark <Zap className="text-yellow-400 fill-yellow-400 h-4 w-4 ml-1" />
           </h1>
+
+          <div className="bg-gray-800 text-yellow-400 text-[10px] font-black px-3 py-1.5 rounded-full uppercase tracking-widest border border-gray-700 flex items-center gap-2">
+            <WeatherIcon size={14} />
+            <span>{weather}</span>
+          </div>
+
           <button
             onClick={() => setAppState('login')}
             className="bg-gray-800 p-2 rounded text-gray-400 hover:text-white transition"
