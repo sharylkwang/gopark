@@ -15,7 +15,7 @@ services:
     container_name: gopark-backend
     command: npm run dev
     env_file:
-      - path: ./backend/.env
+      - path: ./.env
         required: false
     environment:
       - PORT=3000

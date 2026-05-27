@@ -14,12 +14,11 @@ interface CarparkData {
   carpark_info: CarparkInfo[];
 }
 
-router.get('/parking', async (_req: Request, res: Response) => {
+router.get('/govsg/parking', async (_req: Request, res: Response) => {
   try {
-    const response = await axios.get(
-      'https://api.data.gov.sg/v1/transport/carpark-availability',
-      { headers: { Authorization: process.env.DATAGOVSG_KEY } }
-    );
+    const response = await axios.get('https://api.data.gov.sg/v1/transport/carpark-availability', {
+      headers: { Authorization: process.env.DATAGOVSG_KEY },
+    });
 
     const carparks = response.data.items[0].carpark_data.map((cp: CarparkData) => ({
       carparkId: cp.carpark_number,
