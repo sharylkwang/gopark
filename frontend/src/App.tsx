@@ -83,6 +83,15 @@ export default function GoParkApp() {
   }, []);
 
   useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        () => {}
+      );
+    }
+  }, []);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node)) {
         setShowLocationTooltip(false);
