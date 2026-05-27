@@ -4,7 +4,7 @@ import axios from 'axios';
 
 const router = Router();
 
-router.get('/geocode', async (req: Request, res: Response) => {
+router.get('/geoapify/geocode', async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string;
     if (!q) {

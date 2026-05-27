@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
+import { MapContainer, TileLayer, Marker, Popup, ZoomControl } from 'react-leaflet';
+import L, { LatLngBounds } from 'leaflet';
 import { CameraFlyer } from './CameraFlyer';
 import { EventHandler } from './EventHandler';
 import { CarparkMarker } from './CarparkMarker';
 import { OSMBuildingLayer } from './layers/OSMBuildingLayer';
 import { TileLayerSwitcher } from './TileLayerSwitcher';
-import { getTileProvider, DEFAULT_TILE } from '../../config/tiles';
+import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import type { Carpark, DestinationPoint } from '../../types';
 import type { MapEventHandlers } from '../../types/map';
 
@@ -19,6 +19,7 @@ interface Props {
   markerRefs: React.MutableRefObject<Record<number, L.Marker>>;
   eventHandlers?: MapEventHandlers;
   userLocation?: [number, number] | null;
+  sidebarOpen?: boolean;
 }
 
 export function MapView({
@@ -30,21 +31,30 @@ export function MapView({
   markerRefs,
   eventHandlers,
   userLocation,
+  sidebarOpen = true,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
+  const [buildings3D, setBuildings3D] = useState(false);
   const tile = getTileProvider(tileId) ?? getTileProvider(DEFAULT_TILE)!;
 
   return (
     <div className="relative h-full w-full">
       <MapContainer
-        center={[1.3521, 103.8198]}
-        zoom={11}
+        center={[1.2838, 103.8607]}
+        zoom={16}
         className="h-full w-full z-0"
-        zoomSnap={0}
-        zoomDelta={0.5}
-        wheelPxPerZoomLevel={60}
+        zoomSnap={1}
+        zoomDelta={1}
+        wheelPxPerZoomLevel={120}
         zoomAnimation={true}
+        zoomControl={false}
+        minZoom={11}
+        maxZoom={19}
+        maxBounds={new LatLngBounds([1.15, 103.59], [1.47, 104.12])}
+        maxBoundsViscosity={1.0}
       >
+        <ZoomControl position="bottomright" />
+
         <TileLayer
           key={tile.id}
           url={tile.url}
@@ -62,7 +72,7 @@ export function MapView({
           destinationPoint={destinationPoint}
         />
 
-        {tileId === 'osm' && <OSMBuildingLayer />}
+        {buildings3D && <OSMBuildingLayer />}
 
         {eventHandlers && <EventHandler {...eventHandlers} />}
 
@@ -104,7 +114,13 @@ export function MapView({
           ))}
       </MapContainer>
 
-      <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId} />
+      <TileLayerSwitcher
+        currentTile={tileId}
+        onTileChange={setTileId}
+        buildings3D={buildings3D}
+        onToggleBuildings={() => setBuildings3D((v) => !v)}
+        sidebarOpen={sidebarOpen}
+      />
     </div>
   );
 }
