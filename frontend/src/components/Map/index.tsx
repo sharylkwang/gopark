@@ -70,6 +70,7 @@ export function MapView({
           results={carparks}
           hasSearched={hasSearched}
           destinationPoint={destinationPoint}
+          userLocation={userLocation}
         />
 
         {buildings3D && <OSMBuildingLayer />}
@@ -90,7 +91,8 @@ export function MapView({
           <Marker 
             position={userLocation}
             icon={L.divIcon({
-              className: 'user-marker',
+              className: '',
+              iconSize: [16, 16],
               html: `<div style="background-color: #3b82f6; width: 16px; height: 16px; border-radius: 50%; border: 3px solid white; box-shadow: 0 0 5px rgba(0,0,0,0.5);"></div>`
               })}
               >
