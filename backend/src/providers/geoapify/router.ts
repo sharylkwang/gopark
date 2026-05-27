@@ -41,4 +41,29 @@ router.get('/geoapify/geocode', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
+  try {
+    const q = req.query.q as string;
+    if (!q) {
+      res.status(400).json({ error: 'Missing search query' });
+      return;
+    }
+
+    const response = await axios.get('https://api.geoapify.com/v1/geocode/autocomplete', {
+      params: {
+        text: q,
+        filter: 'countrycode:sg', 
+        format: 'json',
+        apiKey: process.env.GEOAPIFY_KEY,
+      },
+    });
+
+    res.json(response.data?.results || []);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    console.error('Autocomplete API error:', message);
+    res.status(500).json({ error: 'Failed to fetch autocomplete suggestions' });
+  }
+});
+
 export default router;
