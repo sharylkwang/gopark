@@ -13,10 +13,11 @@ import {
   Calendar,
   Menu,
   X,
+  MapPin,
 } from 'lucide-react';
 import L from 'leaflet';
 import { MapView } from './components/Map';
-import { geocodeLocation } from './providers/geoapify';
+import { geocodeLocation, autocompleteLocation } from './providers/geoapify/geocode';
 import type { Carpark, DestinationPoint, AppState } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
 
@@ -64,6 +65,9 @@ export default function GoParkApp() {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedCarparkId, setSelectedCarparkId] = useState<number | null>(null);
   const [destination, setDestination] = useState('');
+  const [results, setResults] = useState<Carpark[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
   const [favorites, setFavorites] = useState<Carpark[]>([]);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -110,21 +114,56 @@ export default function GoParkApp() {
     }
   }, [selectedCarparkId]);
 
-  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleDestinationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setDestination(val);
+    
+    if (val.length > 2) {
+      const suggs = await autocompleteLocation(val);
+      setSuggestions(suggs);
+      setIsDropdownOpen(true);
+    } else {
+      setIsDropdownOpen(false);
+    }
+  };
+
+  const executeSearch = async (searchQuery: string) => {
     try {
-      const place = await geocodeLocation(destination);
+      const place = await geocodeLocation(searchQuery);
       setDestinationPoint({
-        name: place.name || destination,
+        name: place.name || searchQuery,
         formatted: place.formatted,
         lat: place.lat,
         lng: place.lon,
       });
+      
+      const res = await fetch(`/api/govsg/carparks?lat=${place.lat}&lng=${place.lon}`);
+      
+      if (res.ok) {
+        const liveCarparks = await res.json();
+        setResults(liveCarparks.slice(0, 10)); 
+      } else {
+        setResults(MOCK_RESULTS);
+      }
+
       setHasSearched(true);
       setSelectedCarparkId(null);
+      setIsDropdownOpen(false);
     } catch {
       alert('Could not find destination');
     }
+  };
+
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await executeSearch(destination);
+  };
+
+  const selectSuggestion = (sugg: any) => {
+    const placeName = sugg.formatted || sugg.name || destination;
+    setDestination(placeName);
+    setIsDropdownOpen(false);
+    executeSearch(placeName); 
   };
 
   const toggleFavorite = (e: React.MouseEvent, carpark: Carpark) => {
@@ -206,7 +245,7 @@ export default function GoParkApp() {
     <div className="relative h-[100dvh] bg-gray-100 font-sans overflow-hidden">
       <div className="absolute inset-0 z-0">
         <MapView
-          carparks={MOCK_RESULTS}
+          carparks={results.length > 0 ? results : MOCK_RESULTS} 
           selectedId={selectedCarparkId}
           destinationPoint={destinationPoint}
           hasSearched={hasSearched}
@@ -299,7 +338,7 @@ export default function GoParkApp() {
 
           <div className="p-4 sm:p-5 bg-white border-b border-gray-200 shadow-sm relative z-10">
             <form onSubmit={handleSearch} className="space-y-3 sm:space-y-4">
-              <div>
+              <div className="relative">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">
                   Destination
                 </label>
@@ -309,11 +348,31 @@ export default function GoParkApp() {
                     required
                     type="text"
                     value={destination}
-                    onChange={(e) => setDestination(e.target.value)}
+                    onChange={handleDestinationChange}
+                    onFocus={() => destination.length > 2 && setIsDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)} // Delay so click registers
                     placeholder="e.g. Orchard Gateway"
                     className="bg-transparent w-full outline-none text-sm font-bold text-gray-800 placeholder-gray-400"
                   />
                 </div>
+
+                {isDropdownOpen && suggestions.length > 0 && (
+                  <ul className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto">
+                    {suggestions.map((sugg, idx) => (
+                      <li 
+                        key={idx} 
+                        onClick={() => selectSuggestion(sugg)}
+                        className="px-4 py-3 hover:bg-red-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm font-bold text-gray-700 flex items-center gap-2"
+                      >
+                        <MapPin size={14} className="text-red-400 flex-shrink-0" />
+                        <span className="truncate">{sugg.formatted || sugg.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              <div className="flex gap-2 sm:gap-3">
               </div>
 
               <div className="flex gap-2 sm:gap-3">
@@ -366,11 +425,11 @@ export default function GoParkApp() {
             <div className="p-3 sm:p-4 space-y-3 sm:space-y-4 bg-gray-50 flex-1">
               <div className="flex justify-between items-center mb-2 px-1 border-b-2 border-dashed border-gray-200 pb-2">
                 <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">
-                  {MOCK_RESULTS.length} options found
+                  {results.length} options found
                 </span>
               </div>
 
-              {MOCK_RESULTS.map((carpark) => {
+              {results.map((carpark) => {
                 const isFav = favorites.some((fav) => fav.id === carpark.id);
                 return (
                   <div
