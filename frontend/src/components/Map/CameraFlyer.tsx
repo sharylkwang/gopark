@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import type { Carpark, DestinationPoint } from '../../types';
 
@@ -7,10 +7,21 @@ interface Props {
   results: Carpark[];
   hasSearched: boolean;
   destinationPoint: DestinationPoint | null;
+  userLocation?: [number, number] | null;
 }
 
-export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint }: Props) {
+export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation }: Props) {
   const map = useMap();
+  const hasFlownToUser = useRef(false);
+
+  useEffect(() => {
+    if (hasFlownToUser.current || !userLocation) return;
+    hasFlownToUser.current = true;
+    map.flyTo(userLocation, 16, {
+      duration: 1.5,
+      easeLinearity: 0.25,
+    });
+  }, [userLocation, map]);
 
   useEffect(() => {
     if (!hasSearched) return;
