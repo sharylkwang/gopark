@@ -147,7 +147,7 @@ gopark/
 
 ## Team
 
-NUS Orbital 2025
+NUS Orbital 2026
 
 ---
 
