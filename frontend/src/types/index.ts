@@ -1,14 +1,40 @@
-export interface Carpark {
-  id: number;
+export interface CarparkAvailability {
+  available: number | null;
+  total: number | null;
+}
+
+export interface CarparkSummary {
+  id: string;
   name: string;
-  price: number;
-  walkTime: number;
-  lots: number;
-  type: string;
   lat: number;
   lng: number;
-  weekday: string;
-  weekend: string;
+  address: string;
+  agency: string;
+  sources: string[];
+  lotTypes: string;
+  availability: Record<string, CarparkAvailability>;
+  distance?: number;
+}
+
+export interface CarparkRate {
+  amount: number;
+  durationMins: number | null;
+  unit: string;
+  vehicleType: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  isFirst: boolean;
+  dayType: string;
+  sources: string[];
+  confirmedBy: number;
+}
+
+export interface CarparkDetail extends CarparkSummary {
+  metadata: Record<string, unknown>;
+  detailsUpdatedAt: string;
+  availabilityUpdatedAt: string;
+  rates: CarparkRate[];
+  availability: Record<string, CarparkAvailability & { updatedAt?: string }>;
 }
 
 export interface DestinationPoint {

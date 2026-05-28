@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Carpark {
+  id                    String   @id
+  name                  String
+  lat                   Float
+  lng                   Float
+  address               String   @default("")
+  agency                String   @default("")
+  sources               String[]
+  lotTypes              String   @default("") @map("lot_types")
+  metadata              Json     @default("{}")
+  detailsUpdatedAt      DateTime @default(now()) @map("details_updated_at")
+  availabilityUpdatedAt DateTime @default(now()) @map("availability_updated_at")
+
+  rates        Rate[]
+  availability Availability[]
+
+  @@map("carparks")
+}
+
+model Rate {
+  id          Int      @id @default(autoincrement())
+  carparkId   String   @map("carpark_id")
+  amount      Decimal  @db.Decimal(8, 2)
+  durationMins Int?    @map("duration_mins")
+  unit        String   @default("flat")
+  vehicleType String   @default("C") @map("vehicle_type")
+  periodStart String?  @map("period_start")
+  periodEnd   String?  @map("period_end")
+  isFirst     Boolean  @default(false) @map("is_first")
+  dayType     String   @default("all") @map("day_type")
+  sources     String[]
+
+  carpark Carpark @relation(fields: [carparkId], references: [id], onDelete: Cascade)
+
+  @@unique([carparkId, amount, durationMins, vehicleType, dayType, periodStart, periodEnd])
+  @@map("rates")
+}
+
+model Availability {
+  carparkId String   @map("carpark_id")
+  lotType   String   @default("C") @map("lot_type")
+  available Int?
+  total     Int?
+  updatedAt DateTime @default(now()) @map("updated_at")
+
+  carpark Carpark @relation(fields: [carparkId], references: [id], onDelete: Cascade)
+
+  @@id([carparkId, lotType])
+  @@map("availability")
+}
+
+model ScrapedPage {
+  id          Int      @id @default(autoincrement())
+  url         String   @unique
+  domain      String
+  source      String
+  dataHash    String   @default("") @map("data_hash")
+  carparks    Int      @default(0)
+  lastScraped DateTime @map("last_scraped")
+  lastChanged DateTime @map("last_changed")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([domain])
+  @@index([lastChanged])
+  @@map("scraped_pages")
+}
+
+model ScraperDomain {
+  id           Int      @id @default(autoincrement())
+  domain       String   @unique
+  searchQuery  String   @map("search_query")
+  prompt       String
+  active       Boolean  @default(true)
+  lastSearched DateTime? @map("last_searched")
+
+  @@map("scraper_domains")
+}
