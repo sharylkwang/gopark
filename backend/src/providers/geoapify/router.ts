@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import axios from 'axios';
+import createLogger from '../../lib/logger.js';
 
+const log = createLogger('geoapify');
 const router = Router();
 
 router.get('/geoapify/geocode', async (req: Request, res: Response) => {
@@ -36,7 +38,7 @@ router.get('/geoapify/geocode', async (req: Request, res: Response) => {
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Geocode API error:', message);
+    log.error(`geocode API error: ${message}`);
     res.status(500).json({ error: 'Failed to geocode location' });
   }
 });

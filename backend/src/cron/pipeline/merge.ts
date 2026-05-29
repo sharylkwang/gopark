@@ -1,0 +1,180 @@
+import type { CarparkRecord, RateEntry, AvailabilityEntry, MergedCarpark, DatamallResult, ScrapedResult } from './types.js';
+import { parseParkaholic, parseSgcarmart } from './rates.js';
+import { MERGE } from '../config.js';
+import { isInSingapore } from '../../lib/geofence.js';
+
+const VT_MAP: Record<string, string> = { car: 'C', motorcycle: 'Y', heavy_vehicle: 'H' };
+
+function ratesMatch(a: RateEntry, b: RateEntry) {
+  return a.amount === b.amount && a.duration_mins === b.duration_mins
+    && a.vehicle_type === b.vehicle_type && a.day_type === b.day_type
+    && a.period_start === b.period_start && a.period_end === b.period_end;
+}
+
+function normalize(s: string) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function findByProximity(map: Record<string, MergedCarpark>, lat: number, lng: number, threshold: number): MergedCarpark | null {
+  let best: MergedCarpark | null = null;
+  let bestD = threshold;
+  for (const cp of Object.values(map)) {
+    const d = Math.hypot(cp.lat - lat, cp.lng - lng);
+    if (d < bestD) { bestD = d; best = cp; }
+  }
+  return best;
+}
+
+function findByName(map: Record<string, MergedCarpark>, name: string): MergedCarpark | null {
+  const norm = normalize(name);
+  if (norm.length < 4) return null;
+  for (const cp of Object.values(map)) {
+    const existing = normalize(cp.name || cp.address);
+    if (!existing) continue;
+    if (norm === existing || norm.includes(existing) || existing.includes(norm)) return cp;
+  }
+  return null;
+}
+
+function findExisting(map: Record<string, MergedCarpark>, id: string, name: string, lat: number, lng: number): MergedCarpark | null {
+  if (map[id]) return map[id];
+  const byProx = findByProximity(map, lat, lng, MERGE.proximityThreshold);
+  if (byProx) return byProx;
+  return findByName(map, name);
+}
+
+export function mergeAll(
+  gov: CarparkRecord[],
+  govAvail: Record<string, Record<string, AvailabilityEntry>>,
+  datamall: DatamallResult,
+  parkLocs: CarparkRecord[],
+  parkDump: Record<string, { availability: Record<string, AvailabilityEntry>; agency: string }>,
+  parkRates: Record<string, Record<string, string>>,
+  sgcarmart: CarparkRecord[],
+  scraped: ScrapedResult[],
+): MergedCarpark[] {
+  const map: Record<string, MergedCarpark> = {};
+  const ts = new Date().toISOString();
+
+  function touch(id: string, name: string, lat: number, lng: number): MergedCarpark {
+    if (!map[id]) {
+      map[id] = { id, name, lat, lng, address: '', agency: '', sources: [], source_ids: {}, source_count: 0, rates: [], availability: {}, lot_types: '', metadata: {}, last_updated: ts };
+    }
+    return map[id];
+  }
+
+  function addSource(cp: MergedCarpark, source: string, sourceId: string) {
+    if (!cp.sources.includes(source)) cp.sources.push(source);
+    cp.source_ids[source] = sourceId;
+  }
+
+  function addRates(cp: MergedCarpark, incoming: RateEntry[]) {
+    for (const nr of incoming) {
+      const hit = cp.rates.find(r => ratesMatch(r, nr));
+      if (hit) {
+        if (!hit.sources.includes(nr.source)) { hit.sources.push(nr.source); hit.confirmed_by = hit.sources.length; }
+      } else {
+        cp.rates.push({ ...nr, sources: [nr.source], confirmed_by: 1 });
+      }
+    }
+  }
+
+  function mergeAvailability(cp: MergedCarpark, avail: Record<string, AvailabilityEntry>) {
+    for (const [lt, e] of Object.entries(avail)) {
+      if (!cp.availability[lt] || (e.total && !cp.availability[lt].total)) {
+        cp.availability[lt] = e;
+      } else if (e.available != null) {
+        cp.availability[lt].available = e.available;
+        if (e.total) cp.availability[lt].total = e.total;
+      }
+    }
+  }
+
+  for (const r of gov) {
+    const cp = touch(r.id, r.name, r.lat, r.lng);
+    cp.address = r.address;
+    cp.agency = 'HDB';
+    addSource(cp, 'gov', r.id);
+    Object.assign(cp.metadata, r.metadata);
+    if (govAvail[r.id]) mergeAvailability(cp, govAvail[r.id]);
+  }
+
+  for (const r of datamall.records) {
+    const existing = findExisting(map, r.id, r.name, r.lat, r.lng);
+    if (existing) {
+      existing.address = existing.address || r.address;
+      existing.agency = existing.agency || (r.metadata.agency as string) || '';
+      addSource(existing, 'datamall', r.id);
+      Object.assign(existing.metadata, r.metadata);
+    } else {
+      const cp = touch(r.id, r.name, r.lat, r.lng);
+      cp.address = r.address;
+      cp.agency = (r.metadata.agency as string) || '';
+      addSource(cp, 'datamall', r.id);
+      Object.assign(cp.metadata, r.metadata);
+    }
+  }
+  for (const [id, lots] of Object.entries(datamall.availability)) {
+    const target = map[id] || findByProximity(map, 0, 0, 0);
+    if (map[id]) mergeAvailability(map[id], lots);
+    const a = datamall.agencies[id];
+    if (a && map[id]) { map[id].agency = map[id].agency || a.agency; if (a.area) map[id].metadata.area = a.area; }
+  }
+
+  for (const r of parkLocs) {
+    const existing = findExisting(map, r.id, r.name, r.lat, r.lng);
+    const cp = existing || touch(r.id, r.name, r.lat, r.lng);
+    addSource(cp, 'parkaholic', r.id);
+    cp.lot_types = cp.lot_types || r.lot_types;
+
+    const d = parkDump[r.id];
+    if (d) {
+      cp.agency = cp.agency || d.agency;
+      mergeAvailability(cp, d.availability);
+    }
+    if (parkRates[r.id]) addRates(cp, parseParkaholic(parkRates[r.id]));
+  }
+
+  if (sgcarmart.length) {
+    for (const r of sgcarmart) {
+      const existing = findExisting(map, r.id, r.name, r.lat, r.lng);
+      const rates = parseSgcarmart(r.metadata);
+
+      if (existing) {
+        addSource(existing, 'sgcarmart', r.id);
+        addRates(existing, rates);
+      } else {
+        const cp = touch(r.id, r.name, r.lat, r.lng);
+        cp.address = r.address;
+        addSource(cp, 'sgcarmart', r.id);
+        addRates(cp, rates);
+      }
+    }
+  }
+
+  for (const { source, carparks } of scraped) {
+    for (const ai of carparks) {
+      const name = (ai.name ?? '').toLowerCase();
+      if (name.length < 4) continue;
+      const match = findByName(map, name);
+      if (!match) continue;
+
+      addRates(match, ai.rates.map(r => ({
+        amount: r.amount_dollars ?? 0,
+        duration_mins: r.per_minutes ?? null,
+        unit: r.per_minutes ? `per_${r.per_minutes}min` : 'flat',
+        vehicle_type: VT_MAP[r.vehicle_type ?? 'car'] ?? 'C',
+        period_start: r.time_start ?? null,
+        period_end: r.time_end ?? null,
+        is_first: r.is_first_block ?? false,
+        day_type: r.day_type ?? 'all',
+        source,
+      })));
+      addSource(match, source, ai.name);
+    }
+  }
+
+  return Object.values(map)
+    .filter(cp => isInSingapore(cp.lat, cp.lng))
+    .map(cp => ({ ...cp, sources: [...new Set(cp.sources)], source_count: new Set(cp.sources).size }));
+}
