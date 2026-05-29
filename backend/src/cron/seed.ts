@@ -29,7 +29,7 @@ export async function exportDb() {
 
   const data: MergedCarpark[] = rows.map(cp => ({
     id: cp.id, name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address,
-    agency: cp.agency, sources: cp.sources, source_count: cp.sources.length,
+    agency: cp.agency, sources: cp.sources, source_ids: cp.sourceIds as Record<string, string>, source_count: cp.sources.length,
     lot_types: cp.lotTypes, metadata: cp.metadata as Record<string, unknown>,
     last_updated: cp.detailsUpdatedAt.toISOString(),
     rates: cp.rates.map(r => ({
