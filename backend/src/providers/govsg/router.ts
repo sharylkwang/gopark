@@ -14,26 +14,6 @@ interface CarparkData {
   carpark_info: CarparkInfo[];
 }
 
-router.get('/govsg/parking', async (_req: Request, res: Response) => {
-  try {
-    const response = await axios.get('https://api.data.gov.sg/v1/transport/carpark-availability', {
-      headers: { Authorization: process.env.DATAGOVSG_KEY },
-    });
-
-    const carparks = response.data.items[0].carpark_data.map((cp: CarparkData) => ({
-      carparkId: cp.carpark_number,
-      totalLots: parseInt(cp.carpark_info[0].total_lots) || 0,
-      availableLots: parseInt(cp.carpark_info[0].lots_available) || 0,
-    }));
-
-    res.json(carparks);
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Parking API error:', message);
-    res.status(500).json({ error: 'Failed to fetch parking data' });
-  }
-});
-
 router.get('/govsg/carparks', async (req: Request, res: Response) => {
   try {
     const searchLat = parseFloat(req.query.lat as string);
@@ -44,31 +24,47 @@ router.get('/govsg/carparks', async (req: Request, res: Response) => {
       return;
     }
 
-    const response = await axios.get('https://api.data.gov.sg/v1/transport/carpark-availability', {
-      headers: { Authorization: process.env.DATAGOVSG_KEY || '' },
+    // 1. Fetch from the NEW LTA DataMall v2 Endpoint (Page 32 of PDF)
+    const response = await axios.get('https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2', {
+      headers: { AccountKey: process.env.LTA_DATAMALL_KEY || '' }, // Uses AccountKey (Page 8 of PDF)
     });
     
-    const liveData = response.data.items[0].carpark_data;
-    const formattedResults = liveData.slice(0, 15).map((cp: CarparkData, index: number) => {
-      
-      const randomLatOffset = (Math.random() - 0.5) * 0.008;
-      const randomLngOffset = (Math.random() - 0.5) * 0.008;
+    // LTA OData puts the array inside a "value" property
+    const allCarparks = response.data.value;
+
+    // 2. Map the new LTA data structure and calculate distance
+    const processedCarparks = allCarparks.map((cp: any) => {
+      // Parse the "Location" string (e.g., "1.29375 103.85718") into numbers
+      const coords = cp.Location ? cp.Location.split(' ') : ['0', '0'];
+      const cpLat = parseFloat(coords[0]);
+      const cpLng = parseFloat(coords[1]);
+
+      // Simple distance math to find out how close it is to the searched destination
+      const distance = Math.hypot(cpLat - searchLat, cpLng - searchLng);
 
       return {
-        id: cp.carpark_number,
-        name: `LTA Carpark ${cp.carpark_number}`,
-        price: 2.00 + (index * 0.50), 
-        walkTime: 2 + (index % 5),
-        lots: parseInt(cp.carpark_info[0].lots_available) || 0, 
-        type: index % 3 === 0 ? 'Flat Rate' : 'Hourly',
-        lat: searchLat + randomLatOffset,
-        lng: searchLng + randomLngOffset,
+        id: cp.CarParkID,
+        name: cp.Development || `Carpark ${cp.CarParkID}`, // Real Mall Name!
+        price: 2.00, // Still mock until DB is hooked up
+        lots: parseInt(cp.AvailableLots) || 0, // Real live lot count!
+        type: cp.Agency === 'LTA' ? 'Commercial' : 'HDB',
+        lat: cpLat,
+        lng: cpLng,
+        distance: distance, // Used for sorting below
+        walkTime: Math.max(1, Math.floor(distance * 1000)), // Rough estimate
         weekday: '$2.00 / hr',
         weekend: '$2.50 / hr'
       };
     });
 
-    res.json(formattedResults);
+    // 3. Sort by closest distance and only send the top 15 to React
+    const closestCarparks = processedCarparks
+      .filter((cp: any) => cp.lat !== 0) // Filter out bad data
+      .sort((a: any, b: any) => a.distance - b.distance)
+      .slice(0, 15);
+
+    res.json(closestCarparks);
+
   } catch (err) {
     console.error('Carparks API error:', err);
     res.status(500).json({ error: 'Failed to fetch carpark data' });
