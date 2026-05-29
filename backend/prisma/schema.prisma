@@ -15,6 +15,7 @@ model Carpark {
   address               String   @default("")
   agency                String   @default("")
   sources               String[]
+  sourceIds             Json     @default("{}") @map("source_ids")
   lotTypes              String   @default("") @map("lot_types")
   metadata              Json     @default("{}")
   detailsUpdatedAt      DateTime @default(now()) @map("details_updated_at")

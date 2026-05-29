@@ -1,7 +1,8 @@
 export const CRON = {
   availabilityInterval: 60 * 1000,
   fullMergeInterval: 6 * 60 * 60 * 1000,
-  scraperInterval: 30 * 24 * 60 * 60 * 1000,
+  scraperCheckInterval: 6 * 60 * 60 * 1000,
+  scraperRunEveryDays: 7,
 };
 
 export const TIMEOUTS = {
@@ -43,11 +44,13 @@ export const SCRAPER = {
     },
   ],
   smartQueries: [
-    'Singapore carpark parking rates 2026',
-    'Singapore HDB parking rates per hour',
-    'Singapore shopping mall parking rates',
-    'Singapore CBD parking charges',
-    'Singapore motorcycle parking rates',
+    'Singapore parking rates per hour latest',
+    'Singapore shopping mall carpark rates list',
+    'Singapore private carpark parking charges',
+    'motorcycle parking rates Singapore guide',
+    'Singapore airport parking rates changi',
+    'Singapore hospital parking rates',
+    'Singapore university campus parking fees',
   ],
   defaultPrompt: 'Extract ALL parking rates. Return name, address, rates with vehicle_type (car/motorcycle/heavy_vehicle), day_type, amount_dollars, per_minutes, time_start, time_end in HH:MM 24h.',
 };

@@ -5,12 +5,11 @@ import { SCRAPER } from '../config.js';
 import type { ScrapedCarpark, ScrapedResult } from '../pipeline/types.js';
 import { detect, complete, parseJson } from './llm.js';
 import type { Backend } from './llm.js';
-import { searchWeb, fetchPage } from './search.js';
+import { searchWeb, fetchPage, isSearchAvailable } from './search.js';
 
 const log = createLogger('scraper');
 
 const SYSTEM_MSG = 'You extract structured parking rate data from text. Output ONLY valid JSON.';
-
 const EXTRACTION_SCHEMA = `Return JSON: { "carparks": [{ "name": "...", "address": "...", "rates": [{ "vehicle_type": "car|motorcycle|heavy_vehicle", "day_type": "weekday|saturday|sunday|public_holiday|all", "rate_text": "...", "amount_dollars": 1.20, "per_minutes": 30, "time_start": "07:00", "time_end": "17:00", "is_first_block": false }] }] }`;
 
 function hash(data: unknown) {
@@ -23,7 +22,7 @@ async function extract(url: string, prompt: string, backend: Backend): Promise<S
   return (parseJson(raw).carparks as ScrapedCarpark[]) ?? [];
 }
 
-async function cache(url: string, domain: string, source: string, prompt: string, backend: Backend): Promise<ScrapedCarpark[]> {
+async function cacheResult(url: string, domain: string, source: string, prompt: string, backend: Backend): Promise<ScrapedCarpark[]> {
   const carparks = await extract(url, prompt, backend);
   const h = hash(carparks);
   const now = new Date();
@@ -62,6 +61,11 @@ async function syncDomains() {
 }
 
 export async function runScraper(): Promise<ScrapedResult[]> {
+  if (!isSearchAvailable()) {
+    log.info('search down, skipping scraper run');
+    return [];
+  }
+
   const backend = await detect();
   if (backend === 'none') { log.warn('no LLM backend — skipping'); return []; }
   log.info(`backend: ${backend}`);
@@ -74,6 +78,8 @@ export async function runScraper(): Promise<ScrapedResult[]> {
   cutoff.setDate(cutoff.getDate() - SCRAPER.recheckDays);
 
   for (const dom of domains) {
+    if (!isSearchAvailable()) break;
+
     try {
       const cached = await prisma.scrapedPage.findMany({ where: { domain: dom.domain } });
       const needsSearch = !cached.length || staleSet.has(dom.domain) || !dom.lastSearched || dom.lastSearched < cutoff;
@@ -82,7 +88,7 @@ export async function runScraper(): Promise<ScrapedResult[]> {
       if (needsSearch) {
         log.info(`searching ${dom.domain}`);
         urls = (await searchWeb(dom.searchQuery)).filter(u => u.includes(dom.domain));
-        await prisma.scraperDomain.update({ where: { id: dom.id }, data: { lastSearched: new Date() } });
+        if (urls.length) await prisma.scraperDomain.update({ where: { id: dom.id }, data: { lastSearched: new Date() } });
       } else {
         urls = cached.filter(p => p.lastScraped < cutoff).map(p => p.url);
         if (!urls.length) { log.debug(`${dom.domain} — fresh`); continue; }
@@ -90,7 +96,7 @@ export async function runScraper(): Promise<ScrapedResult[]> {
 
       const carparks: ScrapedCarpark[] = [];
       for (const url of urls) {
-        try { carparks.push(...await cache(url, dom.domain, dom.domain, dom.prompt, backend)); }
+        try { carparks.push(...await cacheResult(url, dom.domain, dom.domain, dom.prompt, backend)); }
         catch (e) { log.error(`scrape failed: ${url}`, e); }
       }
       if (carparks.length) results.push({ source: dom.domain, carparks });
@@ -101,6 +107,11 @@ export async function runScraper(): Promise<ScrapedResult[]> {
 }
 
 export async function smartSearch(): Promise<ScrapedResult[]> {
+  if (!isSearchAvailable()) {
+    log.info('search down, skipping smart search');
+    return [];
+  }
+
   const backend = await detect();
   if (backend === 'none') { log.warn('smart search skipped — no LLM'); return []; }
 
@@ -109,6 +120,7 @@ export async function smartSearch(): Promise<ScrapedResult[]> {
 
   const found: string[] = [];
   for (const q of SCRAPER.smartQueries) {
+    if (!isSearchAvailable()) break;
     try { found.push(...await searchWeb(q)); }
     catch (e) { log.warn(`search failed: ${q}`, e); }
   }
@@ -119,7 +131,7 @@ export async function smartSearch(): Promise<ScrapedResult[]> {
 
   const carparks: ScrapedCarpark[] = [];
   for (const url of fresh) {
-    try { carparks.push(...await cache(url, new URL(url).hostname, 'smart_search', SCRAPER.defaultPrompt, backend)); }
+    try { carparks.push(...await cacheResult(url, new URL(url).hostname, 'smart_search', SCRAPER.defaultPrompt, backend)); }
     catch (e) { log.warn(`smart search failed: ${url}`, e); }
   }
 

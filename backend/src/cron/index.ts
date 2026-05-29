@@ -15,14 +15,15 @@ const log = createLogger('cron');
 let merging = false;
 let refreshing = false;
 let scraping = false;
+let scheduled = false;
 
 async function upsert(carparks: MergedCarpark[]) {
   const now = new Date();
   for (const cp of carparks) {
     await prisma.carpark.upsert({
       where: { id: cp.id },
-      update: { name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency, sources: cp.sources, lotTypes: cp.lot_types, metadata: cp.metadata, detailsUpdatedAt: now },
-      create: { id: cp.id, name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency, sources: cp.sources, lotTypes: cp.lot_types, metadata: cp.metadata, detailsUpdatedAt: now, availabilityUpdatedAt: now },
+      update: { name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency, sources: cp.sources, sourceIds: cp.source_ids, lotTypes: cp.lot_types, metadata: cp.metadata, detailsUpdatedAt: now },
+      create: { id: cp.id, name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency, sources: cp.sources, sourceIds: cp.source_ids, lotTypes: cp.lot_types, metadata: cp.metadata, detailsUpdatedAt: now, availabilityUpdatedAt: now },
     });
 
     if (cp.rates.length) {
@@ -132,6 +133,8 @@ async function bootstrap() {
 }
 
 function schedule() {
+  if (scheduled) { log.warn('schedule already active, skipping'); return; }
+  scheduled = true;
   const delay = 60000 - (Date.now() % 60000);
   log.info(`scheduling — availability: 1min (in ${(delay / 1000).toFixed(0)}s) | merge: 6hr | scraper: 30d`);
 
@@ -143,11 +146,16 @@ function schedule() {
     try { await fullMerge(); } catch (e) { log.error('merge failed', e); } finally { merging = false; }
   }, CRON.fullMergeInterval);
 
+  let lastScraperRun = 0;
   setInterval(async () => {
+    const daysSinceLast = (Date.now() - lastScraperRun) / (24 * 60 * 60 * 1000);
+    if (daysSinceLast < CRON.scraperRunEveryDays) return;
     if (scraping) return;
     scraping = true;
-    try { await runScraper(); await smartSearch(); } catch (e) { log.error('scraper failed', e); } finally { scraping = false; }
-  }, CRON.scraperInterval);
+    try { await runScraper(); await smartSearch(); lastScraperRun = Date.now(); }
+    catch (e) { log.error('scraper failed', e); }
+    finally { scraping = false; }
+  }, CRON.scraperCheckInterval);
 }
 
 export async function startCron() {

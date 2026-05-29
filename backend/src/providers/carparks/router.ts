@@ -84,7 +84,7 @@ router.get('/carparks/:id', async (req: Request, res: Response) => {
 
   res.json({
     id: cp.id, name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address,
-    agency: cp.agency, sources: cp.sources, lotTypes: cp.lotTypes,
+    agency: cp.agency, sources: cp.sources, sourceIds: cp.sourceIds, lotTypes: cp.lotTypes,
     metadata: cp.metadata,
     detailsUpdatedAt: cp.detailsUpdatedAt,
     availabilityUpdatedAt: cp.availabilityUpdatedAt,

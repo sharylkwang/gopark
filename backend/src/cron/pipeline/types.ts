@@ -37,6 +37,7 @@ export interface MergedCarpark {
   address: string;
   agency: string;
   sources: string[];
+  source_ids: Record<string, string>;
   source_count: number;
   rates: (RateEntry & { sources: string[]; confirmed_by: number })[];
   availability: Record<string, AvailabilityEntry>;
