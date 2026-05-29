@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
-import type { Carpark, DestinationPoint } from '../../types';
+import type { CarparkSummary, DestinationPoint } from '../../types';
 
 interface Props {
-  selectedId: number | null;
-  results: Carpark[];
+  selectedId: string | null;
+  results: CarparkSummary[];
   hasSearched: boolean;
   destinationPoint: DestinationPoint | null;
   userLocation?: [number, number] | null;

@@ -7,16 +7,16 @@
     "start": "tsx src/server.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.9.0",
     "axios": "^1.16.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
-    "pg": "^8.21.0",
-    "pg-format": "^1.0.4",
     "svy21": "^1.0.0",
     "tsx": "^4.19.0"
   },
   "devDependencies": {
+    "prisma": "^6.9.0",
     "typescript": "^5.8.0",
     "@types/node": "^22.0.0",
     "@types/express": "^5.0.0",
