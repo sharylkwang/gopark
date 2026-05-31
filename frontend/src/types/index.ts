@@ -51,4 +51,11 @@ export interface GeocodeResponse {
   lon: number;
 }
 
+export interface PlaceSuggestion {
+  name?: string;
+  formatted: string;
+  lat: number;
+  lon: number;
+}
+
 export type AppState = 'login' | 'user' | 'guest';
