@@ -30,6 +30,16 @@ const getCustomPin = (color: string) => {
   });
 };
 
+const getUserDot = () => {
+  return L.divIcon({
+    className: 'user-location-icon',
+    html: `<span class="user-dot-pulse"></span><span class="user-dot"></span>`,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+    popupAnchor: [0, -12],
+  });
+};
+
 interface Props {
   carparks: CarparkSummary[];
   selectedId: string | null;
@@ -78,9 +88,9 @@ export function MapView({
         )}
 
         {userLocation && (
-          <Marker 
+          <Marker
             position={userLocation}
-            icon={getCustomPin('#eab308')}
+            icon={getUserDot()}
           >
             <Popup>You are here</Popup>
           </Marker>

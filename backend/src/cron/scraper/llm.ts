@@ -5,7 +5,7 @@ import createLogger from '../../lib/logger.js';
 const log = createLogger('llm');
 
 const ZHIPUAI_KEY = process.env.ZHIPUAI_API_KEY || '';
-const ZHIPUAI_BASE = 'https://open.bigmodel.cn/api/paas/v4';
+const ZHIPUAI_BASE = 'https://api.z.ai/api/coding/paas/v4';
 const ZHIPUAI_MODEL = process.env.ZHIPUAI_MODEL || 'glm-4-flash';
 const VLLM_URL = process.env.VLLM_URL || 'http://localhost:8100/v1';
 const VLLM_MODEL = process.env.VLLM_MODEL || 'Qwen/Qwen3.5-4B';
