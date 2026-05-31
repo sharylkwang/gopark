@@ -9,3 +9,5 @@ node_modules/
 
 # Seed cache (generated at runtime)
 backend/data/
+
+data/seed.json
