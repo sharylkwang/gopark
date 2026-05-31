@@ -5,7 +5,7 @@ import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
 import { geocodeLocation, autocompleteLocation } from './providers/geoapify/geocode';
 import { fetchAll, fetchNearby, fetchDetail } from './providers/carparks';
-import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState } from './types';
+import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState, PlaceSuggestion } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
 
 const LOT_LABELS: Record<string, string> = { C: 'Car', Y: 'Motorcycle', H: 'Heavy Vehicle', S: 'Season' };
@@ -31,7 +31,7 @@ export default function GoParkApp() {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [destination, setDestination] = useState('');
-  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
   const [allCarparks, setAllCarparks] = useState<CarparkSummary[]>([]);
@@ -113,11 +113,11 @@ export default function GoParkApp() {
     }
   };
 
-  const selectSuggestion = (sugg: any) => {
+  const selectSuggestion = (sugg: PlaceSuggestion) => {
     const placeName = sugg.formatted || sugg.name || destination;
     setDestination(placeName);
     setIsDropdownOpen(false);
-    executeSearch(placeName); 
+    executeSearch(placeName);
   };
 
   const selectCarpark = async (id: string) => {
