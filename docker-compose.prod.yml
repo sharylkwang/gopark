@@ -4,16 +4,17 @@ services:
       context: .
       dockerfile: nginx/Dockerfile
     container_name: gopark-nginx
-    ports:
-      - "80:80"
+    expose:
+      - "80"
     depends_on:
       - backend
 
   backend:
     build: ./backend
     container_name: gopark-backend
+    command: sh -c "npx prisma migrate deploy && npm start"
     env_file:
-      - path: ./backend/.env
+      - path: ./.env
         required: false
     environment:
       - PORT=3000

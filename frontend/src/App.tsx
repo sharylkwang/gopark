@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Clock, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike, MapPin } from 'lucide-react';
+import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike, MapPin } from 'lucide-react';
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
@@ -175,11 +175,23 @@ export default function GoParkApp() {
                 <WeatherIcon size={14} /><span>{weather}</span>
               </button>
               {showLocationTooltip && (
-                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-lg shadow-xl border p-3 w-56 z-50">
-                  <p className="text-xs font-bold text-gray-700 mb-2">Share location for better weather?</p>
-                  <div className="flex gap-2">
-                    <button onClick={shareLocation} className="flex-1 bg-red-600 text-white text-[10px] font-black uppercase py-1.5 rounded">Share</button>
-                    <button onClick={() => setShowLocationTooltip(false)} className="flex-1 bg-gray-100 text-gray-600 text-[10px] font-black uppercase py-1.5 rounded">No</button>
+                <div className="animate-pop-in absolute top-full left-1/2 -translate-x-1/2 mt-3 bg-white rounded-2xl shadow-2xl border border-gray-100 p-4 w-64 z-50">
+                  <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-white border-l border-t border-gray-100 rotate-45" />
+                  <div className="flex items-start gap-3">
+                    <div className="relative flex-shrink-0 mt-0.5">
+                      <span className="absolute inset-0 rounded-full bg-red-400 location-ping" />
+                      <span className="relative flex items-center justify-center w-8 h-8 rounded-full bg-red-600 text-white">
+                        <Navigation size={15} className="fill-white" />
+                      </span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-sm font-black text-gray-800 leading-tight">Use your location?</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">Weather and carparks for exactly where you are.</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-2 mt-3">
+                    <button onClick={shareLocation} className="flex-1 bg-gradient-to-r from-red-600 to-rose-500 text-white text-[11px] font-black uppercase tracking-wide py-2 rounded-xl shadow-sm hover:shadow-md hover:brightness-110 active:scale-95 transition">Allow</button>
+                    <button onClick={() => setShowLocationTooltip(false)} className="px-3 bg-gray-100 text-gray-500 text-[11px] font-black uppercase tracking-wide py-2 rounded-xl hover:bg-gray-200 active:scale-95 transition">Not now</button>
                   </div>
                 </div>
               )}

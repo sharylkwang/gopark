@@ -3,9 +3,47 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
+  verify:
+    runs-on: [self-hosted, nas]
+    env:
+      GEOAPIFY_KEY: ${{ secrets.GEOAPIFY_KEY }}
+      DATAGOVSG_KEY: ${{ secrets.DATAGOVSG_KEY }}
+      DATAMALL_API: ${{ secrets.DATAMALL_API }}
+      GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
+      ZHIPUAI_API_KEY: ${{ secrets.ZHIPUAI_API_KEY }}
+      ZHIPUAI_MODEL: ${{ vars.ZHIPUAI_MODEL }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify API keys
+        run: >
+          docker run --rm -i
+          -e GEOAPIFY_KEY -e DATAGOVSG_KEY -e DATAMALL_API -e GOOGLE_MAPS_KEY -e ZHIPUAI_API_KEY -e ZHIPUAI_MODEL
+          node:22-alpine node --input-type=module < scripts/verify-keys.mjs
+
   deploy:
+    needs: verify
     runs-on: [self-hosted, nas]
     steps:
       - uses: actions/checkout@v4
-      - run: docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATAGOVSG_KEY=${{ secrets.DATAGOVSG_KEY }}
+          GEOAPIFY_KEY=${{ secrets.GEOAPIFY_KEY }}
+          GOOGLE_MAPS_KEY=${{ secrets.GOOGLE_MAPS_KEY }}
+          DATAMALL_API=${{ secrets.DATAMALL_API }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          ZHIPUAI_API_KEY=${{ secrets.ZHIPUAI_API_KEY }}
+          CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          HF_TOKEN=${{ secrets.HF_TOKEN }}
+          ZHIPUAI_MODEL=${{ vars.ZHIPUAI_MODEL }}
+          VLLM_URL=${{ vars.VLLM_URL }}
+          VLLM_MODEL=${{ vars.VLLM_MODEL }}
+          LOG_LEVEL=${{ vars.LOG_LEVEL }}
+          EOF
+      - run: docker compose -f docker-compose.prod.yml up -d --build
