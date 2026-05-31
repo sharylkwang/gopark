@@ -20,10 +20,13 @@ model Carpark {
   metadata              Json     @default("{}")
   detailsUpdatedAt      DateTime @default(now()) @map("details_updated_at")
   availabilityUpdatedAt DateTime @default(now()) @map("availability_updated_at")
+  active                Boolean  @default(true)
+  scrapeMisses          Int      @default(0) @map("scrape_misses")
 
   rates        Rate[]
   availability Availability[]
 
+  @@index([active])
   @@map("carparks")
 }
 
