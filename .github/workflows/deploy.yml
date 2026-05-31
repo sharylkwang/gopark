@@ -3,9 +3,29 @@ on:
   push:
     branches: [main]
 
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: false
+
 jobs:
   deploy:
     runs-on: [self-hosted, nas]
     steps:
       - uses: actions/checkout@v4
+      - name: Write .env
+        run: |
+          cat > .env <<'EOF'
+          DATAGOVSG_KEY=${{ secrets.DATAGOVSG_KEY }}
+          GEOAPIFY_KEY=${{ secrets.GEOAPIFY_KEY }}
+          GOOGLE_MAPS_KEY=${{ secrets.GOOGLE_MAPS_KEY }}
+          DATAMALL_API=${{ secrets.DATAMALL_API }}
+          DATABASE_URL=${{ secrets.DATABASE_URL }}
+          ZHIPUAI_API_KEY=${{ secrets.ZHIPUAI_API_KEY }}
+          CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          HF_TOKEN=${{ secrets.HF_TOKEN }}
+          ZHIPUAI_MODEL=${{ vars.ZHIPUAI_MODEL }}
+          VLLM_URL=${{ vars.VLLM_URL }}
+          VLLM_MODEL=${{ vars.VLLM_MODEL }}
+          LOG_LEVEL=${{ vars.LOG_LEVEL }}
+          EOF
       - run: docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
