@@ -20,6 +20,8 @@ services:
       - PORT=3000
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:password123@gopark:5432/gopark
+    volumes:
+      - ./data:/app/data
     depends_on:
       gopark:
         condition: service_healthy
