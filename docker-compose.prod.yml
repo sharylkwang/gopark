@@ -10,7 +10,9 @@ services:
       - backend
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.prod
     container_name: gopark-backend
     command: sh -c "npx prisma migrate deploy && npm start"
     env_file:
@@ -20,8 +22,6 @@ services:
       - PORT=3000
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:password123@gopark:5432/gopark
-    volumes:
-      - ./data:/app/data
     depends_on:
       gopark:
         condition: service_healthy
