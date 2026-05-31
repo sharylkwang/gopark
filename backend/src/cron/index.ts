@@ -8,6 +8,7 @@ import { fetchDatamall } from './providers/datamall.js';
 import { fetchLocations, fetchDump, fetchRates } from './providers/parkaholic.js';
 import { fetchSgcarmart } from './providers/sgcarmart.js';
 import { runScraper, smartSearch } from './scraper/index.js';
+import { applyScraped } from './scraper/apply.js';
 import { seedExists, loadSeed, saveSeed, exportDb } from './seed.js';
 
 const log = createLogger('cron');
@@ -181,7 +182,11 @@ function schedule() {
     if (daysSinceLast < CRON.scraperRunEveryDays) return;
     if (scraping) return;
     scraping = true;
-    try { await runScraper(); await smartSearch(); lastScraperRun = Date.now(); }
+    try {
+      const results = [...await runScraper(), ...await smartSearch()];
+      await applyScraped(results);
+      lastScraperRun = Date.now();
+    }
     catch (e) { log.error('scraper failed', e); }
     finally { scraping = false; }
   }, CRON.scraperCheckInterval);
