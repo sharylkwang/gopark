@@ -51,10 +51,11 @@ router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
       return;
     }
 
+    // Call Geoapify's autocomplete endpoint
     const response = await axios.get('https://api.geoapify.com/v1/geocode/autocomplete', {
       params: {
         text: q,
-        filter: 'countrycode:sg', 
+        filter: 'countrycode:sg', // This locks the suggestions strictly to Singapore
         format: 'json',
         apiKey: process.env.GEOAPIFY_KEY,
       },
