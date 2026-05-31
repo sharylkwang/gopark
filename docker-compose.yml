@@ -63,8 +63,6 @@ services:
     image: cloudflare/cloudflared:latest
     container_name: gopark-cloudflared
     restart: unless-stopped
-    profiles:
-      - tunnel
     command: tunnel --no-autoupdate run
     environment:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
