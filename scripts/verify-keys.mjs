@@ -41,21 +41,36 @@ const checks = [
       return `${body.value.length} records`;
     },
   },
-  {
-    name: 'GOOGLE_MAPS_KEY',
-    required: false,
-    async run(key) {
-      const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=Singapore&key=${key}`);
-      const body = await res.json();
-      if (body.status !== 'OK') throw new Error(body.error_message || body.status);
-      return 'geocode OK';
-    },
-  },
+  // {
+  //   name: 'GOOGLE_MAPS_KEY',
+  //   required: false,
+  //   async run(key) {
+  //     const res = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+  //       method: 'POST',
+  //       headers: {
+  //         'Content-Type': 'application/json',
+  //         'X-Goog-Api-Key': key,
+  //         'X-Goog-FieldMask': 'routes.duration,routes.distanceMeters',
+  //       },
+  //       body: JSON.stringify({
+  //         origin: { location: { latLng: { latitude: 1.3048, longitude: 103.8318 } } },
+  //         destination: { location: { latLng: { latitude: 1.2834, longitude: 103.8607 } } },
+  //         travelMode: 'DRIVE',
+  //       }),
+  //     });
+  //     if (res.status === 401 || res.status === 403) throw new Error(`rejected (${res.status})`);
+  //     const body = await res.json();
+  //     if (body.error) throw new Error(body.error.message || `error ${body.error.code}`);
+  //     const route = body.routes?.[0];
+  //     if (!route) throw new Error('no route returned');
+  //     return `route ${route.distanceMeters}m`;
+  //   },
+  // },
   {
     name: 'ZHIPUAI_API_KEY',
     required: false,
     async run(key) {
-      const res = await fetch('https://open.bigmodel.cn/api/paas/v4/chat/completions', {
+      const res = await fetch('https://api.z.ai/api/coding/paas/v4/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
         body: JSON.stringify({

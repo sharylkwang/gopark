@@ -10,7 +10,9 @@ services:
       - backend
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: backend/Dockerfile.prod
     container_name: gopark-backend
     command: sh -c "npx prisma migrate deploy && npm start"
     env_file:

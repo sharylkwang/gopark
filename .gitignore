@@ -11,4 +11,4 @@ node_modules/
 backend/data/
 backend/prisma/migrations
 
-data/seed.json
+# data/seed.json
