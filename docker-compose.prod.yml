@@ -13,7 +13,7 @@ services:
     build: ./backend
     container_name: gopark-backend
     env_file:
-      - path: ./backend/.env
+      - path: ./.env
         required: false
     environment:
       - PORT=3000
