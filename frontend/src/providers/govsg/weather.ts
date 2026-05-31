@@ -1,4 +1,6 @@
-import { Sun, CloudRain, CloudLightning, Cloud, CloudSun, Moon, CloudMoon } from 'lucide-react';
+import { Sun, CloudRain, CloudLightning, Cloud, CloudSun } from 'lucide-react';
+
+const stripDayNight = (forecast: string) => forecast.replace(/\s*\((day|night)\)/i, '').trim();
 
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const dLat = ((lat2 - lat1) * Math.PI) / 180;
@@ -29,7 +31,7 @@ function findClosestForecast(data: any, lat: number, lng: number): string {
     }
   });
   const forecastObj = data.items[0].forecasts.find((f: any) => f.area === closestArea);
-  return forecastObj ? forecastObj.forecast : 'Fair';
+  return forecastObj ? stripDayNight(forecastObj.forecast) : 'Fair';
 }
 
 export async function getWeatherForCoords(lat: number, lng: number): Promise<string> {
@@ -63,8 +65,7 @@ export const getIconForWeather = (forecast: string) => {
   const f = forecast.toLowerCase();
   if (f.includes('rain') || f.includes('shower')) return CloudRain;
   if (f.includes('thundery')) return CloudLightning;
-  if (f.includes('partly cloudy')) return f.includes('night') ? CloudMoon : CloudSun;
+  if (f.includes('partly cloudy')) return CloudSun;
   if (f.includes('cloud')) return Cloud;
-  if (f.includes('night')) return Moon;
   return Sun;
 };
