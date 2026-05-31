@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Clock, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike, MapPin } from 'lucide-react';
+import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike, MapPin } from 'lucide-react';
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
