@@ -23,6 +23,18 @@ services:
       gopark:
         condition: service_healthy
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: gopark-cloudflared
+    restart: unless-stopped
+    profiles:
+      - tunnel
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - nginx
+
   gopark:
     image: postgres:15-alpine
     container_name: gopark
@@ -40,5 +52,45 @@ services:
       timeout: 5s
       retries: 5
 
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: gopark-vllm
+    restart: unless-stopped
+    profiles:
+      - gpu
+    ipc: host
+    shm_size: "16g"
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    volumes:
+      - model-cache:/root/.cache/huggingface
+    ports:
+      - "8100:8000"
+    command: >
+      --model ${VLLM_MODEL:-Qwen/Qwen3.5-4B}
+      --host 0.0.0.0
+      --port 8000
+      --max-model-len 32768
+      --gpu-memory-utilization 0.85
+      --max-num-seqs 16
+      --dtype auto
+      --trust-remote-code
+      --enforce-eager
+      --enable-prefix-caching
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
 volumes:
   pgdata:
+  model-cache:
