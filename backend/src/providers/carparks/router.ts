@@ -30,7 +30,7 @@ function formatCarpark(cp: { id: string; name: string; lat: number; lng: number;
 }
 
 router.get('/carparks', async (_req: Request, res: Response) => {
-  const rows = await prisma.carpark.findMany({ select: LIST_SELECT });
+  const rows = await prisma.carpark.findMany({ where: { active: true }, select: LIST_SELECT });
   res.json(rows.map(formatCarpark));
 });
 
@@ -45,7 +45,7 @@ router.get('/carparks/nearby', async (req: Request, res: Response) => {
     return;
   }
 
-  const rows = await prisma.carpark.findMany({ select: LIST_SELECT });
+  const rows = await prisma.carpark.findMany({ where: { active: true }, select: LIST_SELECT });
   const nearby = rows
     .map(cp => ({ ...formatCarpark(cp), distance: Math.round(haversine(lat, lng, cp.lat, cp.lng)) }))
     .filter(cp => cp.distance <= radius)
