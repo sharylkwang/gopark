@@ -11,6 +11,25 @@ import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import type { CarparkSummary, DestinationPoint } from '../../types';
 import type { MapEventHandlers } from '../../types/map';
 
+const getCustomPin = (color: string) => {
+  return L.divIcon({
+    className: 'bg-transparent',
+    html: `<div style="
+      background-color: ${color};
+      width: 30px;
+      height: 30px;
+      border-radius: 50% 50% 50% 0;
+      transform: rotate(-45deg);
+      border: 3px solid white;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.4);
+      transition: all 0.2s ease;
+    "></div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+    popupAnchor: [0, -32]
+  });
+};
+
 interface Props {
   carparks: CarparkSummary[];
   selectedId: string | null;
@@ -50,15 +69,19 @@ export function MapView({
         {eventHandlers && <EventHandler {...eventHandlers} />}
 
         {destinationPoint && (
-          <Marker position={[destinationPoint.lat, destinationPoint.lng]}>
+          <Marker 
+            position={[destinationPoint.lat, destinationPoint.lng]}
+            icon={getCustomPin('#16a34a')} 
+          >
             <Popup><strong>{destinationPoint.name}</strong><br />{destinationPoint.formatted}</Popup>
           </Marker>
         )}
 
         {userLocation && (
-          <Marker position={userLocation}
-            icon={L.divIcon({ className: '', iconSize: [16, 16],
-              html: `<div style="background:#3b82f6;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 5px rgba(0,0,0,0.5)"></div>` })}>
+          <Marker 
+            position={userLocation}
+            icon={getCustomPin('#eab308')}
+          >
             <Popup>You are here</Popup>
           </Marker>
         )}
