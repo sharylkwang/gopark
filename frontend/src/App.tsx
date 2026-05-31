@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Clock, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike } from 'lucide-react';
+import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Clock, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike, MapPin } from 'lucide-react';
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
-import { geocodeLocation } from './providers/geoapify';
+import { geocodeLocation, autocompleteLocation } from './providers/geoapify/geocode';
 import { fetchAll, fetchNearby, fetchDetail } from './providers/carparks';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
@@ -31,6 +31,8 @@ export default function GoParkApp() {
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [destination, setDestination] = useState('');
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
   const [allCarparks, setAllCarparks] = useState<CarparkSummary[]>([]);
   const [searchResults, setSearchResults] = useState<CarparkSummary[]>([]);
@@ -64,16 +66,40 @@ export default function GoParkApp() {
     }, () => setShowLocationTooltip(false));
   };
 
-  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const executeSearch = async (query: string) => {
     setLoading(true);
     try {
-      const place = await geocodeLocation(destination);
-      setDestinationPoint({ name: place.name || destination, formatted: place.formatted, lat: place.lat, lng: place.lon });
+      const place = await geocodeLocation(query);
+      setDestinationPoint({ name: place.name || query, formatted: place.formatted, lat: place.lat, lng: place.lon });
       setSearchResults(await fetchNearby(place.lat, place.lon, 2000));
       setHasSearched(true); setSelectedId(null); setDetail(null);
     } catch { alert('Could not find destination'); }
     finally { setLoading(false); }
+  };
+
+  const handleSearch = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    await executeSearch(destination);
+  };
+
+  const handleDestinationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setDestination(val);
+    
+    if (val.length > 2) {
+      const suggs = await autocompleteLocation(val);
+      setSuggestions(suggs);
+      setIsDropdownOpen(true);
+    } else {
+      setIsDropdownOpen(false);
+    }
+  };
+
+  const selectSuggestion = (sugg: any) => {
+    const placeName = sugg.formatted || sugg.name || destination;
+    setDestination(placeName);
+    setIsDropdownOpen(false);
+    executeSearch(placeName); 
   };
 
   const selectCarpark = async (id: string) => {
@@ -148,22 +174,31 @@ export default function GoParkApp() {
 
           <div className="p-4 bg-white border-b border-gray-200 shrink-0">
             <form onSubmit={handleSearch} className="space-y-3">
-              <div>
+              <div className="relative">
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Destination</label>
                 <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-2.5 focus-within:border-red-500 transition">
                   <Search className="text-red-500 mr-2 shrink-0" size={18} />
-                  <input required type="text" value={destination} onChange={e => setDestination(e.target.value)}
+                  <input required type="text" value={destination} onChange={handleDestinationChange}
+                    onFocus={() => destination.length > 2 && setIsDropdownOpen(true)}
+                    onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
                     placeholder="e.g. Orchard Gateway" className="bg-transparent w-full outline-none text-sm font-bold text-gray-800 placeholder-gray-400" />
                 </div>
+                {isDropdownOpen && suggestions.length > 0 && (
+                  <ul className="absolute top-full left-0 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-2xl z-50 max-h-60 overflow-y-auto">
+                    {suggestions.map((sugg, idx) => (
+                      <li 
+                        key={idx} 
+                        onClick={() => selectSuggestion(sugg)}
+                        className="px-4 py-3 hover:bg-red-50 cursor-pointer border-b border-gray-100 last:border-0 text-sm font-bold text-gray-700 flex items-center gap-2"
+                      >
+                        <MapPin size={14} className="text-red-400 flex-shrink-0" />
+                        <span className="truncate">{sugg.formatted || sugg.name}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
               <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Arrival</label>
-                  <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-2.5">
-                    <Clock className="text-red-500 mr-2" size={16} />
-                    <input required type="time" defaultValue="14:00" className="bg-transparent w-full outline-none text-sm font-bold text-gray-800" />
-                  </div>
-                </div>
                 <div className="flex-1">
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Duration</label>
                   <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-2.5">
