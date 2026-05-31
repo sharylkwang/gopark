@@ -41,40 +41,40 @@
 ## Features
 
 ### Frontend
-- **Destination Search** — geocode any Singapore address via Geoapify and find the closest carparks
-- **Carpark Comparison** — view pricing (weekday/weekend), available lots, walk time, and rate type at a glance
-- **Interactive Map** — Leaflet-based map with pin markers, popups, and smooth fly-to animations
-- **Multiple Map Styles** — switch between OneMap, OpenStreetMap, Google Roads, Google Hybrid, and 3D building views
-- **3D Buildings** — OSMBuildings overlay with click-to-highlight, powered by Overpass API
-- **Live Weather** — real-time 2-hour forecast from data.gov.sg, with optional precise location via tooltip
-- **Geolocation** — auto-detect your position, fly to it on load, and display a blue marker
-- **Collapsible Sidebar** — full-screen map with an overlay sidebar, responsive on mobile
-- **Layer Switcher** — split panel for map providers (top) and feature toggles (bottom)
+- **Destination Search** - geocode any Singapore address via Geoapify and find the closest carparks
+- **Carpark Comparison** - view pricing (weekday/weekend), available lots, walk time, and rate type at a glance
+- **Interactive Map** - Leaflet-based map with pin markers, popups, and smooth fly-to animations
+- **Multiple Map Styles** - switch between OneMap, OpenStreetMap, Google Roads, Google Hybrid, and 3D building views
+- **3D Buildings** - OSMBuildings overlay with click-to-highlight, powered by Overpass API
+- **Live Weather** - real-time 2-hour forecast from data.gov.sg, with optional precise location via tooltip
+- **Geolocation** - auto-detect your position, fly to it on load, and display a blue marker
+- **Collapsible Sidebar** - full-screen map with an overlay sidebar, responsive on mobile
+- **Layer Switcher** - split panel for map providers (top) and feature toggles (bottom)
 
 ### Backend
-- **Data Pipeline** — merges carpark data from 6+ sources (Gov, DataMall, Parkaholic, SGCarMart, OneMotooring, GetGo, SgBikes)
-- **Cron Jobs** — scheduled data fetching with three intervals:
+- **Data Pipeline** - merges carpark data from 6+ sources (Gov, DataMall, Parkaholic, SGCarMart, OneMotooring, GetGo, SgBikes)
+- **Cron Jobs** - scheduled data fetching with three intervals:
   - Availability refresh: every 2 minutes (Gov, DataMall, Parkaholic)
   - Full merge: every 6 hours (all sources)
   - Scraper: every 30 days (web page discovery + extraction)
-- **AI Scraper** — LLM-powered parking rate extraction from web pages
+- **AI Scraper** - LLM-powered parking rate extraction from web pages
   - DuckDuckGo search for page discovery (not hardcoded URLs)
   - Page cache with SHA-256 change detection
   - 30-day recheck cycle, 6-month stale purge with automatic re-search
   - Supports Z.AI GLM (cloud) or local vLLM as LLM backend
-- **Rate Parser** — converts free-text rate strings into structured entries with amount, duration, time periods, vehicle types
-- **Proximity Matching** — matches carparks across sources using coordinate distance (~111m threshold)
-- **Name Matching** — fuzzy substring matching for scraped rate data against existing carparks
-- **Multi-Source Confirmation** — rates found in multiple sources are flagged with `confirmed_by` count
-- **Structured Logger** — tagged log levels (debug/info/warn/error) with timestamps, configurable via `LOG_LEVEL`
+- **Rate Parser** - converts free-text rate strings into structured entries with amount, duration, time periods, vehicle types
+- **Proximity Matching** - matches carparks across sources using coordinate distance (~111m threshold)
+- **Name Matching** - fuzzy substring matching for scraped rate data against existing carparks
+- **Multi-Source Confirmation** - rates found in multiple sources are flagged with `confirmed_by` count
+- **Structured Logger** - tagged log levels (debug/info/warn/error) with timestamps, configurable via `LOG_LEVEL`
 
 ### Database (Prisma + PostgreSQL)
-- **carparks** — unified entries with lat/lng, sources array, JSONB metadata
-- **rates** — parsed rate entries with vehicle type, day type, time periods, multi-source tracking
-- **availability** — live lot counts per carpark per lot type (Car/Motorcycle/Heavy/Season)
-- **scraped_pages** — cached scraper results with change detection
-- **scraper_domains** — configurable domains for the AI scraper to search
-- **seed_status** — gates cron jobs until initial seed is complete
+- **carparks** - unified entries with lat/lng, sources array, JSONB metadata
+- **rates** - parsed rate entries with vehicle type, day type, time periods, multi-source tracking
+- **availability** - live lot counts per carpark per lot type (Car/Motorcycle/Heavy/Season)
+- **scraped_pages** - cached scraper results with change detection
+- **scraper_domains** - configurable domains for the AI scraper to search
+- **seed_status** - gates cron jobs until initial seed is complete
 
 ---
 
