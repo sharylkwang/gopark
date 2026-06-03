@@ -46,4 +46,7 @@ jobs:
           VLLM_MODEL=${{ vars.VLLM_MODEL }}
           LOG_LEVEL=${{ vars.LOG_LEVEL }}
           EOF
-      - run: docker compose -f docker-compose.prod.yml up -d --build
+      - name: Deploy
+        run: |
+          docker compose -f docker-compose.prod.yml down --remove-orphans || true
+          docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
