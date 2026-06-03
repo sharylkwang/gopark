@@ -9,7 +9,7 @@ export const TIMEOUTS = {
   api: 30000,
   scrapeSearch: 30000,
   scrapeFetch: 30000,
-  llmExtract: 120000,
+  llmExtract: 240000,
   llmHealthCheck: 5000,
   sgcarmart: 30000,
   datamall: 30000,
@@ -21,7 +21,7 @@ export const SCRAPER = {
   staleMonths: 1,
   dropAfterMisses: 50,
   maxSearchResults: 10,
-  maxPageContentChars: 28000,
+  maxPageContentChars: 192000,
   domains: [
     {
       domain: 'onemotoring.lta.gov.sg',
