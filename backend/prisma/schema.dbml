@@ -1,0 +1,79 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table carparks {
+  id String [pk]
+  name String [not null]
+  lat Float [not null]
+  lng Float [not null]
+  address String [not null, default: '']
+  agency String [not null, default: '']
+  sources String[] [not null]
+  sourceIds Json [not null, default: '{}']
+  lotTypes String [not null, default: '']
+  metadata Json [not null, default: '{}']
+  detailsUpdatedAt DateTime [default: `now()`, not null]
+  availabilityUpdatedAt DateTime [default: `now()`, not null]
+  active Boolean [not null, default: true]
+  scrapeMisses Int [not null, default: 0]
+  rates rates [not null]
+  availability availability [not null]
+}
+
+Table rates {
+  id Int [pk, increment]
+  carparkId String [not null]
+  amount Decimal [not null]
+  durationMins Int
+  unit String [not null, default: 'flat']
+  vehicleType String [not null, default: 'C']
+  periodStart String
+  periodEnd String
+  isFirst Boolean [not null, default: false]
+  dayType String [not null, default: 'all']
+  sources String[] [not null]
+  carpark carparks [not null]
+
+  indexes {
+    (carparkId, amount, durationMins, vehicleType, dayType, periodStart, periodEnd) [unique]
+  }
+}
+
+Table availability {
+  carparkId String [not null]
+  lotType String [not null, default: 'C']
+  available Int
+  total Int
+  updatedAt DateTime [default: `now()`, not null]
+  carpark carparks [not null]
+
+  indexes {
+    (carparkId, lotType) [pk]
+  }
+}
+
+Table scraped_pages {
+  id Int [pk, increment]
+  url String [unique, not null]
+  domain String [not null]
+  source String [not null]
+  dataHash String [not null, default: '']
+  carparks Int [not null, default: 0]
+  lastScraped DateTime [not null]
+  lastChanged DateTime [not null]
+  createdAt DateTime [default: `now()`, not null]
+}
+
+Table scraper_domains {
+  id Int [pk, increment]
+  domain String [unique, not null]
+  searchQuery String [not null]
+  prompt String [not null]
+  active Boolean [not null, default: true]
+  lastSearched DateTime
+}
+
+Ref: rates.carparkId > carparks.id [delete: Cascade]
+
+Ref: availability.carparkId > carparks.id [delete: Cascade]
