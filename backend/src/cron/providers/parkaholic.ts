@@ -6,6 +6,11 @@ const LOC_URL = 'https://parkaholic.sg/data.json';
 const DUMP_URL = 'https://parkaholic.sg/api/dump';
 const RATE_URL = 'https://parkaholic.sg/api/history';
 
+const SG_LAT_MIN = 1.15;
+const SG_LAT_MAX = 1.47;
+const SG_LNG_MIN = 103.59;
+const SG_LNG_MAX = 104.12;
+
 export async function fetchLocations(): Promise<CarparkRecord[]> {
   const { data } = await axios.get(LOC_URL, { timeout: TIMEOUTS.api });
   const out: CarparkRecord[] = [];
@@ -14,7 +19,7 @@ export async function fetchLocations(): Promise<CarparkRecord[]> {
     const parts = ((info.Location as string) ?? '').split(' ');
     if (parts.length !== 2) continue;
     const lat = parseFloat(parts[0]), lng = parseFloat(parts[1]);
-    if (isNaN(lat) || isNaN(lng) || lat < 1.15 || lat > 1.47 || lng < 103.59 || lng > 104.12) continue;
+    if (isNaN(lat) || isNaN(lng) || lat < SG_LAT_MIN || lat > SG_LAT_MAX || lng < SG_LNG_MIN || lng > SG_LNG_MAX) continue;
 
     const lots = (info.LotType as string[]) ?? [];
     out.push({
