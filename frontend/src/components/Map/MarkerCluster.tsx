@@ -85,7 +85,7 @@ export function MarkerCluster({ carparks, selectedId, onSelect }: Props) {
     clusterRef.current = cluster;
 
     return () => { map.removeLayer(cluster); clusterRef.current = null; };
-  }, [carparks, onSelect, map]);
+  }, [carparks, selectedId, onSelect, map]);
 
   return null;
 }
