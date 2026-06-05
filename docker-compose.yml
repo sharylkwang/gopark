@@ -59,6 +59,16 @@ services:
       timeout: 5s
       retries: 5
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: gopark-cloudflared
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - nginx
+
   vllm:
     image: vllm/vllm-openai:latest
     container_name: gopark-vllm
