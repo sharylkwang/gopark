@@ -87,7 +87,11 @@ export function MapView({
         )}
 
         {carparks.length > 0 && (
-          <MarkerCluster carparks={carparks} onSelect={onSelectCarpark} />
+          <MarkerCluster 
+            carparks={carparks} 
+            selectedId={selectedId} 
+            onSelect={onSelectCarpark} 
+          />
         )}
       </MapContainer>
 
