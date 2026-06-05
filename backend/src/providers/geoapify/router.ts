@@ -51,11 +51,10 @@ router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
       return;
     }
 
-    // Call Geoapify's autocomplete endpoint
     const response = await axios.get('https://api.geoapify.com/v1/geocode/autocomplete', {
       params: {
         text: q,
-        filter: 'countrycode:sg', // This locks the suggestions strictly to Singapore
+        filter: 'countrycode:sg',
         format: 'json',
         apiKey: process.env.GEOAPIFY_KEY,
       },
@@ -64,7 +63,7 @@ router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
     res.json(response.data?.results || []);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Autocomplete API error:', message);
+    log.error(`autocomplete API error: ${message}`);
     res.status(500).json({ error: 'Failed to fetch autocomplete suggestions' });
   }
 });

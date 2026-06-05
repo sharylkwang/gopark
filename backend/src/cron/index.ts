@@ -8,6 +8,7 @@ import { fetchDatamall } from './providers/datamall.js';
 import { fetchLocations, fetchDump, fetchRates } from './providers/parkaholic.js';
 import { fetchSgcarmart } from './providers/sgcarmart.js';
 import { runScraper, smartSearch } from './scraper/index.js';
+import { applyScraped } from './scraper/apply.js';
 import { seedExists, loadSeed, saveSeed, exportDb } from './seed.js';
 
 const log = createLogger('cron');
@@ -46,6 +47,35 @@ async function upsert(carparks: MergedCarpark[]) {
     }
   }
   log.info(`upserted ${carparks.length} carparks`);
+}
+
+function chunk<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out;
+}
+
+async function bulkInsert(carparks: MergedCarpark[]) {
+  const now = new Date();
+  const carparkRows = carparks.map(cp => ({
+    id: cp.id, name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency,
+    sources: cp.sources, sourceIds: cp.source_ids, lotTypes: cp.lot_types, metadata: cp.metadata,
+    detailsUpdatedAt: now, availabilityUpdatedAt: now,
+  }));
+  const rateRows = carparks.flatMap(cp => cp.rates.map(r => ({
+    carparkId: cp.id, amount: r.amount, durationMins: r.duration_mins, unit: r.unit,
+    vehicleType: r.vehicle_type, periodStart: r.period_start, periodEnd: r.period_end,
+    isFirst: r.is_first, dayType: r.day_type, sources: r.sources,
+  })));
+  const availabilityRows = carparks.flatMap(cp => Object.entries(cp.availability).map(([lt, e]) => ({
+    carparkId: cp.id, lotType: lt, available: e.available, total: e.total,
+  })));
+
+  for (const batch of chunk(carparkRows, 2000)) await prisma.carpark.createMany({ data: batch, skipDuplicates: true });
+  for (const batch of chunk(rateRows, 2000)) await prisma.rate.createMany({ data: batch, skipDuplicates: true });
+  for (const batch of chunk(availabilityRows, 2000)) await prisma.availability.createMany({ data: batch, skipDuplicates: true });
+
+  log.info(`bulk inserted ${carparkRows.length} carparks, ${rateRows.length} rates, ${availabilityRows.length} availability`);
 }
 
 async function refreshAvailability() {
@@ -125,7 +155,7 @@ async function bootstrap() {
 
   if (seedExists()) {
     log.info('loading seed cache');
-    await upsert(await loadSeed());
+    await bulkInsert(await loadSeed());
   } else {
     log.info('no seed cache, running initial merge');
     await fullMerge();
@@ -152,7 +182,11 @@ function schedule() {
     if (daysSinceLast < CRON.scraperRunEveryDays) return;
     if (scraping) return;
     scraping = true;
-    try { await runScraper(); await smartSearch(); lastScraperRun = Date.now(); }
+    try {
+      const results = [...await runScraper(), ...await smartSearch()];
+      await applyScraped(results);
+      lastScraperRun = Date.now();
+    }
     catch (e) { log.error('scraper failed', e); }
     finally { scraping = false; }
   }, CRON.scraperCheckInterval);

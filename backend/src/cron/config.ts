@@ -19,6 +19,7 @@ export const TIMEOUTS = {
 export const SCRAPER = {
   recheckDays: 30,
   staleMonths: 1,
+  dropAfterMisses: 50,
   maxSearchResults: 10,
   maxPageContentChars: 28000,
   domains: [
