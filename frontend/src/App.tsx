@@ -35,6 +35,7 @@ export default function GoParkApp() {
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
+  const [durationHours, setDurationHours] = useState<number>(1);
   const [allCarparks, setAllCarparks] = useState<CarparkSummary[]>([]);
   const [searchResults, setSearchResults] = useState<CarparkSummary[]>([]);
   const [detail, setDetail] = useState<CarparkDetail | null>(null);
@@ -437,16 +438,30 @@ export default function GoParkApp() {
               <div className="flex gap-2">
                 <div className="flex-1">
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Duration</label>
-                  <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-2.5">
-                    <Calendar className="text-red-500 mr-2" size={16} />
-                    <select className="bg-transparent w-full outline-none text-sm font-bold text-gray-800 appearance-none">
-                      <option>1 Hour</option><option>2 Hours</option><option>3 Hours</option><option>4+ Hours</option>
+                  <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-2.5 focus-within:border-red-500 transition">
+                    <Calendar className="text-red-500 mr-2 shrink-0" size={16} />
+                    <select 
+                      value={durationHours}
+                      onChange={(e) => setDurationHours(Number(e.target.value))}
+                      className="bg-transparent w-full outline-none text-sm font-bold text-gray-800 appearance-none cursor-pointer"
+                    >
+                      <option value={0.5}>30 Minutes</option>
+                      <option value={1}>1 Hour</option>
+                      <option value={1.5}>1.5 Hours</option>
+                      <option value={2}>2 Hours</option>
+                      <option value={2.5}>2.5 Hours</option>
+                      <option value={3}>3 Hours</option>
+                      <option value={4}>4 Hours</option>
+                      <option value={5}>5 Hours</option>
+                      <option value={12}>12 Hours</option>
+                      <option value={24}>24 Hours (Full Day)</option>
                     </select>
                   </div>
                 </div>
               </div>
               <button type="submit" disabled={loading}
-                className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded-lg shadow-[0_4px_0_rgb(180,140,0)] active:shadow-none active:translate-y-1 transition text-sm disabled:opacity-50">
+                className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded-lg shadow-[0_4px_0_rgb(180,140,0)] active:shadow-none active:translate-y-1 transition text-sm disabled:opacity-50"
+              >
                 {loading ? 'Searching...' : 'Find Parking'}
               </button>
             </form>
