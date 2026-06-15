@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike, MapPin, Eye, EyeOff } from 'lucide-react';
+import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, Calendar, Menu, X, ChevronLeft, Car, Bike, MapPin, Eye, EyeOff, Map } from 'lucide-react';
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
@@ -533,6 +533,24 @@ export default function GoParkApp() {
                 {detail.sources.map(s => (
                   <span key={s} className="text-[9px] font-black uppercase tracking-wider bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">{s}</span>
                 ))}
+              </div>
+              <div className="flex gap-2 mt-4">
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(detail.address || detail.name + ' Singapore')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg flex items-center justify-center gap-1.5 transition"
+                >
+                  <Map size={14} /> Google Maps
+                </a>
+                <a
+                  href={`https://waze.com/ul?q=${encodeURIComponent(detail.address || detail.name + ' Singapore')}&navigate=yes`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 bg-cyan-50 hover:bg-cyan-100 text-cyan-600 border border-cyan-200 font-black text-[10px] uppercase tracking-widest py-2 rounded-lg flex items-center justify-center gap-1.5 transition"
+                >
+                  <Navigation size={14} /> Waze
+                </a>
               </div>
             </div>
 
