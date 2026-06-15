@@ -7,7 +7,7 @@ import { geocodeLocation, autocompleteLocation } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail } from './providers/carparks';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState, PlaceSuggestion } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
-import { loginUser } from './providers/auth';
+import { loginUser, registerUser } from './providers/auth';
 
 const LOT_LABELS: Record<string, string> = { C: 'Car', Y: 'Motorcycle', H: 'Heavy Vehicle', S: 'Season' };
 const LOT_ICONS: Record<string, typeof Car> = { C: Car, Y: Bike };
@@ -51,6 +51,8 @@ export default function GoParkApp() {
   const [showPassword, setShowPassword] = useState(false);
   const [authError, setAuthError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [username, setUsername] = useState('');
+  const [isLoginView, setIsLoginView] = useState(true);
 
   useEffect(() => { getWeatherByIP().then(({ forecast }) => setWeather(forecast)); }, []);
   useEffect(() => { fetchAll().then(setAllCarparks).catch(() => {}); }, []);
@@ -63,17 +65,29 @@ export default function GoParkApp() {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     setIsLoggingIn(true);
 
+    if (!isLoginView) {
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+      if (!passwordRegex.test(password)) {
+        setAuthError('Password must be at least 8 characters and include both letters and numbers.');
+        setIsLoggingIn(false);
+        return; 
+      }
+    }
+
     try {
-      const data = await loginUser(email, password);
+      const data = isLoginView 
+        ? await loginUser(email, password)
+        : await registerUser(username, email, password);
+      
       localStorage.setItem('gopark_token', data.token);
       localStorage.setItem('gopark_user', JSON.stringify(data.user));
       
-      setAppState('user'); 
+      setAppState('user');
       setHasSearched(false);
     } catch (err: any) {
       setAuthError(err.message);
@@ -170,14 +184,30 @@ export default function GoParkApp() {
           <p className="text-yellow-400 font-bold tracking-widest uppercase text-xs mt-2">Smart parking. Fast.</p>
         </div>
         <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border-t-8 border-red-600">
-          <div className="p-6 space-y-4">
-            <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-4 border-b-2 border-gray-100 pb-2">Driver Login</h2>
+          <div className="p-6 flex flex-col gap-3">
+            <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
+              {isLoginView ? 'Driver Login' : 'Create Account'}
+            </h2>
             
-            <form onSubmit={handleLogin} className="space-y-4">
+            <form onSubmit={handleAuth} className="flex flex-col gap-3">
               {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
               
+              {!isLoginView && (
+                <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+                  <User className="text-gray-400 mr-3 shrink-0" size={18} />
+                  <input 
+                    type="text" 
+                    placeholder="Username" 
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
+                  />
+                </div>
+              )}
+
               <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
-                <Mail className="text-gray-400 mr-3" size={18} />
+                <Mail className="text-gray-400 mr-3 shrink-0" size={18} />
                 <input 
                   type="email" 
                   placeholder="Email Address" 
@@ -207,20 +237,39 @@ export default function GoParkApp() {
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
-              
-              <button 
-                type="submit" 
-                disabled={isLoggingIn}
-                className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 mt-2 disabled:opacity-50"
-              >
-                {isLoggingIn ? 'Logging In...' : 'Log In'} <ArrowRight size={18} />
-              </button>
+
+              <div className="flex flex-col gap-1.5 mt-2">
+                <button 
+                  type="submit" 
+                  disabled={isLoggingIn}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50"
+                >
+                  {isLoggingIn ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')} <ArrowRight size={18} />
+                </button>
+
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setIsLoginView(!isLoginView);
+                    setAuthError('');
+                  }} 
+                  className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center"
+                >
+                  {isLoginView ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+                </button>
+              </div>
             </form>
 
-            <button onClick={() => { setAppState('guest'); setHasSearched(false); }} className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded shadow-sm transition flex justify-center items-center gap-2">Continue as Guest <User size={18} /></button>
+            <button 
+              onClick={() => { setAppState('guest'); setHasSearched(false); }} 
+              className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded shadow-sm transition flex justify-center items-center gap-2 mt-1"
+            >
+              Continue as Guest <User size={18} />
+            </button>
+          </div>
+
           </div>
         </div>
-      </div>
     );
   }
 
