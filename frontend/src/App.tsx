@@ -7,7 +7,7 @@ import { geocodeLocation, autocompleteLocation } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail } from './providers/carparks';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState, PlaceSuggestion } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
-import { loginUser, registerUser } from './providers/auth';
+import { loginUser, sendVerificationCode, verifyAndRegister } from './providers/auth';
 
 const LOT_LABELS: Record<string, string> = { C: 'Car', Y: 'Motorcycle', H: 'Heavy Vehicle', S: 'Season' };
 const LOT_ICONS: Record<string, typeof Car> = { C: Car, Y: Bike };
@@ -53,7 +53,17 @@ export default function GoParkApp() {
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [username, setUsername] = useState('');
   const [isLoginView, setIsLoginView] = useState(true);
+  const [showOtpView, setShowOtpView] = useState(false);
+  const [otp, setOtp] = useState('');
 
+  useEffect(() => {
+    const token = localStorage.getItem('gopark_token');
+    const savedUser = localStorage.getItem('gopark_user');
+
+    if (token && savedUser) {
+      setAppState('user');
+    }
+  }, []);
   useEffect(() => { getWeatherByIP().then(({ forecast }) => setWeather(forecast)); }, []);
   useEffect(() => { fetchAll().then(setAllCarparks).catch(() => {}); }, []);
   useEffect(() => {
@@ -80,10 +90,30 @@ export default function GoParkApp() {
     }
 
     try {
-      const data = isLoginView 
-        ? await loginUser(email, password)
-        : await registerUser(username, email, password);
-      
+      if (isLoginView) {
+        const data = await loginUser(email, password);
+        localStorage.setItem('gopark_token', data.token);
+        localStorage.setItem('gopark_user', JSON.stringify(data.user));
+        setAppState('user');
+        setHasSearched(false);
+      } else {
+        await sendVerificationCode(username, email, password);
+        setShowOtpView(true); 
+      }
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+    setIsLoggingIn(true);
+
+    try {
+      const data = await verifyAndRegister(email, otp);
       localStorage.setItem('gopark_token', data.token);
       localStorage.setItem('gopark_user', JSON.stringify(data.user));
       
@@ -94,6 +124,18 @@ export default function GoParkApp() {
     } finally {
       setIsLoggingIn(false);
     }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('gopark_token');
+    localStorage.removeItem('gopark_user');
+    
+    setAppState('login');
+    setIsLoginView(true); 
+    setShowOtpView(false); 
+    setHasSearched(false);
+    setDestinationPoint(null);
+    setDetail(null);
   };
 
   const shareLocation = () => {
@@ -184,89 +226,137 @@ export default function GoParkApp() {
           <p className="text-yellow-400 font-bold tracking-widest uppercase text-xs mt-2">Smart parking. Fast.</p>
         </div>
         <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border-t-8 border-red-600">
-          <div className="p-6 flex flex-col gap-3">
-            <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
-              {isLoginView ? 'Driver Login' : 'Create Account'}
-            </h2>
-            
-            <form onSubmit={handleAuth} className="flex flex-col gap-3">
-              {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
+          {showOtpView ? (
+            <div className="p-6 flex flex-col gap-3">
+              <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
+                Verify Email
+              </h2>
+              <p className="text-xs font-bold text-gray-500 mb-2">
+                We sent a 6-digit code to <span className="text-gray-900">{email}</span>.
+              </p>
               
-              {!isLoginView && (
+              <form onSubmit={handleVerify} className="flex flex-col gap-3">
+                {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
+                
                 <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
-                  <User className="text-gray-400 mr-3 shrink-0" size={18} />
                   <input 
                     type="text" 
-                    placeholder="Username" 
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="000000" 
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value)}
+                    maxLength={6}
+                    required
+                    className="bg-transparent w-full outline-none text-center text-3xl font-black text-gray-800 tracking-[0.5em]" 
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <button 
+                    type="submit" 
+                    disabled={isLoggingIn}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50"
+                  >
+                    {isLoggingIn ? 'Verifying...' : 'Verify & Enter'} <ArrowRight size={18} />
+                  </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowOtpView(false);
+                      setAuthError('');
+                      setOtp('');
+                    }} 
+                    className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2"
+                  >
+                    Go back
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="p-6 flex flex-col gap-3">
+              <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
+                {isLoginView ? 'Driver Login' : 'Create Account'}
+              </h2>
+              
+              <form onSubmit={handleAuth} className="flex flex-col gap-3">
+                {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
+                
+                {!isLoginView && (
+                  <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+                    <User className="text-gray-400 mr-3 shrink-0" size={18} />
+                    <input 
+                      type="text" 
+                      placeholder="Username" 
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
+                    />
+                  </div>
+                )}
+
+                <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+                  <Mail className="text-gray-400 mr-3 shrink-0" size={18} />
+                  <input 
+                    type="email" 
+                    placeholder="Email Address" 
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
                     className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
                   />
                 </div>
-              )}
+                
+                <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+                  <Lock className="text-gray-400 mr-3 shrink-0" size={18} />
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    placeholder="Password" 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
 
-              <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
-                <Mail className="text-gray-400 mr-3 shrink-0" size={18} />
-                <input 
-                  type="email" 
-                  placeholder="Email Address" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
-                />
-              </div>
-              
-              <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
-                <Lock className="text-gray-400 mr-3 shrink-0" size={18} />
-                <input 
-                  type={showPassword ? "text" : "password"} 
-                  placeholder="Password" 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
-                />
-                <button 
-                  type="button" 
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+                <div className="flex flex-col gap-1.5 mt-2">
+                  <button 
+                    type="submit" 
+                    disabled={isLoggingIn}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50"
+                  >
+                    {isLoggingIn ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')} <ArrowRight size={18} />
+                  </button>
 
-              <div className="flex flex-col gap-1.5 mt-2">
-                <button 
-                  type="submit" 
-                  disabled={isLoggingIn}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50"
-                >
-                  {isLoggingIn ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')} <ArrowRight size={18} />
-                </button>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setIsLoginView(!isLoginView);
+                      setAuthError('');
+                    }} 
+                    className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2"
+                  >
+                    {isLoginView ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+                  </button>
+                </div>
+              </form>
 
-                <button 
-                  type="button"
-                  onClick={() => {
-                    setIsLoginView(!isLoginView);
-                    setAuthError('');
-                  }} 
-                  className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center"
-                >
-                  {isLoginView ? "Don't have an account? Sign up" : "Already have an account? Log in"}
-                </button>
-              </div>
-            </form>
-
-            <button 
-              onClick={() => { setAppState('guest'); setHasSearched(false); }} 
-              className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded shadow-sm transition flex justify-center items-center gap-2 mt-1"
-            >
-              Continue as Guest <User size={18} />
-            </button>
-          </div>
+              <button 
+                onClick={() => { setAppState('guest'); setHasSearched(false); }} 
+                className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded shadow-sm transition flex justify-center items-center gap-2 mt-1"
+              >
+                Continue as Guest <User size={18} />
+              </button>
+            </div>
+          )}
 
           </div>
         </div>
@@ -313,7 +403,9 @@ export default function GoParkApp() {
               )}
             </div>
             <div className="flex items-center gap-1">
-              <button onClick={() => setAppState('login')} className="bg-gray-800 p-2 rounded text-gray-400 hover:text-white transition"><LogOut size={16} /></button>
+              <button onClick={handleLogout} className="bg-gray-800 p-2 rounded text-gray-400 hover:text-white transition" title="Log Out">
+                <LogOut size={16} />
+              </button>
               <button onClick={() => setSidebarOpen(false)} className="bg-gray-800 p-2 rounded text-gray-400 hover:text-white transition"><X size={16} /></button>
             </div>
           </div>

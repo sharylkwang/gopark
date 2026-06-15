@@ -1,2 +1,2 @@
 export { loginUser } from './login';
-export  {registerUser } from './signup';
+export  { sendVerificationCode, verifyAndRegister } from './signup';
