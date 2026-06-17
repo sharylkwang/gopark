@@ -42,10 +42,11 @@ function clusterIcon(count: number, zoom: number) {
 
 interface Props {
   carparks: CarparkSummary[];
+  selectedId: string | null; 
   onSelect: (id: string) => void;
 }
 
-export function MarkerCluster({ carparks, onSelect }: Props) {
+export function MarkerCluster({ carparks, selectedId, onSelect }: Props) {
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
 
@@ -70,7 +71,12 @@ export function MarkerCluster({ carparks, onSelect }: Props) {
     });
 
     for (const cp of carparks) {
-      const marker = L.marker([cp.lat, cp.lng], { icon: pin(availColor(cp), 24) });
+      const isSelected = cp.id === selectedId;
+      
+      const markerColor = isSelected ? '#dc2626' : availColor(cp);
+      const markerSize = isSelected ? 32 : 24; 
+
+      const marker = L.marker([cp.lat, cp.lng], { icon: pin(markerColor, markerSize) });
       marker.on('click', () => onSelect(cp.id));
       cluster.addLayer(marker);
     }
@@ -79,7 +85,7 @@ export function MarkerCluster({ carparks, onSelect }: Props) {
     clusterRef.current = cluster;
 
     return () => { map.removeLayer(cluster); clusterRef.current = null; };
-  }, [carparks, onSelect, map]);
+  }, [carparks, selectedId, onSelect, map]);
 
   return null;
 }

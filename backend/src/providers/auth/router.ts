@@ -1,0 +1,316 @@
+import { Router, Request, Response } from 'express';
+import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { PrismaClient } from '@prisma/client';
+import nodemailer from 'nodemailer';
+import rateLimit from 'express-rate-limit';
+import { requireAuth, AuthRequest } from '../../middleware/auth';
+
+const router = Router();
+const prisma = new PrismaClient();
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET is not set');
+}
+
+interface OtpEntry {
+  otp: string;
+  expiresAt: number;
+  attempts: number;
+  type: 'register' | 'reset';
+  username?: string;
+  password?: string;
+}
+
+const otpCache = new Map<string, OtpEntry>();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [email, entry] of otpCache.entries()) {
+    if (now > entry.expiresAt) otpCache.delete(email);
+  }
+}, 60 * 1000).unref();
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_APP_PASSWORD,
+  },
+});
+
+function generateOtp() {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again in a few minutes.' },
+});
+
+const emailLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many requests. Please wait a few minutes before trying again.' },
+});
+
+router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: Response) => {
+  try {
+    const { username, password } = req.body;
+    const email = (req.body.email || '').toLowerCase().trim();
+
+    if (!username || !email || !password) {
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    const otp = generateOtp();
+
+    otpCache.set(email, {
+      username,
+      password,
+      otp,
+      attempts: 0,
+      type: 'register',
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+
+    await transporter.sendMail({
+      from: `"GoPark Team" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: 'Your GoPark Verification Code',
+      html: `
+        <div style="font-family: sans-serif; text-align: center; padding: 20px;">
+          <h2>Welcome to GoPark, ${username}! ⚡</h2>
+          <p>Here is your 6-digit verification code to complete your registration:</p>
+          <h1 style="background: #f3f4f6; padding: 10px; letter-spacing: 5px; color: #dc2626;">${otp}</h1>
+          <p style="color: #6b7280; font-size: 12px;">This code expires in 10 minutes.</p>
+        </div>
+      `,
+    });
+
+    res.status(200).json({ message: 'Verification code sent!' });
+  } catch (err) {
+    console.error('Email error:', err);
+    res.status(500).json({ error: 'Failed to send email' });
+  }
+});
+
+router.post('/auth/register/verify', async (req: Request, res: Response) => {
+  try {
+    const { code } = req.body;
+    const email = (req.body.email || '').toLowerCase().trim();
+
+    const cached = otpCache.get(email);
+    if (!cached || cached.type !== 'register') {
+      return res.status(400).json({ error: 'Verification session expired. Please sign up again.' });
+    }
+
+    if (Date.now() > cached.expiresAt) {
+      otpCache.delete(email);
+      return res.status(400).json({ error: 'Verification code has expired' });
+    }
+
+    if (cached.otp !== code) {
+      cached.attempts++;
+      if (cached.attempts >= 5) {
+        otpCache.delete(email);
+        return res.status(429).json({ error: 'Too many attempts. Please sign up again.' });
+      }
+      return res.status(400).json({ error: 'Invalid verification code' });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      otpCache.delete(email);
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    const hashedPassword = await bcrypt.hash(cached.password!, 10);
+
+    const newUser = await prisma.user.create({
+      data: {
+        username: cached.username!,
+        email,
+        password: hashedPassword,
+        passwordHistory: {
+          create: {
+            password: hashedPassword,
+          },
+        },
+      },
+    });
+
+    otpCache.delete(email);
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(201).json({
+      message: 'User verified and created successfully',
+      token,
+      user: { id: newUser.id, username: newUser.username, email: newUser.email },
+    });
+  } catch (err) {
+    console.error('Verification error:', err);
+    res.status(500).json({ error: 'Internal server error during verification' });
+  }
+});
+
+router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => {
+  try {
+    const { password } = req.body;
+    const email = (req.body.email || '').toLowerCase().trim();
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.status(200).json({
+      message: 'Login successful',
+      token,
+      user: { id: user.id, username: user.username, email: user.email },
+    });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.status(500).json({ error: 'Internal server error during login' });
+  }
+});
+
+router.post('/auth/password/forgot', emailLimiter, async (req: Request, res: Response) => {
+  try {
+    const email = (req.body.email || '').toLowerCase().trim();
+    const user = await prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      const otp = generateOtp();
+      otpCache.set(email, {
+        otp,
+        attempts: 0,
+        type: 'reset',
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      });
+
+      await transporter.sendMail({
+        from: `"GoPark Team" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Your GoPark Verification Code',
+        html: `
+          <div style="font-family: sans-serif; text-align: center; padding: 20px;">
+            <h2>Password Reset Request ⚡</h2>
+            <p>You requested a password reset. Use this code to continue:</p>
+            <h1 style="background: #f3f4f6; padding: 10px; letter-spacing: 5px; color: #dc2626;">${otp}</h1>
+            <p style="color: #6b7280; font-size: 12px;">This code expires in 10 minutes.</p>
+          </div>
+        `,
+      });
+    }
+
+    res.status(200).json({ message: 'If account exists, code sent.' });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    res.status(500).json({ error: 'Request failed' });
+  }
+});
+
+router.post('/auth/password/reset', async (req: Request, res: Response) => {
+  try {
+    const { code, newPassword } = req.body;
+    const email = (req.body.email || '').toLowerCase().trim();
+
+    if (!newPassword || newPassword.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    const cached = otpCache.get(email);
+    if (!cached || cached.type !== 'reset') {
+      return res.status(400).json({ error: 'Invalid code' });
+    }
+
+    if (Date.now() > cached.expiresAt) {
+      otpCache.delete(email);
+      return res.status(400).json({ error: 'Code has expired' });
+    }
+
+    if (cached.otp !== code) {
+      cached.attempts++;
+      if (cached.attempts >= 5) {
+        otpCache.delete(email);
+        return res.status(429).json({ error: 'Too many attempts. Please request a new code.' });
+      }
+      return res.status(400).json({ error: 'Invalid code' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      otpCache.delete(email);
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const history = await prisma.passwordHistory.findMany({
+      where: {
+        userId: user.id,
+        createdAt: { gte: thirtyDaysAgo },
+      },
+    });
+
+    for (const record of history) {
+      const isMatch = await bcrypt.compare(newPassword, record.password);
+      if (isMatch) {
+        return res.status(400).json({ error: 'This password does not meet the requirements, please try again.' });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      }),
+      prisma.passwordHistory.create({
+        data: { userId: user.id, password: hashedPassword },
+      }),
+    ]);
+
+    otpCache.delete(email);
+    res.status(200).json({ message: 'Password updated successfully' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/auth/me', requireAuth, (req: AuthRequest, res: Response) => {
+  res.json({ user: req.user });
+});
+
+export default router;
