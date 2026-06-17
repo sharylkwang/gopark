@@ -7,7 +7,8 @@ import { geocodeLocation, autocompleteLocation } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail } from './providers/carparks';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState, PlaceSuggestion } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
-import { loginUser, sendVerificationCode, verifyAndRegister } from './providers/auth';
+import { loginUser, sendVerificationCode, verifyAndRegister, requestPasswordReset, resetPassword } from './providers/auth';
+
 
 const LOT_LABELS: Record<string, string> = { C: 'Car', Y: 'Motorcycle', H: 'Heavy Vehicle', S: 'Season' };
 const LOT_ICONS: Record<string, typeof Car> = { C: Car, Y: Bike };
@@ -56,6 +57,9 @@ export default function GoParkApp() {
   const [isLoginView, setIsLoginView] = useState(true);
   const [showOtpView, setShowOtpView] = useState(false);
   const [otp, setOtp] = useState('');
+  const [isResetView, setIsResetView] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [isLinkSent, setIsLinkSent] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('gopark_token');
@@ -82,11 +86,11 @@ export default function GoParkApp() {
     setIsLoggingIn(true);
 
     if (!isLoginView) {
-      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$/;
+      const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
       if (!passwordRegex.test(password)) {
         setAuthError('Password must be at least 8 characters and include both letters and numbers.');
         setIsLoggingIn(false);
-        return; 
+        return;
       }
     }
 
@@ -99,7 +103,7 @@ export default function GoParkApp() {
         setHasSearched(false);
       } else {
         await sendVerificationCode(username, email, password);
-        setShowOtpView(true); 
+        setShowOtpView(true);
       }
     } catch (err: any) {
       setAuthError(err.message);
@@ -117,7 +121,7 @@ export default function GoParkApp() {
       const data = await verifyAndRegister(email, otp);
       localStorage.setItem('gopark_token', data.token);
       localStorage.setItem('gopark_user', JSON.stringify(data.user));
-      
+
       setAppState('user');
       setHasSearched(false);
     } catch (err: any) {
@@ -130,13 +134,53 @@ export default function GoParkApp() {
   const handleLogout = () => {
     localStorage.removeItem('gopark_token');
     localStorage.removeItem('gopark_user');
-    
+
     setAppState('login');
-    setIsLoginView(true); 
-    setShowOtpView(false); 
+    setIsLoginView(true);
+    setShowOtpView(false);
     setHasSearched(false);
     setDestinationPoint(null);
     setDetail(null);
+  };
+
+  const handleRequestResetCode = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setAuthError('');
+    try {
+      await requestPasswordReset(email);
+      setIsLinkSent(true);
+    } catch (err: any) {
+      setAuthError(err.message || 'Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError('');
+
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+      setAuthError('Password must be at least 8 characters and include both letters and numbers.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await resetPassword(email, otp, newPassword);
+      alert('Password updated successfully!');
+      setIsResetView(false);
+      setIsLinkSent(false);
+      setIsLoginView(true);
+      setOtp('');
+      setNewPassword('');
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const shareLocation = () => {
@@ -226,8 +270,88 @@ export default function GoParkApp() {
           </h1>
           <p className="text-yellow-400 font-bold tracking-widest uppercase text-xs mt-2">Smart parking. Fast.</p>
         </div>
+
         <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border-t-8 border-red-600">
-          {showOtpView ? (
+          {isResetView ? (
+            <div className="p-6 flex flex-col gap-3">
+              <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
+                Reset Password
+              </h2>
+
+              {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
+
+              {!isLinkSent ? (
+                <form onSubmit={handleRequestResetCode} className="flex flex-col gap-3">
+                  <p className="text-xs font-bold text-gray-500">Enter your email and we'll send you a 6-digit reset code.</p>
+                  <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+                    <Mail className="text-gray-400 mr-3 shrink-0" size={18} />
+                    <input
+                      type="email"
+                      placeholder="Email Address"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="bg-transparent w-full outline-none text-sm font-bold text-gray-700"
+                      required
+                    />
+                  </div>
+                  <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">
+                    {loading ? 'Sending...' : 'Send Reset Code'}
+                  </button>
+                </form>
+              ) : (
+                <form onSubmit={handleResetPassword} className="flex flex-col gap-3">
+                  <p className="text-xs font-bold text-gray-500">
+                    Enter the 6-digit code sent to <span className="text-gray-900">{email}</span> and choose a new password.
+                  </p>
+
+                  <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000000"
+                      value={otp}
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                      maxLength={6}
+                      required
+                      className="bg-transparent w-full outline-none text-center text-2xl font-black text-gray-800 tracking-[0.4em]"
+                    />
+                  </div>
+
+                  <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+                    <Lock className="text-gray-400 mr-3 shrink-0" size={18} />
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      placeholder="New Password"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      required
+                      className="bg-transparent w-full outline-none text-sm font-bold text-gray-700"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+
+                  <button type="submit" disabled={loading} className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">
+                    {loading ? 'Updating...' : 'Update Password'}
+                  </button>
+                </form>
+              )}
+
+              <button
+                type="button"
+                onClick={() => { setIsResetView(false); setIsLinkSent(false); setOtp(''); setNewPassword(''); setAuthError(''); }}
+                className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2"
+              >
+                Back to Login
+              </button>
+            </div>
+          ) : showOtpView ? (
             <div className="p-6 flex flex-col gap-3">
               <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
                 Verify Email
@@ -235,37 +359,37 @@ export default function GoParkApp() {
               <p className="text-xs font-bold text-gray-500 mb-2">
                 We sent a 6-digit code to <span className="text-gray-900">{email}</span>.
               </p>
-              
+
               <form onSubmit={handleVerify} className="flex flex-col gap-3">
                 {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
-                
+
                 <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
-                  <input 
-                    type="text" 
-                    placeholder="000000" 
+                  <input
+                    type="text"
+                    placeholder="000000"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value)}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
                     maxLength={6}
                     required
-                    className="bg-transparent w-full outline-none text-center text-3xl font-black text-gray-800 tracking-[0.5em]" 
+                    className="bg-transparent w-full outline-none text-center text-3xl font-black text-gray-800 tracking-[0.5em]"
                   />
                 </div>
 
                 <div className="flex flex-col gap-1.5 mt-2">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={isLoggingIn}
                     className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50"
                   >
                     {isLoggingIn ? 'Verifying...' : 'Verify & Enter'} <ArrowRight size={18} />
                   </button>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => {
                       setShowOtpView(false);
                       setAuthError('');
                       setOtp('');
-                    }} 
+                    }}
                     className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2"
                   >
                     Go back
@@ -278,48 +402,48 @@ export default function GoParkApp() {
               <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
                 {isLoginView ? 'Driver Login' : 'Create Account'}
               </h2>
-              
+
               <form onSubmit={handleAuth} className="flex flex-col gap-3">
                 {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
-                
+
                 {!isLoginView && (
                   <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
                     <User className="text-gray-400 mr-3 shrink-0" size={18} />
-                    <input 
-                      type="text" 
-                      placeholder="Username" 
+                    <input
+                      type="text"
+                      placeholder="Username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
                       required
-                      className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
+                      className="bg-transparent w-full outline-none text-sm font-bold text-gray-700"
                     />
                   </div>
                 )}
 
                 <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
                   <Mail className="text-gray-400 mr-3 shrink-0" size={18} />
-                  <input 
-                    type="email" 
-                    placeholder="Email Address" 
+                  <input
+                    type="email"
+                    placeholder="Email Address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
+                    className="bg-transparent w-full outline-none text-sm font-bold text-gray-700"
                   />
                 </div>
-                
+
                 <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
                   <Lock className="text-gray-400 mr-3 shrink-0" size={18} />
-                  <input 
-                    type={showPassword ? "text" : "password"} 
-                    placeholder="Password" 
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
-                    className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" 
+                    className="bg-transparent w-full outline-none text-sm font-bold text-gray-700"
                   />
-                  <button 
-                    type="button" 
+                  <button
+                    type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition"
                     aria-label={showPassword ? "Hide password" : "Show password"}
@@ -329,38 +453,47 @@ export default function GoParkApp() {
                 </div>
 
                 <div className="flex flex-col gap-1.5 mt-2">
-                  <button 
-                    type="submit" 
+                  <button
+                    type="submit"
                     disabled={isLoggingIn}
                     className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50"
                   >
                     {isLoggingIn ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')} <ArrowRight size={18} />
                   </button>
 
-                  <button 
+                  <button
                     type="button"
                     onClick={() => {
                       setIsLoginView(!isLoginView);
                       setAuthError('');
-                    }} 
+                    }}
                     className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2"
                   >
                     {isLoginView ? "Don't have an account? Sign up" : "Already have an account? Log in"}
                   </button>
+
+                  {isLoginView && (
+                    <button
+                      type="button"
+                      onClick={() => setIsResetView(true)}
+                      className="text-[11px] text-red-600 font-bold hover:text-red-800 transition text-center"
+                    >
+                      Forgot Password?
+                    </button>
+                  )}
                 </div>
               </form>
 
-              <button 
-                onClick={() => { setAppState('guest'); setHasSearched(false); }} 
+              <button
+                onClick={() => { setAppState('guest'); setHasSearched(false); }}
                 className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded shadow-sm transition flex justify-center items-center gap-2 mt-1"
               >
                 Continue as Guest <User size={18} />
               </button>
             </div>
           )}
-
-          </div>
         </div>
+      </div>
     );
   }
 
@@ -417,7 +550,7 @@ export default function GoParkApp() {
                 <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Destination</label>
                 <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-2.5 focus-within:border-red-500 transition">
                   <Search className="text-red-500 mr-2 shrink-0" size={18} />
-                  <input required type="text" value={destination} 
+                  <input required type="text" value={destination}
                     onChange={handleDestinationChange}
                     onFocus={() => destination.length > 2 && setIsDropdownOpen(true)}
                     onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
@@ -440,7 +573,7 @@ export default function GoParkApp() {
                   <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mb-1 block">Duration</label>
                   <div className="bg-gray-50 flex items-center border border-gray-200 rounded-lg p-2.5 focus-within:border-red-500 transition">
                     <Calendar className="text-red-500 mr-2 shrink-0" size={16} />
-                    <select 
+                    <select
                       value={durationHours}
                       onChange={(e) => setDurationHours(Number(e.target.value))}
                       className="bg-transparent w-full outline-none text-sm font-bold text-gray-800 appearance-none cursor-pointer"
