@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import prisma from '../../db/index.js';
-import { smartSearch } from '../../cron/scraper/index.js';
+import { runScraper, smartSearch } from '../../cron/scraper/index.js';
+import { applyScraped } from '../../cron/scraper/apply.js';
 import createLogger from '../../lib/logger.js';
 
 const log = createLogger('carparks-api');
@@ -99,14 +100,24 @@ router.get('/carparks/:id', async (req: Request, res: Response) => {
   });
 });
 
-router.post('/carparks/scrape', async (_req: Request, res: Response) => {
+router.post('/carparks/scrape', async (req: Request, res: Response) => {
   try {
-    const results = await smartSearch();
+    const full = req.query.full === 'true';
+    const results = full ? [...await runScraper(), ...await smartSearch()] : await smartSearch();
     const total = results.reduce((sum, r) => sum + r.carparks.length, 0);
-    res.json({ carparks: total, sources: results.length });
+    await applyScraped(results);
+
+    const sample = results.flatMap(r => r.carparks.map(cp => ({
+      source: r.source,
+      name: cp.name,
+      address: cp.address ?? null,
+      rates: (cp.rates ?? []).slice(0, 3),
+    }))).slice(0, 5);
+
+    res.json({ carparks: total, sources: results.length, sample });
   } catch (err) {
-    log.error('smart search failed', err);
-    res.status(500).json({ error: 'Smart search failed' });
+    log.error('scrape failed', err);
+    res.status(500).json({ error: 'Scrape failed' });
   }
 });
 
