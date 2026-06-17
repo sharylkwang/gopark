@@ -19,7 +19,7 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 });
 
 async function gracefulShutdown(signal: string) {
-  log.info(`${signal} received — shutting down`);
+  log.info(`${signal} received - shutting down`);
   await shutdown();
   server.close(() => process.exit(0));
 }

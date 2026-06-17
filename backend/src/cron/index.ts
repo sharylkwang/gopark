@@ -138,7 +138,7 @@ async function fullMerge(): Promise<MergedCarpark[]> {
 
   await upsert(merged);
   await saveSeed(merged);
-  log.info(`merge done — ${merged.length} carparks in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  log.info(`merge done - ${merged.length} carparks in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   return merged;
 }
 
@@ -166,7 +166,7 @@ function schedule() {
   if (scheduled) { log.warn('schedule already active, skipping'); return; }
   scheduled = true;
   const delay = 60000 - (Date.now() % 60000);
-  log.info(`scheduling — availability: 1min (in ${(delay / 1000).toFixed(0)}s) | merge: 6hr | scraper: 30d`);
+  log.info(`scheduling - availability: 1min (in ${(delay / 1000).toFixed(0)}s) | merge: 6hr | scraper: 30d`);
 
   setTimeout(() => { refreshAvailability(); setInterval(refreshAvailability, CRON.availabilityInterval); }, delay);
 

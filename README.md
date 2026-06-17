@@ -1,226 +1,95 @@
-<p align="center">
-  <img src="docs/screenshots/login-desktop.png" alt="GoPark Login" width="700" />
-</p>
+# GoPark
 
-<h1 align="center">GoPark</h1>
+GoPark helps drivers in Singapore figure out where to park. You type in where you're headed, and it shows you the carparks nearby - what they charge, how many lots are free right now, and how far you'd have to walk once you've parked. There's a live map, real-time availability, and even the current weather at your destination so you know whether that extra 200m walk is worth it.
 
-<p align="center">
-  <strong>Smart parking finder for Singapore drivers</strong><br />
-  Search any destination, compare nearby carparks by price and walking distance, and get live availability and weather updates.
-</p>
+We built it for NUS Orbital 2026. Parking apps already exist, but most of them either only cover HDB carparks or hide the pricing until you're already circling the block. We wanted one place that pulls everything together - government data, commercial carparks, and rate information scraped from across the web - and just answers the question "where should I park?"
 
-<p align="center">
-  <img src="https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white" />
-  <img src="https://img.shields.io/badge/TypeScript-5.8-3178c6?logo=typescript&logoColor=white" />
-  <img src="https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=white" />
-  <img src="https://img.shields.io/badge/Docker-Compose-2496ed?logo=docker&logoColor=white" />
-  <img src="https://img.shields.io/badge/Leaflet-1.9-199900?logo=leaflet&logoColor=white" />
-  <img src="https://img.shields.io/badge/Prisma-6-2d3748?logo=prisma&logoColor=white" />
-</p>
+## What it does
 
----
+- **Search any destination.** Type an address or place name and we geocode it, then surface the closest carparks around it.
+- **Compare at a glance.** Each carpark shows its weekday/weekend rate, available lots, rate type, and walking time, so you can weigh "cheap but far" against "pricey but right there."
+- **A real map.** Leaflet-based, with clustered pins so 3,500+ carparks don't turn into a wall of markers. Tap a pin for details, and the camera flies you to your search or your location.
+- **Switch how the map looks.** OneMap, OpenStreetMap, Google Roads, Google Hybrid, plus a 3D buildings view rendered from OpenStreetMap data via the Overpass API.
+- **Live availability.** Lot counts refresh every couple of minutes from the sources that publish them.
+- **Weather where you're going.** A two-hour forecast from data.gov.sg, pinned to your destination - or to your precise location if you share it.
+- **Knows where you are.** If you've already granted location access, it quietly drops a blue dot on the map and flies you there on load. No nagging pop-ups.
 
-## Screenshots
+## How it's put together
 
-### Desktop
+It's a Docker Compose setup with a few moving parts.
 
-| Dashboard | Search Results |
-|-----------|---------------|
-| ![Dashboard](docs/screenshots/dashboard-desktop.png) | ![Search](docs/screenshots/search-desktop.png) |
+**Frontend** - React 19 + TypeScript, Tailwind CSS v4, Vite for the build, and Leaflet (via react-leaflet) for the map. The 3D buildings come from OSMBuildings reading Overpass tiles.
 
-### Mobile
+**Backend** - Node 22 with Express 5 and TypeScript. It serves the API the frontend talks to, plus a set of cron jobs that keep the data fresh:
 
-<p align="center">
-  <img src="docs/screenshots/login-mobile.png" alt="Mobile Login" height="500" />
-  &nbsp;&nbsp;&nbsp;
-  <img src="docs/screenshots/dashboard-mobile.png" alt="Mobile Dashboard" height="500" />
-</p>
+- availability counts refresh every 2 minutes (Gov, DataMall, Parkaholic)
+- a full multi-source merge runs every 6 hours
+- the scraper does a deeper web crawl every 30 days
 
----
+**The data engine** is the part we're most proud of. Carpark info is scattered - HDB has one dataset, LTA's DataMall has another, and a lot of the actual *pricing* only exists as free text on commercial carpark websites. So the backend:
 
-## Features
+- merges carparks from 6+ sources and de-duplicates them by matching coordinates (anything within ~111m is treated as the same carpark)
+- parses messy rate strings like "$1.20 per half hour, $2 entry after 6pm" into structured entries with amounts, durations, time windows, and vehicle types
+- flags rates that show up in more than one source as more trustworthy
+- runs an **AI scraper** for the carparks whose rates aren't in any public dataset: it searches the web (via DuckDuckGo, not a hardcoded URL list) and uses an LLM to pull the rates out
 
-### Frontend
-- **Destination Search** — geocode any Singapore address via Geoapify and find the closest carparks
-- **Carpark Comparison** — view pricing (weekday/weekend), available lots, walk time, and rate type at a glance
-- **Interactive Map** — Leaflet-based map with pin markers, popups, and smooth fly-to animations
-- **Multiple Map Styles** — switch between OneMap, OpenStreetMap, Google Roads, Google Hybrid, and 3D building views
-- **3D Buildings** — OSMBuildings overlay with click-to-highlight, powered by Overpass API
-- **Live Weather** — real-time 2-hour forecast from data.gov.sg, with optional precise location via tooltip
-- **Geolocation** — auto-detect your position, fly to it on load, and display a blue marker
-- **Collapsible Sidebar** — full-screen map with an overlay sidebar, responsive on mobile
-- **Layer Switcher** — split panel for map providers (top) and feature toggles (bottom)
+The LLM backend is swappable - set a Z.AI GLM key and it uses their cloud API (no GPU needed), or run a local vLLM container if you've got an NVIDIA card.
 
-### Backend
-- **Data Pipeline** — merges carpark data from 6+ sources (Gov, DataMall, Parkaholic, SGCarMart, OneMotooring, GetGo, SgBikes)
-- **Cron Jobs** — scheduled data fetching with three intervals:
-  - Availability refresh: every 2 minutes (Gov, DataMall, Parkaholic)
-  - Full merge: every 6 hours (all sources)
-  - Scraper: every 30 days (web page discovery + extraction)
-- **AI Scraper** — LLM-powered parking rate extraction from web pages
-  - DuckDuckGo search for page discovery (not hardcoded URLs)
-  - Page cache with SHA-256 change detection
-  - 30-day recheck cycle, 6-month stale purge with automatic re-search
-  - Supports Z.AI GLM (cloud) or local vLLM as LLM backend
-- **Rate Parser** — converts free-text rate strings into structured entries with amount, duration, time periods, vehicle types
-- **Proximity Matching** — matches carparks across sources using coordinate distance (~111m threshold)
-- **Name Matching** — fuzzy substring matching for scraped rate data against existing carparks
-- **Multi-Source Confirmation** — rates found in multiple sources are flagged with `confirmed_by` count
-- **Structured Logger** — tagged log levels (debug/info/warn/error) with timestamps, configurable via `LOG_LEVEL`
+**Database** - PostgreSQL 15 with Prisma. Carparks, parsed rates, live availability, and the scraper's page cache each get their own table.
 
-### Database (Prisma + PostgreSQL)
-- **carparks** — unified entries with lat/lng, sources array, JSONB metadata
-- **rates** — parsed rate entries with vehicle type, day type, time periods, multi-source tracking
-- **availability** — live lot counts per carpark per lot type (Car/Motorcycle/Heavy/Season)
-- **scraped_pages** — cached scraper results with change detection
-- **scraper_domains** — configurable domains for the AI scraper to search
-- **seed_status** — gates cron jobs until initial seed is complete
+**nginx** sits in front as a reverse proxy, and in production a Cloudflare Tunnel exposes it without opening any host ports.
 
----
+## Running it
 
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | React 19, TypeScript 5.8, Tailwind CSS v4, Vite |
-| Map | Leaflet + react-leaflet, OSMBuildings (Overpass API) |
-| Backend | Node.js 22, Express 5, TypeScript |
-| Database | PostgreSQL 15, Prisma ORM |
-| AI/Scraping | Z.AI GLM or vLLM (OpenAI-compatible) |
-| Proxy | nginx (reverse proxy) |
-| Infra | Docker Compose |
-
----
-
-## Getting Started
-
-### Prerequisites
-
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- API keys (see [API Keys](#api-keys) below)
-- **Optional:** NVIDIA GPU + drivers for local vLLM
-
-### Setup
+You'll need Docker and Docker Compose, and a few API keys (see below).
 
 ```bash
 git clone https://github.com/sharylkwang/gopark.git
 cd gopark
 
 cp .env.example .env
-# Edit .env with your API keys
+# fill in your keys
+
+docker compose up --build
 ```
 
-### Run
+Then open **http://localhost**.
+
+If you have an NVIDIA GPU and want to run the scraper's LLM locally instead of using the cloud API:
 
 ```bash
-# Standard (no GPU)
-docker compose up --build
-
-# With local vLLM for AI scraping
 docker compose --profile gpu up --build
 ```
 
-The app will be available at **http://localhost**.
+There's a full command reference in [COMMANDS.md](COMMANDS.md).
 
-See [COMMANDS.md](COMMANDS.md) for all available commands.
+## API keys
 
----
+| Key | Required? | What it's for |
+|-----|-----------|----------------|
+| `GEOAPIFY_KEY` | Yes | Turning your search into coordinates |
+| `DATAGOVSG_KEY` | Yes | HDB carpark locations + live availability |
+| `DATAMALL_API` | Yes | Commercial / URA carparks |
+| `GOOGLE_MAPS_KEY` | Optional | Google map tiles and routing |
+| `ZHIPUAI_API_KEY` | Optional | Cloud LLM for the rate scraper |
 
-## Services
+Without the optional keys the app still runs - you just lose the Google tile styles, and without an LLM the scraper falls back to the public datasets.
 
-| Service | Port | Description |
-|---------|------|-------------|
-| nginx | 80 | Reverse proxy |
-| frontend | 5173 | Vite dev server with HMR |
-| backend | 3000 | Express API + cron jobs |
-| gopark (db) | 5432 (ext: 5433) | PostgreSQL |
-| vllm (gpu profile) | 8100 | vLLM OpenAI-compatible API |
+## Where the data comes from
 
----
+| Source | Roughly | What it gives us |
+|--------|---------|-------------------|
+| data.gov.sg (mapping) | ~2,000 | HDB locations, addresses, carpark type |
+| data.gov.sg (availability) | ~2,000 | Live lot counts by vehicle type |
+| LTA DataMall | ~500 | Malls and private developments |
+| Parkaholic | ~4,700 | Locations, availability, rate text |
+| SGCarMart | ~1,100 | Weekday/Saturday/Sunday rates |
+| OneMotoring, GetGo, SgBikes | varies | Official + CBD + motorcycle rates (AI-scraped) |
 
-## Project Structure
+## What's done and what isn't
 
-```
-gopark/
-├── frontend/
-│   └── src/
-│       ├── components/
-│       │   └── Map/
-│       │       ├── index.tsx              # MapView with all layers
-│       │       ├── CameraFlyer.tsx        # Fly-to animations (user location + search)
-│       │       ├── CarparkMarker.tsx      # Pin markers + popups
-│       │       ├── TileLayerSwitcher.tsx   # Map style & feature toggle panel
-│       │       └── layers/
-│       │           └── OSMBuildingLayer.tsx # 3D buildings via Overpass
-│       ├── providers/
-│       │   ├── govsg/weather.ts           # IP-based + precise weather
-│       │   ├── osm/buildings.ts           # Overpass tile fetching + cache
-│       │   └── tiles.ts                   # Tile provider configs
-│       └── types/
-├── backend/
-│   ├── prisma/
-│   │   └── schema.prisma                  # Database schema
-│   └── src/
-│       ├── server.ts                      # Express app + cron startup
-│       ├── lib/
-│       │   └── logger.ts                  # Structured logger
-│       ├── db/
-│       │   ├── index.ts                   # Prisma client
-│       │   └── schema.ts                  # Seed status helpers
-│       ├── cron/
-│       │   ├── index.ts                   # Scheduler (availability, merge, scraper)
-│       │   ├── govsg.ts                   # Gov mapping + availability
-│       │   ├── datamall.ts                # LTA DataMall
-│       │   ├── parkaholic.ts              # Parkaholic locations + dump + rates
-│       │   ├── sgcarmart.ts               # SGCarMart carpark data
-│       │   ├── scraper.ts                 # AI-powered web scraper
-│       │   ├── merge.ts                   # Multi-source merge pipeline
-│       │   └── types.ts                   # Shared types
-│       └── providers/
-│           ├── geoapify/router.ts         # Geocoding proxy
-│           ├── google/router.ts           # Tile proxy + routing
-│           └── govsg/router.ts            # Parking availability API
-├── nginx/nginx.conf
-├── docker-compose.yml
-├── docker-compose.prod.yml
-└── .env.example
-```
-
----
-
-## API Keys
-
-| Key | Required | Source | Used For |
-|-----|----------|--------|----------|
-| `GEOAPIFY_KEY` | Yes | [geoapify.com](https://www.geoapify.com/) | Destination geocoding |
-| `DATAGOVSG_KEY` | Yes | [data.gov.sg](https://data.gov.sg/) | Carpark availability + mapping |
-| `DATAMALL_API` | Yes | [datamall.lta.gov.sg](https://datamall.lta.gov.sg/) | LTA/URA commercial carparks |
-| `GOOGLE_MAPS_KEY` | No | [Google Cloud Console](https://console.cloud.google.com/) | Google Roads/Hybrid tiles, routing |
-| `ZHIPUAI_API_KEY` | No | [open.bigmodel.cn](https://open.bigmodel.cn/) | Z.AI GLM for AI scraping |
-
----
-
-## Data Sources
-
-| Source | ID System | Entries | Provides |
-|--------|-----------|---------|----------|
-| Gov Mapping (data.gov.sg) | `car_park_no` | ~2000 | Location (SVY21), address, carpark type, free parking |
-| Gov Availability | `car_park_no` | ~2000 | Live lot counts by type (C/Y/H/S) |
-| LTA DataMall | `Agency-CarParkID` | ~500 | Commercial carparks (malls, private developments) |
-| Parkaholic | `car_park_no` | ~4700 | Locations, availability, rate text |
-| SGCarMart | `SGC-{id}` | ~1100 | Carpark rates (weekday/sat/sun) |
-| OneMotooring (LTA) | Name match | Variable | Official LTA parking rates (AI-scraped) |
-| GetGo | Name match | Variable | CBD parking rates (AI-scraped) |
-| SgBikes | Name match | Variable | Motorcycle parking rates (AI-scraped) |
-
----
+This is our Milestone 1 build, so a few things are intentionally still rough: the login screen is UI-only for now (no real accounts yet), favorites live in your browser session rather than on a server, and a proper cost calculator is on the roadmap for the next milestone. The core - search, the map, live availability, multi-source pricing - all works end to end.
 
 ## Team
 
 NUS Orbital 2026
-
----
-
-## License
-
-This project is part of NUS CP2106 (Orbital).
