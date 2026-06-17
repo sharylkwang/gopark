@@ -39,5 +39,5 @@ export async function verifyAndRegister(email: string, code: string) {
 
   const data = await response.json();
   if (!response.ok) throw new Error(data.error || 'Failed to verify code');
-  return data; // Returns { message, token, user }
+  return data; 
 }
