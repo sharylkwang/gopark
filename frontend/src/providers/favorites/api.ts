@@ -11,6 +11,7 @@ function headers(): Record<string, string> {
 export async function fetchFavorites(): Promise<string[]> {
   const res = await fetch('/api/favorites', {
     headers: headers(),
+    credentials: 'include',
   });
 
   if (!res.ok) return [];
@@ -21,6 +22,7 @@ export async function addFavorite(id: string) {
   await fetch(`/api/favorites/${encodeURIComponent(id)}`, {
     method: 'POST',
     headers: headers(),
+    credentials: 'include',
   });
 }
 
@@ -28,5 +30,6 @@ export async function removeFavorite(id: string) {
   await fetch(`/api/favorites/${encodeURIComponent(id)}`, {
     method: 'DELETE',
     headers: headers(),
+    credentials: 'include',
   });
 }

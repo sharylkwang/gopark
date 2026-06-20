@@ -307,6 +307,7 @@ export default function GoParkApp() {
   };
 
   const handleLogout = () => {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
     localStorage.removeItem('gopark_token');
     localStorage.removeItem('gopark_user');
     setAppState('login');
@@ -315,6 +316,47 @@ export default function GoParkApp() {
     setFavorites(new Set());
     resetHome();
   };
+
+  useEffect(() => {
+    if (appState !== 'user') return;
+
+    let idleTimer: ReturnType<typeof setTimeout>;
+
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => handleLogout(), 30 * 60 * 1000);
+    };
+
+    window.addEventListener('mousedown', resetIdle);
+    window.addEventListener('keydown', resetIdle);
+    window.addEventListener('scroll', resetIdle);
+    window.addEventListener('touchstart', resetIdle);
+    resetIdle();
+
+    const refreshInterval = setInterval(() => {
+      fetch('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('gopark_token') || ''}`,
+        },
+      })
+        .then(r => r.ok ? r.json() : Promise.reject())
+        .then(data => {
+          if (data.token) localStorage.setItem('gopark_token', data.token);
+        })
+        .catch(() => handleLogout());
+    }, 45 * 60 * 1000);
+
+    return () => {
+      clearTimeout(idleTimer);
+      clearInterval(refreshInterval);
+      window.removeEventListener('mousedown', resetIdle);
+      window.removeEventListener('keydown', resetIdle);
+      window.removeEventListener('scroll', resetIdle);
+      window.removeEventListener('touchstart', resetIdle);
+    };
+  }, [appState]);
 
   const handleRequestResetCode = async (e: React.FormEvent) => {
     e.preventDefault();

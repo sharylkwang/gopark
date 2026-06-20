@@ -15,6 +15,7 @@ if (!JWT_SECRET) {
   throw new Error('JWT_SECRET is not set');
 }
 
+
 interface OtpEntry {
   otp: string;
   expiresAt: number;
@@ -45,6 +46,7 @@ function generateOtp() {
   return crypto.randomInt(100000, 1000000).toString();
 }
 
+
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -70,8 +72,16 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
+    if (!email.includes('@') || !email.includes('.')) {
+      return res.status(400).json({ error: 'Invalid email address' });
+    }
+
     if (password.length < 8) {
       return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    if (username.length > 50 || email.length > 100) {
+      return res.status(400).json({ error: 'Input too long' });
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
@@ -157,7 +167,14 @@ router.post('/auth/register/verify', async (req: Request, res: Response) => {
     });
 
     otpCache.delete(email);
-    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '7d' });
+    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '1h' });
+    res.cookie('gopark_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
 
     res.status(201).json({
       message: 'User verified and created successfully',
@@ -184,12 +201,53 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const minsLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
+      return res.status(423).json({
+        error: `Account locked. Try again in ${minsLeft} minute${minsLeft === 1 ? '' : 's'}.`,
+      });
+    }
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
+      const attempts = user.failedAttempts + 1;
+
+      if (attempts >= 5) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            failedAttempts: attempts,
+            lockedUntil: new Date(Date.now() + 15 * 60 * 1000),
+          },
+        });
+        return res.status(423).json({
+          error: `Too many failed attempts. Account locked for 15 minutes.`,
+        });
+      }
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedAttempts: attempts },
+      });
+
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+    if (user.failedAttempts > 0) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { failedAttempts: 0, lockedUntil: null },
+      });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+    res.cookie('gopark_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
 
     res.status(200).json({
       message: 'Login successful',
@@ -200,6 +258,24 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
     console.error('Login error:', err);
     res.status(500).json({ error: 'Internal server error during login' });
   }
+});
+
+router.post('/auth/refresh', requireAuth, (req: AuthRequest, res: Response) => {
+  const user = req.user!;
+  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET!, { expiresIn: '1h' });
+  res.cookie('gopark_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+      path: '/',
+    });
+  res.json({ token });
+});
+
+router.post('/auth/logout', (_req: Request, res: Response) => {
+  res.clearCookie('gopark_token', { path: '/' });
+  res.json({ message: 'Logged out' });
 });
 
 router.post('/auth/password/forgot', emailLimiter, async (req: Request, res: Response) => {
@@ -294,7 +370,11 @@ router.post('/auth/password/reset', async (req: Request, res: Response) => {
     await prisma.$transaction([
       prisma.user.update({
         where: { id: user.id },
-        data: { password: hashedPassword },
+        data: {
+          password: hashedPassword,
+          failedAttempts: 0,
+          lockedUntil: null,
+        },
       }),
       prisma.passwordHistory.create({
         data: { userId: user.id, password: hashedPassword },
