@@ -17,3 +17,12 @@ export async function fetchDetail(id: string): Promise<CarparkDetail> {
   if (!res.ok) throw new Error('Carpark not found');
   return res.json();
 }
+
+export async function fetchAvailability(): Promise<{
+  updatedAt: string;
+  carparks: Record<string, Record<string, { available: number | null; total: number | null }>>;
+}> {
+  const res = await fetch('/api/carparks/availability');
+  if (!res.ok) throw new Error('Failed to fetch availability');
+  return res.json();
+}
