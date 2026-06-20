@@ -1,17 +1,13 @@
-import axios from 'axios';
+import datamallClient from '../../lib/datamallClient';
 import type { CarparkRecord, AvailabilityEntry, DatamallResult } from '../pipeline/types.js';
-import { TIMEOUTS } from '../config.js';
-
-const URL = 'https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2';
 
 export async function fetchDatamall(): Promise<DatamallResult> {
-  const key = process.env.DATAMALL_API;
-  if (!key) throw new Error('DATAMALL_API not set');
+  if (!process.env.DATAMALL_API) throw new Error('DATAMALL_API not set');
 
   const raw: Record<string, string>[] = [];
   let skip = 0;
   while (true) {
-    const { data } = await axios.get(URL, { headers: { AccountKey: key }, params: { $skip: skip }, timeout: TIMEOUTS.datamall });
+    const { data } = await datamallClient.get('/CarParkAvailabilityv2', { params: { $skip: skip } });
     const batch = data.value ?? [];
     if (!batch.length) break;
     raw.push(...batch);

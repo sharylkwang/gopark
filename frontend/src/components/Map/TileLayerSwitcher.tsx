@@ -34,6 +34,8 @@ function TileCard({ tile, active, disabled, onClick }: { tile: TileProviderConfi
             alt={tile.name}
             className="w-full h-full object-cover"
             draggable={false}
+            loading="lazy"
+            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
           />
         )}
       </div>

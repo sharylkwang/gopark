@@ -1,10 +1,6 @@
-import axios from 'axios';
+import parkaholicClient from '../../lib/parkaholicClient';
 import type { CarparkRecord, AvailabilityEntry } from '../pipeline/types.js';
-import { PARKAHOLIC, TIMEOUTS } from '../config.js';
-
-const LOC_URL = 'https://parkaholic.sg/data.json';
-const DUMP_URL = 'https://parkaholic.sg/api/dump';
-const RATE_URL = 'https://parkaholic.sg/api/history';
+import { PARKAHOLIC } from '../config.js';
 
 const SG_LAT_MIN = 1.15;
 const SG_LAT_MAX = 1.47;
@@ -12,7 +8,7 @@ const SG_LNG_MIN = 103.59;
 const SG_LNG_MAX = 104.12;
 
 export async function fetchLocations(): Promise<CarparkRecord[]> {
-  const { data } = await axios.get(LOC_URL, { timeout: TIMEOUTS.api });
+  const { data } = await parkaholicClient.get('/data.json');
   const out: CarparkRecord[] = [];
 
   for (const [id, info] of Object.entries(data as Record<string, Record<string, unknown>>)) {
@@ -32,7 +28,7 @@ export async function fetchLocations(): Promise<CarparkRecord[]> {
 }
 
 export async function fetchDump(): Promise<Record<string, { availability: Record<string, AvailabilityEntry>; agency: string }>> {
-  const { data } = await axios.get(DUMP_URL, { timeout: TIMEOUTS.api });
+  const { data } = await parkaholicClient.get('/api/dump');
   const out: Record<string, { availability: Record<string, AvailabilityEntry>; agency: string }> = {};
 
   for (const info of Object.values((data.resp ?? {}) as Record<string, Record<string, unknown>>)) {
@@ -51,9 +47,8 @@ export async function fetchRates(ids: string[], concurrency = PARKAHOLIC.rateCon
   for (let i = 0; i < ids.length; i += concurrency) {
     const batch = ids.slice(i, i + concurrency);
     const results = await Promise.allSettled(batch.map(async id => {
-      const { data } = await axios.post(RATE_URL, { CarParkID: id }, {
+      const { data } = await parkaholicClient.post('/api/history', { CarParkID: id }, {
         headers: { 'content-type': 'application/json', origin: 'https://parkaholic.sg' },
-        timeout: TIMEOUTS.parkaholicRate,
       });
       const r = data.resp ?? {};
       return { id, rates: { weekday: r.weekdays_rate_1 ?? '', weekday_2: r.weekdays_rate_2 ?? '', saturday: r.saturday_rate ?? '', sunday: r.sunday_publicholiday_rate ?? '', remarks: r.special_remarks ?? '' } };
