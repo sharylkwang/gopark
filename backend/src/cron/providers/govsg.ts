@@ -1,11 +1,11 @@
 import axios from 'axios';
 import { svy21ToWgs84 } from 'svy21';
+import govsgClient from '../../lib/govsgClient';
 import type { CarparkRecord, AvailabilityEntry } from '../pipeline/types.js';
 import { TIMEOUTS } from '../config.js';
 
 const MAPPING = 'https://data.gov.sg/api/action/datastore_search';
 const RESOURCE = 'd_23f946fa557947f93a8043bbef41dd09';
-const AVAIL = 'https://api.data.gov.sg/v1/transport/carpark-availability';
 
 export async function fetchMapping(): Promise<CarparkRecord[]> {
   const { data } = await axios.get(MAPPING, { params: { resource_id: RESOURCE, limit: 3000 }, timeout: TIMEOUTS.api });
@@ -28,8 +28,7 @@ export async function fetchMapping(): Promise<CarparkRecord[]> {
 }
 
 export async function fetchAvailability(): Promise<Record<string, Record<string, AvailabilityEntry>>> {
-  const headers = process.env.DATAGOVSG_KEY ? { 'x-api-key': process.env.DATAGOVSG_KEY } : {};
-  const { data } = await axios.get(AVAIL, { headers, timeout: TIMEOUTS.api });
+  const { data } = await govsgClient.get('/transport/carpark-availability');
 
   const out: Record<string, Record<string, AvailabilityEntry>> = {};
   for (const cp of data.items[0].carpark_data) {

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import axios from 'axios';
+import geoapifyClient from '../../lib/geoapifyClient';
 import createLogger from '../../lib/logger.js';
 
 const log = createLogger('geoapify');
@@ -14,13 +14,8 @@ router.get('/geoapify/geocode', async (req: Request, res: Response) => {
       return;
     }
 
-    const response = await axios.get('https://api.geoapify.com/v1/geocode/search', {
-      params: {
-        text: q,
-        filter: 'countrycode:sg',
-        format: 'json',
-        apiKey: process.env.GEOAPIFY_KEY,
-      },
+    const response = await geoapifyClient.get('/search', {
+      params: { text: q },
     });
 
     const results = response.data?.results || [];
@@ -51,13 +46,8 @@ router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
       return;
     }
 
-    const response = await axios.get('https://api.geoapify.com/v1/geocode/autocomplete', {
-      params: {
-        text: q,
-        filter: 'countrycode:sg', 
-        format: 'json',
-        apiKey: process.env.GEOAPIFY_KEY,
-      },
+    const response = await geoapifyClient.get('/autocomplete', {
+      params: { text: q },
     });
 
     res.json(response.data?.results || []);

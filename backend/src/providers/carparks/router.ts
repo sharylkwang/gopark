@@ -22,6 +22,16 @@ const LIST_SELECT = {
   availability: { select: { lotType: true, available: true, total: true } },
 } as const;
 
+const NEARBY_SELECT = {
+  ...LIST_SELECT,
+  rates: {
+    select: {
+      amount: true, durationMins: true, unit: true, vehicleType: true,
+      periodStart: true, periodEnd: true, isFirst: true, dayType: true, sources: true,
+    },
+  },
+} as const;
+
 function formatCarpark(cp: { id: string; name: string; lat: number; lng: number; address: string; agency: string; sources: string[]; lotTypes: string; availability: { lotType: string; available: number | null; total: number | null }[] }) {
   return {
     id: cp.id, name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address,
@@ -46,9 +56,17 @@ router.get('/carparks/nearby', async (req: Request, res: Response) => {
     return;
   }
 
-  const rows = await prisma.carpark.findMany({ where: { active: true }, select: LIST_SELECT });
+  const rows = await prisma.carpark.findMany({ where: { active: true }, select: NEARBY_SELECT });
   const nearby = rows
-    .map(cp => ({ ...formatCarpark(cp), distance: Math.round(haversine(lat, lng, cp.lat, cp.lng)) }))
+    .map(cp => ({
+      ...formatCarpark(cp),
+      distance: Math.round(haversine(lat, lng, cp.lat, cp.lng)),
+      rates: (cp as any).rates.map((r: any) => ({
+        amount: Number(r.amount), durationMins: r.durationMins, unit: r.unit,
+        vehicleType: r.vehicleType, periodStart: r.periodStart, periodEnd: r.periodEnd,
+        isFirst: r.isFirst, dayType: r.dayType, sources: r.sources, confirmedBy: r.sources.length,
+      })),
+    }))
     .filter(cp => cp.distance <= radius)
     .sort((a, b) => a.distance - b.distance)
     .slice(0, limit);
@@ -74,7 +92,7 @@ router.get('/carparks/availability', async (_req: Request, res: Response) => {
 
 router.get('/carparks/:id', async (req: Request, res: Response) => {
   const cp = await prisma.carpark.findUnique({
-    where: { id: req.params.id },
+    where: { id: req.params.id as string },
     include: {
       rates: { select: { amount: true, durationMins: true, unit: true, vehicleType: true, periodStart: true, periodEnd: true, isFirst: true, dayType: true, sources: true } },
       availability: { select: { lotType: true, available: true, total: true, updatedAt: true } },
@@ -89,7 +107,7 @@ router.get('/carparks/:id', async (req: Request, res: Response) => {
     metadata: cp.metadata,
     detailsUpdatedAt: cp.detailsUpdatedAt,
     availabilityUpdatedAt: cp.availabilityUpdatedAt,
-    rates: cp.rates.map(r => ({
+    rates: cp.rates.map((r: any) => ({
       amount: Number(r.amount), durationMins: r.durationMins, unit: r.unit, vehicleType: r.vehicleType,
       periodStart: r.periodStart, periodEnd: r.periodEnd, isFirst: r.isFirst, dayType: r.dayType,
       sources: r.sources, confirmedBy: r.sources.length,

@@ -16,13 +16,17 @@ function availColor(cp: CarparkSummary): string {
   return '#ef4444';
 }
 
-function pin(color: string, size: number) {
+function pin(color: string, size: number, selected: boolean, dimOthers: boolean) {
+  const opacity = selected ? '1' : dimOthers ? '0.65' : '1';
+  const border = selected ? '3px solid white' : '2px solid rgba(255,255,255,0.6)';
+  const shadow = selected ? '0 2px 8px rgba(0,0,0,0.5)' : '0 1px 3px rgba(0,0,0,0.2)';
+  const zBoost = selected ? 'z-index:1000;' : '';
   return L.divIcon({
     className: '',
     iconSize: [size, size],
     iconAnchor: [size / 2, size],
     popupAnchor: [0, -size],
-    html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid rgba(255,255,255,0.8);box-shadow:0 1px 4px rgba(0,0,0,0.3);cursor:pointer"></div>`,
+    html: `<div style="width:${size}px;height:${size}px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:${border};box-shadow:${shadow};cursor:pointer;opacity:${opacity};${zBoost}transition:opacity 0.2s ease"></div>`,
   });
 }
 
@@ -42,11 +46,12 @@ function clusterIcon(count: number, zoom: number) {
 
 interface Props {
   carparks: CarparkSummary[];
-  selectedId: string | null; 
+  selectedId: string | null;
   onSelect: (id: string) => void;
+  hasSearched?: boolean;
 }
 
-export function MarkerCluster({ carparks, selectedId, onSelect }: Props) {
+export function MarkerCluster({ carparks, selectedId, onSelect, hasSearched }: Props) {
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
 
@@ -54,13 +59,13 @@ export function MarkerCluster({ carparks, selectedId, onSelect }: Props) {
     if (clusterRef.current) map.removeLayer(clusterRef.current);
 
     const cluster = L.markerClusterGroup({
-      maxClusterRadius: (zoom: number) => {
+      maxClusterRadius: hasSearched ? 0 : (zoom: number) => {
         if (zoom <= 12) return 120;
         if (zoom <= 14) return 80;
         if (zoom <= 16) return 50;
         return 30;
       },
-      disableClusteringAtZoom: 19,
+      disableClusteringAtZoom: hasSearched ? 0 : 19,
       spiderfyOnMaxZoom: true,
       showCoverageOnHover: false,
       zoomToBoundsOnClick: true,
@@ -72,11 +77,15 @@ export function MarkerCluster({ carparks, selectedId, onSelect }: Props) {
 
     for (const cp of carparks) {
       const isSelected = cp.id === selectedId;
-      
-      const markerColor = isSelected ? '#dc2626' : availColor(cp);
-      const markerSize = isSelected ? 32 : 24; 
+      const dimUnselected = !!hasSearched && selectedId !== null;
 
-      const marker = L.marker([cp.lat, cp.lng], { icon: pin(markerColor, markerSize) });
+      const markerColor = isSelected ? '#2563eb' : availColor(cp);
+      const markerSize = isSelected ? 34 : 20;
+
+      const marker = L.marker([cp.lat, cp.lng], {
+        icon: pin(markerColor, markerSize, isSelected, dimUnselected),
+        zIndexOffset: isSelected ? 1000 : 0,
+      });
       marker.on('click', () => onSelect(cp.id));
       cluster.addLayer(marker);
     }
@@ -85,7 +94,7 @@ export function MarkerCluster({ carparks, selectedId, onSelect }: Props) {
     clusterRef.current = cluster;
 
     return () => { map.removeLayer(cluster); clusterRef.current = null; };
-  }, [carparks, selectedId, onSelect, map]);
+  }, [carparks, selectedId, onSelect, map, hasSearched]);
 
   return null;
 }
