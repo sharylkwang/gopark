@@ -45,6 +45,27 @@ function midpoint(points: [number, number][]): [number, number] {
   return points[idx] || points[0];
 }
 
+const DRIVE_OUTLINE = { color: '#1a1a2e', weight: 10, opacity: 0.3 };
+const DRIVE_LINE = { color: '#4285f4', weight: 6, opacity: 0.9 };
+
+const WALK_STYLES = {
+  outline: { color: '#1e40af', weight: 8, opacity: 0.2 },
+  line: { color: '#3b82f6', weight: 5, opacity: 1, dashArray: '2, 10', lineCap: 'round' as const },
+  bfaOutline: { color: '#6d28d9', weight: 8, opacity: 0.2 },
+  bfaLine: { color: '#8b5cf6', weight: 5, opacity: 1, dashArray: '2, 10', lineCap: 'round' as const },
+};
+
+function WalkRoute({ polyline, isBfa }: { polyline: [number, number][]; isBfa?: boolean }) {
+  const outline = isBfa ? WALK_STYLES.bfaOutline : WALK_STYLES.outline;
+  const line = isBfa ? WALK_STYLES.bfaLine : WALK_STYLES.line;
+  return (
+    <>
+      <Polyline positions={polyline} pathOptions={outline} />
+      <Polyline positions={polyline} pathOptions={line} />
+    </>
+  );
+}
+
 const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>`;
 
 
@@ -260,6 +281,7 @@ export function MapView({
       <MapContainer
         center={[1.3521, 103.8198]} zoom={12} className="h-full w-full z-0"
         zoomSnap={1} zoomDelta={1} wheelPxPerZoomLevel={120} zoomAnimation={true}
+        doubleClickZoom={false}
         zoomControl={false} minZoom={11} maxZoom={19}
         maxBounds={new LatLngBounds([1.15, 103.59], [1.47, 104.12])} maxBoundsViscosity={1.0}
       >
@@ -321,40 +343,17 @@ export function MapView({
 
         {drivePolyline && drivePolyline.length > 0 && (
           <>
-            <Polyline
-              positions={drivePolyline}
-              pathOptions={{ color: '#1a1a2e', weight: 10, opacity: 0.3 }}
-            />
+            <Polyline positions={drivePolyline} pathOptions={DRIVE_OUTLINE} />
             {driveRoute?.speedIntervals && driveRoute.speedIntervals.length > 0
               ? <TrafficPolyline points={drivePolyline} intervals={driveRoute.speedIntervals} />
-              : <Polyline positions={drivePolyline} pathOptions={{ color: '#4285f4', weight: 6, opacity: 0.9 }} />
+              : <Polyline positions={drivePolyline} pathOptions={DRIVE_LINE} />
             }
           </>
         )}
 
-        {walkPolyline && walkPolyline.length > 0 && (() => {
-          const isBfa = walkRoute?.travelMode === 'BFA';
-          const outlineColor = isBfa ? '#6d28d9' : '#1e40af';
-          const lineColor = isBfa ? '#8b5cf6' : '#3b82f6';
-          return (
-            <>
-              <Polyline
-                positions={walkPolyline}
-                pathOptions={{ color: outlineColor, weight: 8, opacity: 0.2 }}
-              />
-              <Polyline
-                positions={walkPolyline}
-                pathOptions={{
-                  color: lineColor,
-                  weight: 5,
-                  opacity: 1,
-                  dashArray: '2, 10',
-                  lineCap: 'round',
-                }}
-              />
-            </>
-          );
-        })()}
+        {walkPolyline && walkPolyline.length > 0 && (
+          <WalkRoute polyline={walkPolyline} isBfa={walkRoute?.travelMode === 'BFA'} />
+        )}
 
         {drivePolyline && driveRoute && drivePolyline.length > 1 && (
           <RouteLabel position={midpoint(drivePolyline)} route={driveRoute} type="drive" />
