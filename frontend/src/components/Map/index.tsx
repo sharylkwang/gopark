@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, Polyline, useMap } from 'react-leaflet';
 import L, { LatLngBounds } from 'leaflet';
 import { CameraFlyer } from './CameraFlyer';
@@ -95,7 +95,7 @@ function makePill(time: string, svg: string, bg: string, border: string, textCol
 const getDestinationPin = () => {
   return L.divIcon({
     className: 'destination-pin',
-    html: `<div style="position:relative;">
+    html: `<div class="dest-inner" style="position:relative;transition:transform 0.25s ease-out,filter 0.25s ease-out;">
       <span class="dest-pulse"></span>
       <div style="
         width: 40px;
@@ -161,6 +161,7 @@ interface Props {
   hasSearched: boolean;
   onSelectCarpark: (id: string) => void;
   eventHandlers?: MapEventHandlers;
+  onDestinationDrag?: (lat: number, lng: number) => void;
   userLocation?: [number, number] | null;
   drivePolyline?: [number, number][] | null;
   driveRoute?: RouteResult | null;
@@ -267,9 +268,71 @@ function RouteLabel({ position, route, type }: {
   );
 }
 
+function DraggableDestination({
+  destinationPoint,
+  onDragEnd,
+}: {
+  destinationPoint: DestinationPoint;
+  onDragEnd?: (lat: number, lng: number) => void;
+}) {
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    const marker = markerRef.current;
+    if (!marker) return;
+
+    const onDragStart = () => {
+      const el = marker.getElement();
+      const inner = el?.querySelector('.dest-inner') as HTMLElement | null;
+      if (inner) {
+        inner.classList.add('dest-dragging');
+      }
+    };
+
+    const onDragEndEvt = () => {
+      const el = marker.getElement();
+      const inner = el?.querySelector('.dest-inner') as HTMLElement | null;
+      if (inner) {
+        inner.classList.remove('dest-dragging');
+      }
+      const pos = marker.getLatLng();
+      onDragEnd?.(pos.lat, pos.lng);
+    };
+
+    marker.on('dragstart', onDragStart);
+    marker.on('dragend', onDragEndEvt);
+
+    return () => {
+      marker.off('dragstart', onDragStart);
+      marker.off('dragend', onDragEndEvt);
+    };
+  }, [onDragEnd]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={[destinationPoint.lat, destinationPoint.lng]}
+      icon={getDestinationPin()}
+      draggable={true}
+      zIndexOffset={2000}
+    >
+      <Popup closeButton={false} className="route-popup">
+        <div style={{ fontFamily: 'system-ui, sans-serif', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: 14, fontWeight: 900, color: '#dc2626', marginBottom: 2 }}>
+            {destinationPoint.name}
+          </div>
+          <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
+            {destinationPoint.formatted}
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
 export function MapView({
   carparks, selectedId, destinationPoint, hasSearched,
-  onSelectCarpark, eventHandlers, userLocation,
+  onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
@@ -299,22 +362,10 @@ export function MapView({
         {eventHandlers && <EventHandler {...eventHandlers} />}
 
         {destinationPoint && (
-          <Marker
-            position={[destinationPoint.lat, destinationPoint.lng]}
-            icon={getDestinationPin()}
-            zIndexOffset={2000}
-          >
-            <Popup closeButton={false} className="route-popup">
-              <div style={{ fontFamily: 'system-ui, sans-serif', whiteSpace: 'nowrap' }}>
-                <div style={{ fontSize: 14, fontWeight: 900, color: '#dc2626', marginBottom: 2 }}>
-                  {destinationPoint.name}
-                </div>
-                <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
-                  {destinationPoint.formatted}
-                </div>
-              </div>
-            </Popup>
-          </Marker>
+          <DraggableDestination
+            destinationPoint={destinationPoint}
+            onDragEnd={onDestinationDrag}
+          />
         )}
 
         {startCoords && (
