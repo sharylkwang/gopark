@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, Clock, Menu, X, ChevronLeft, Car, Bike, MapPin, Eye, EyeOff, Map, Moon, Sun, Truck } from 'lucide-react';
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
@@ -181,14 +181,14 @@ export default function GoParkApp() {
     document.documentElement.classList.toggle('dark', darkMode);
   }, [darkMode]);
 
-  const clearRoutes = useCallback(() => {
+  const clearRoutes = () => {
     setDriveRoute(null);
     setDrivePolyline(null);
     setWalkRoute(null);
     setWalkPolyline(null);
-  }, []);
+  };
 
-  const rankResults = useCallback((nearby: CarparkSummary[]) => {
+  const rankResults = (nearby: CarparkSummary[]) => {
     let filtered = nearby.filter(cp => {
       const avail = cp.availability[vehicleType];
       if (avail) return true;
@@ -223,12 +223,12 @@ export default function GoParkApp() {
     });
 
     return results.slice(0, 10);
-  }, [vehicleType, durationHours, maxPrice]);
+  };
 
   useEffect(() => {
     if (!hasSearched || nearbyRaw.length === 0) return;
     setSearchResults(rankResults(nearbyRaw));
-  }, [vehicleType, maxPrice, durationHours, nearbyRaw, hasSearched, rankResults]);
+  }, [vehicleType, maxPrice, durationHours, nearbyRaw, hasSearched]);
 
   const resetHome = () => {
     setHasSearched(false);
@@ -240,23 +240,32 @@ export default function GoParkApp() {
     clearRoutes();
   };
 
-  const fetchRoutes = useCallback(async (carpark: CarparkSummary, dest: DestinationPoint) => {
-    const cpCoord = { lat: carpark.lat, lng: carpark.lng };
-    const destCoord = { lat: dest.lat, lng: dest.lng };
+  const fetchRoutes = async (carpark: CarparkSummary, dest: DestinationPoint) => {
     const origin = startCoords || userLocation;
 
-    const drivePromise = origin
-      ? getRoute({ lat: origin[0], lng: origin[1] }, cpCoord, 'DRIVE')
-          .then(r => { setDriveRoute(r); setDrivePolyline(decodePolyline(r.polyline)); })
-          .catch(() => { setDriveRoute(null); setDrivePolyline(null); })
-      : Promise.resolve((() => { setDriveRoute(null); setDrivePolyline(null); })());
+    if (origin) {
+      try {
+        const r = await getRoute({ lat: origin[0], lng: origin[1] }, { lat: carpark.lat, lng: carpark.lng }, 'DRIVE');
+        setDriveRoute(r);
+        setDrivePolyline(decodePolyline(r.polyline));
+      } catch {
+        setDriveRoute(null);
+        setDrivePolyline(null);
+      }
+    } else {
+      setDriveRoute(null);
+      setDrivePolyline(null);
+    }
 
-    const walkPromise = getWalkRoute(cpCoord, destCoord)
-      .then(r => { setWalkRoute(r); setWalkPolyline(decodePolyline(r.polyline)); })
-      .catch(() => { setWalkRoute(null); setWalkPolyline(null); });
-
-    await Promise.all([drivePromise, walkPromise]);
-  }, [userLocation, startCoords]);
+    try {
+      const r = await getWalkRoute({ lat: carpark.lat, lng: carpark.lng }, { lat: dest.lat, lng: dest.lng });
+      setWalkRoute(r);
+      setWalkPolyline(decodePolyline(r.polyline));
+    } catch {
+      setWalkRoute(null);
+      setWalkPolyline(null);
+    }
+  };
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -479,7 +488,13 @@ export default function GoParkApp() {
 
 
 
-  const handleDestinationDrag = useCallback(async (lat: number, lng: number) => {
+  const handleDestinationDrag = async (lat: number, lng: number) => {
+    setDestinationPoint({
+      name: destinationRef.current?.name || '',
+      formatted: destinationRef.current?.formatted || '',
+      lat,
+      lng,
+    });
     setLoading(true);
 
     const place = await reverseGeocode(lat, lng);
@@ -517,7 +532,7 @@ export default function GoParkApp() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  };
 
   const WeatherIcon = getIconForWeather(weather);
 
@@ -1040,6 +1055,15 @@ export default function GoParkApp() {
             })()}
             </>)}
           </div>
+
+          <div className={`px-4 py-3 text-center border-t shrink-0 ${darkMode ? 'border-neutral-700' : 'border-gray-100'}`}>
+            <p className={`text-[9px] font-bold tracking-wide ${darkMode ? 'text-gray-600' : 'text-gray-300'}`}>
+              Yong Man Ting · Kwang Le Ping Sharyl
+            </p>
+            <p className={`text-[8px] font-bold tracking-widest uppercase mt-0.5 ${darkMode ? 'text-gray-700' : 'text-gray-200'}`}>
+              NUS Orbital 2026 🚀🌏
+            </p>
+          </div>
         </div>
       )}
 
@@ -1149,6 +1173,7 @@ export default function GoParkApp() {
           </div>
         </div>
       )}
+
     </div>
   );
 }
