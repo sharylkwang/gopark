@@ -3,19 +3,6 @@ export interface CarparkAvailability {
   total: number | null;
 }
 
-export interface CarparkSummary {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  address: string;
-  agency: string;
-  sources: string[];
-  lotTypes: string;
-  availability: Record<string, CarparkAvailability>;
-  distance?: number;
-}
-
 export interface CarparkRate {
   amount: number;
   durationMins: number | null;
@@ -27,6 +14,21 @@ export interface CarparkRate {
   dayType: string;
   sources: string[];
   confirmedBy: number;
+}
+
+export interface CarparkSummary {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  address: string;
+  agency: string;
+  sources: string[];
+  lotTypes: string;
+  availability: Record<string, CarparkAvailability>;
+  distance?: number;
+  rates?: CarparkRate[];
+  estimatedCost?: number | null;
 }
 
 export interface CarparkDetail extends CarparkSummary {

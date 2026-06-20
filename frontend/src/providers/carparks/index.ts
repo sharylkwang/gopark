@@ -1,1 +1,1 @@
-export { fetchAll, fetchNearby, fetchDetail } from './api';
+export { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './api';
