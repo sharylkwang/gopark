@@ -3,7 +3,7 @@ import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, C
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
-import { geocodeLocation, autocompleteLocation } from './providers/geoapify';
+import { geocodeLocation, autocompleteLocation, reverseGeocode } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './providers/carparks';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState, PlaceSuggestion } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
@@ -478,6 +478,46 @@ export default function GoParkApp() {
   };
 
 
+
+  const handleDestinationDrag = useCallback(async (lat: number, lng: number) => {
+    setLoading(true);
+
+    const place = await reverseGeocode(lat, lng);
+    const placeName = place.name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    const dest: DestinationPoint = {
+      name: placeName,
+      formatted: place.formatted || placeName,
+      lat,
+      lng,
+    };
+
+    setDestinationPoint(dest);
+    destinationRef.current = dest;
+    setDestination(placeName);
+
+    try {
+      const nearby = await fetchNearby(lat, lng, 2000);
+      setNearbyRaw(nearby);
+      const ranked = rankResults(nearby);
+      setSearchResults(ranked);
+      setHasSearched(true);
+      setDetail(null);
+
+      if (ranked.length > 0) {
+        setSelectedId(ranked[0].id);
+        fetchDetail(ranked[0].id)
+          .then(setDetail)
+          .catch(() => setDetail(null));
+        fetchRoutes(ranked[0], dest);
+      } else {
+        setSelectedId(null);
+        clearRoutes();
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   const WeatherIcon = getIconForWeather(weather);
 
@@ -1012,10 +1052,9 @@ export default function GoParkApp() {
 
       <div className="flex-1 min-w-0 relative">
         <MapView carparks={hasSearched ? searchResults : []} selectedId={selectedId} destinationPoint={destinationPoint}
-          hasSearched={hasSearched} onSelectCarpark={selectCarpark} userLocation={userLocation}
-          drivePolyline={drivePolyline} driveRoute={driveRoute}
-          walkPolyline={walkPolyline} walkRoute={walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen}
-          />
+          hasSearched={hasSearched} onSelectCarpark={selectCarpark} onDestinationDrag={handleDestinationDrag}
+          userLocation={userLocation} drivePolyline={drivePolyline} driveRoute={driveRoute}
+          walkPolyline={walkPolyline} walkRoute={walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} />
       </div>
 
       {detail && (
