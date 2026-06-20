@@ -40,10 +40,10 @@ router.get('/geoapify/geocode', async (req: Request, res: Response) => {
 
 router.get('/geoapify/reverse', async (req: Request, res: Response) => {
   try {
-    const lat = req.query.lat as string;
-    const lng = req.query.lng as string;
-    if (!lat || !lng) {
-      res.status(400).json({ error: 'Missing lat/lng' });
+    const lat = parseFloat(req.query.lat as string);
+    const lng = parseFloat(req.query.lng as string);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      res.status(400).json({ error: 'Invalid coordinates' });
       return;
     }
 

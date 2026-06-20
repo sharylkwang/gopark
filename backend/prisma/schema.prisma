@@ -90,15 +90,17 @@ model ScraperDomain {
 }
 
 model User {
-  id         String   @id @default(uuid())
-  username   String
-  email      String   @unique
-  password   String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id             String    @id @default(uuid())
+  username       String
+  email          String    @unique
+  password       String
+  failedAttempts Int       @default(0) @map("failed_attempts")
+  lockedUntil    DateTime? @map("locked_until")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  favorites  Fav[]
-  passwordHistory  PasswordHistory[]
+  favorites       Fav[]
+  passwordHistory PasswordHistory[]
 }
 
 model Fav {
