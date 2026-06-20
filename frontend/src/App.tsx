@@ -17,8 +17,8 @@ import { fetchFavorites, addFavorite, removeFavorite } from './providers/favorit
 const LOT_LABELS: Record<string, string> = { C: 'Car', Y: 'Motorcycle', H: 'Heavy Vehicle', S: 'Season' };
 const LOT_ICONS: Record<string, typeof Car> = { C: Car, Y: Bike };
 const DAY_LABELS: Record<string, string> = { weekday: 'Weekday', weekday_eve: 'Weekday Eve', saturday: 'Saturday', sunday: 'Sun / PH', all: 'All Days' };
-const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
-const PASSWORD_ERROR = 'Password must be at least 8 characters and include both letters and numbers.';
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]).{8,}$/;
+const PASSWORD_ERROR = 'Password needs 8+ characters with uppercase, lowercase, number, and special character.';
 
 function timeAgo(iso: string) {
   const diff = Date.now() - new Date(iso).getTime();
