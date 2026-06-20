@@ -1,20 +1,21 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { fetchTile, isValidTileType } from './tiles';
-import { computeRoute } from './routing';
+import { computeRoute, type TravelMode } from './routing';
 
+const VALID_MODES = new Set(['DRIVE', 'WALK', 'BICYCLE']);
 const router = Router();
 
 router.get('/google/tiles/:type/:z/:x/:y', async (req: Request, res: Response) => {
   const { type, z, x, y } = req.params;
 
-  if (!isValidTileType(type)) {
+  if (!isValidTileType(type as string)) {
     res.status(404).json({ error: 'Unknown tile type' });
     return;
   }
 
   try {
-    const { data, contentType } = await fetchTile(type, parseInt(z), parseInt(x), parseInt(y));
+    const { data, contentType } = await fetchTile(type as string, parseInt(z as string), parseInt(x as string), parseInt(y as string));
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(data);
@@ -24,15 +25,17 @@ router.get('/google/tiles/:type/:z/:x/:y', async (req: Request, res: Response) =
 });
 
 router.post('/google/route', async (req: Request, res: Response) => {
-  const { origin, destination } = req.body;
+  const { origin, destination, travelMode } = req.body;
 
   if (!origin?.lat || !origin?.lng || !destination?.lat || !destination?.lng) {
     res.status(400).json({ error: 'Missing origin or destination coordinates' });
     return;
   }
 
+  const mode: TravelMode = VALID_MODES.has(travelMode) ? travelMode : 'DRIVE';
+
   try {
-    const route = await computeRoute(origin, destination);
+    const route = await computeRoute(origin, destination, mode);
     res.json(route);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
