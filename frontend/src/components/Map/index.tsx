@@ -47,9 +47,6 @@ function midpoint(points: [number, number][]): [number, number] {
 
 const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>`;
 
-const WALK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1"/><path d="m9 20 3-6 3 6"/><path d="m6 8 3 4h6l3-4"/></svg>`;
-
-const BFA_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="16" cy="4" r="1"/><path d="m18 19 1-7-6 1"/><path d="m5 8 3-3 5.5 3-2.36 3.5"/><path d="M4.24 14.5a5 5 0 0 0 6.88 6"/><path d="M13.76 17.5a5 5 0 0 0-6.88-6"/></svg>`;
 
 function makePill(time: string, svg: string, bg: string, border: string, textColor: string, dotColor?: string) {
   const dot = dotColor
@@ -155,8 +152,9 @@ interface Props {
 function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
   const map = useMap();
   useEffect(() => {
-    setTimeout(() => map.invalidateSize(), 300);
-  }, [sidebarOpen, map]);
+    const t = setTimeout(() => map.invalidateSize(), 300);
+    return () => clearTimeout(t);
+  }, [sidebarOpen]);
   return null;
 }
 
@@ -188,41 +186,56 @@ function RouteLabel({ position, route, type }: {
 }) {
   const time = parseDuration(route.duration);
   const dist = formatDist(route.distanceMeters);
-  const isBfa = route.travelMode === 'BFA';
   const trafficLabel = type === 'drive' ? (TRAFFIC_LABELS[route.trafficCondition] || '') : '';
   const trafficDot = type === 'drive' ? (TRAFFIC_DOT[route.trafficCondition] || '') : '';
 
-  let icon;
-  if (type === 'drive') {
-    icon = makePill(time, CAR_SVG, 'white', '#d1d5db', '#111827', trafficDot);
-  } else if (isBfa) {
-    icon = makePill(time, BFA_SVG, '#f3e8ff', '#a78bfa', '#6d28d9');
-  } else {
-    icon = makePill(time, WALK_SVG, '#dbeafe', '#60a5fa', '#1e40af');
+  if (type !== 'drive') {
+    const walkIcon = L.divIcon({
+      className: 'route-pill-wrapper',
+      html: `<div style="
+        display:inline-flex;align-items:center;gap:6px;
+        background:linear-gradient(135deg,#eff6ff,#e0e7ff);
+        border:1.5px solid #93c5fd;
+        border-radius:16px;padding:6px 12px;
+        white-space:nowrap;cursor:default;
+        font-family:system-ui,-apple-system,sans-serif;
+      ">
+        <span style="font-size:15px">&#x1F6B6;&#x200D;&#x2640;&#xFE0F;</span>
+        <span style="font-size:14px;font-weight:900;color:#1e40af;line-height:1">${time}</span>
+        <span style="font-size:11px;font-weight:700;color:#60a5fa;line-height:1">${dist}</span>
+        <span style="font-size:12px">&#x2728;</span>
+      </div>`,
+      iconSize: [160, 34],
+      iconAnchor: [80, 17],
+    });
+
+    return <Marker position={position} icon={walkIcon} zIndexOffset={1000} />;
   }
 
-  const walkColor = isBfa ? '#6d28d9' : '#1e40af';
-  const walkLabel = isBfa ? 'Wheelchair-friendly route' : 'Walk to destination';
+  const icon = makePill(time, CAR_SVG, 'white', '#d1d5db', '#111827', trafficDot);
 
-  const popupHtml = type === 'drive'
-    ? `<div style="font-family:system-ui,sans-serif;min-width:140px;">
-        <div style="font-size:15px;font-weight:800;color:#111827;margin-bottom:6px;">Drive to carpark</div>
-        <div style="display:flex;gap:12px;margin-bottom:6px;">
-          <div><span style="font-size:18px;font-weight:900;color:#111827;">${time}</span></div>
-          <div><span style="font-size:13px;color:#6b7280;">${dist}</span></div>
-        </div>
-        ${trafficLabel ? `<div style="font-size:12px;font-weight:700;color:${trafficDot};display:flex;align-items:center;gap:5px;">
-          <span style="width:8px;height:8px;border-radius:50%;background:${trafficDot};display:inline-block;"></span>
-          ${trafficLabel}
-        </div>` : ''}
-      </div>`
-    : `<div style="font-family:system-ui,sans-serif;min-width:140px;">
-        <div style="font-size:15px;font-weight:800;color:${walkColor};margin-bottom:6px;">${walkLabel}</div>
-        <div style="display:flex;gap:12px;">
-          <div><span style="font-size:18px;font-weight:900;color:${walkColor};">${time}</span></div>
-          <div><span style="font-size:13px;color:#6b7280;">${dist}</span></div>
-        </div>
-      </div>`;
+  const trafficBit = trafficLabel
+    ? `<span style="
+        display:inline-flex;align-items:center;gap:4px;
+        font-size:11px;font-weight:700;color:${trafficDot};
+        background:${trafficDot}15;
+        padding:2px 8px;border-radius:10px;
+      ">
+        <span style="width:6px;height:6px;border-radius:50%;background:${trafficDot}"></span>
+        ${trafficLabel}
+      </span>`
+    : '';
+
+  const popupHtml = `<div style="
+    font-family:system-ui,sans-serif;
+    display:flex;align-items:center;gap:10px;
+    white-space:nowrap;
+  ">
+    <span style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px">Drive</span>
+    <span style="font-size:16px;font-weight:900;color:#111827">${time}</span>
+    <span style="font-size:12px;color:#9ca3af">${dist}</span>
+    ${trafficBit}
+  </div>`;
 
   return (
     <Marker position={position} icon={icon} zIndexOffset={1000}>
@@ -269,19 +282,36 @@ export function MapView({
             icon={getDestinationPin()}
             zIndexOffset={2000}
           >
-            <Popup><strong>{destinationPoint.name}</strong><br />{destinationPoint.formatted}</Popup>
+            <Popup closeButton={false} className="route-popup">
+              <div style={{ fontFamily: 'system-ui, sans-serif', whiteSpace: 'nowrap' }}>
+                <div style={{ fontSize: 14, fontWeight: 900, color: '#dc2626', marginBottom: 2 }}>
+                  {destinationPoint.name}
+                </div>
+                <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
+                  {destinationPoint.formatted}
+                </div>
+              </div>
+            </Popup>
           </Marker>
         )}
 
         {startCoords && (
           <Marker position={startCoords} icon={getStartPin()} zIndexOffset={1500}>
-            <Popup><strong>Start Point</strong></Popup>
+            <Popup closeButton={false} className="route-popup">
+              <div style={{ fontFamily: 'system-ui, sans-serif', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#2563eb' }}>Start Point</span>
+              </div>
+            </Popup>
           </Marker>
         )}
 
         {userLocation && !startCoords && (
           <Marker position={userLocation} icon={getUserDot()}>
-            <Popup>You are here</Popup>
+            <Popup closeButton={false} className="route-popup">
+              <div style={{ fontFamily: 'system-ui, sans-serif', whiteSpace: 'nowrap' }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: '#4285f4' }}>You are here</span>
+              </div>
+            </Popup>
           </Marker>
         )}
 
@@ -305,7 +335,7 @@ export function MapView({
         {walkPolyline && walkPolyline.length > 0 && (() => {
           const isBfa = walkRoute?.travelMode === 'BFA';
           const outlineColor = isBfa ? '#6d28d9' : '#1e40af';
-          const lineColor = isBfa ? '#8b5cf6' : '#2563eb';
+          const lineColor = isBfa ? '#8b5cf6' : '#3b82f6';
           return (
             <>
               <Polyline

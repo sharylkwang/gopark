@@ -3,7 +3,7 @@ import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, C
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
-import { geocodeLocation, autocompleteLocation } from './providers/geoapify';
+import { geocodeLocation, autocompleteLocation, reverseGeocode } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './providers/carparks';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState, PlaceSuggestion } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
@@ -25,13 +25,20 @@ function timeAgo(iso: string) {
   if (diff < 60000) return 'just now';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return new Date(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleDateString('en-SG', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function totals(avail: Record<string, { available: number | null; total: number | null }>) {
-  const a = Object.values(avail).reduce((s, e) => s + (e.available ?? 0), 0);
-  const t = Object.values(avail).reduce((s, e) => s + (e.total ?? 0), 0);
-  return { available: a, total: t, pct: t > 0 ? (a / t) * 100 : 0 };
+  const entries = Object.values(avail);
+  const available = entries.reduce((sum, e) => sum + (e.available ?? 0), 0);
+  const total = entries.reduce((sum, e) => sum + (e.total ?? 0), 0);
+  const pct = total > 0 ? (available / total) * 100 : 0;
+  return { available, total, pct };
 }
 
 function formatDuration(seconds: number) {
@@ -42,6 +49,15 @@ function formatDuration(seconds: number) {
 function formatDistance(meters: number) {
   if (meters >= 1000) return `${(meters / 1000).toFixed(1)} km`;
   return `${meters} m`;
+}
+
+function formatParkDuration(hours: number) {
+  if (hours < 1) {
+    return `${Math.round(hours * 60)} mins`;
+  }
+  const h = Math.floor(hours);
+  const m = Math.round((hours % 1) * 60);
+  return m > 0 ? `${h}h ${m} mins` : `${h}h`;
 }
 
 export default function GoParkApp() {
@@ -112,7 +128,9 @@ export default function GoParkApp() {
     localStorage.setItem('gopark_user', JSON.stringify(data.user));
     setAppState('user');
     setHasSearched(false);
-    fetchFavorites().then(ids => setFavorites(new Set(ids))).catch(() => {});
+    fetchFavorites()
+      .then(ids => setFavorites(new Set(ids)))
+      .catch(() => {});
   };
 
   useEffect(() => {
@@ -120,13 +138,26 @@ export default function GoParkApp() {
     const savedUser = localStorage.getItem('gopark_user');
     if (token && savedUser) {
       setAppState('user');
-      fetchFavorites().then(ids => setFavorites(new Set(ids))).catch(() => {});
+      fetchFavorites()
+        .then(ids => setFavorites(new Set(ids)))
+        .catch(() => {});
     }
   }, []);
-  useEffect(() => { getWeatherByIP().then(({ forecast }) => setWeather(forecast)); }, []);
-  useEffect(() => { fetchAll().then(setAllCarparks).catch(() => {}); }, []);
   useEffect(() => {
-    if (navigator.geolocation) navigator.geolocation.getCurrentPosition(pos => setUserLocation([pos.coords.latitude, pos.coords.longitude]), () => {});
+    getWeatherByIP().then(({ forecast }) => setWeather(forecast));
+  }, []);
+
+  useEffect(() => {
+    fetchAll().then(setAllCarparks).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        () => {}
+      );
+    }
   }, []);
   useEffect(() => {
     const handler = (e: MouseEvent) => { if (tooltipRef.current && !tooltipRef.current.contains(e.target as Node)) setShowLocationTooltip(false); };
@@ -164,18 +195,34 @@ export default function GoParkApp() {
       if (Object.keys(cp.availability).length === 0) return true;
       return false;
     });
+
     if (filtered.length === 0 && (vehicleType === 'C' || vehicleType === 'Y')) {
-      filtered = nearby.filter(cp => cp.agency === 'HDB' || Object.keys(cp.availability).length === 0);
-    }
-    return filtered
-      .map(cp => ({ ...cp, estimatedCost: cp.rates ? estimateCost(cp.rates, durationHours, vehicleType) : null }))
-      .filter(cp => maxPrice === null || cp.estimatedCost === null || cp.estimatedCost <= maxPrice)
-      .sort((a, b) => {
-        if (a.distance !== b.distance) return (a.distance ?? Infinity) - (b.distance ?? Infinity);
-        const ca = a.estimatedCost ?? Infinity;
-        const cb = b.estimatedCost ?? Infinity;
-        return ca - cb;
+      filtered = nearby.filter(cp => {
+        return cp.agency === 'HDB' || Object.keys(cp.availability).length === 0;
       });
+    }
+
+    let results = filtered.map(cp => {
+      const cost = cp.rates ? estimateCost(cp.rates, durationHours, vehicleType) : null;
+      return { ...cp, estimatedCost: cost };
+    });
+
+    if (maxPrice !== null) {
+      results = results.filter(cp => {
+        return cp.estimatedCost === null || cp.estimatedCost <= maxPrice;
+      });
+    }
+
+    results.sort((a, b) => {
+      const distA = a.distance ?? Infinity;
+      const distB = b.distance ?? Infinity;
+      if (distA !== distB) return distA - distB;
+      const costA = a.estimatedCost ?? Infinity;
+      const costB = b.estimatedCost ?? Infinity;
+      return costA - costB;
+    });
+
+    return results.slice(0, 10);
   }, [vehicleType, durationHours, maxPrice]);
 
   useEffect(() => {
@@ -301,11 +348,16 @@ export default function GoParkApp() {
 
   const shareLocation = () => {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(pos => {
-      const c: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-      setUserLocation(c); setLocationShared(true); setShowLocationTooltip(false);
-      getWeatherForCoords(c[0], c[1]).then(setWeather);
-    }, () => setShowLocationTooltip(false));
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+        setUserLocation(coords);
+        setLocationShared(true);
+        setShowLocationTooltip(false);
+        getWeatherForCoords(coords[0], coords[1]).then(setWeather);
+      },
+      () => setShowLocationTooltip(false)
+    );
   };
 
   const executeSearch = async (searchQuery: string) => {
@@ -334,6 +386,7 @@ export default function GoParkApp() {
       const dest: DestinationPoint = { name: placeName, formatted: formattedAddress, lat, lng };
       setDestinationPoint(dest);
       destinationRef.current = dest;
+      setDestination(formattedAddress || placeName);
 
       const nearby = await fetchNearby(lat, lng, 2000);
       setNearbyRaw(nearby);
@@ -400,17 +453,68 @@ export default function GoParkApp() {
     }
   };
 
-  const closeDetail = () => { setDetail(null); setSelectedId(null); };
+  const closeDetail = () => {
+    setDetail(null);
+    setSelectedId(null);
+  };
 
   const toggleFav = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (appState !== 'user') { alert('Log in to save favorites'); return; }
+    if (appState !== 'user') {
+      alert('Log in to save favorites');
+      return;
+    }
     setFavorites(prev => {
-      const n = new Set(prev);
-      if (n.has(id)) { n.delete(id); removeFavorite(id).catch(() => {}); }
-      else { n.add(id); addFavorite(id).catch(() => {}); }
-      return n;
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+        removeFavorite(id).catch(() => {});
+      } else {
+        next.add(id);
+        addFavorite(id).catch(() => {});
+      }
+      return next;
     });
+  };
+
+  const handleMapClick = async (latlng: { lat: number; lng: number }) => {
+    setLoading(true);
+
+    const place = await reverseGeocode(latlng.lat, latlng.lng);
+    const placeName = place.name || `${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`;
+    const dest: DestinationPoint = {
+      name: placeName,
+      formatted: place.formatted || placeName,
+      lat: latlng.lat,
+      lng: latlng.lng,
+    };
+
+    setDestinationPoint(dest);
+    destinationRef.current = dest;
+    setDestination(placeName);
+
+    try {
+      const nearby = await fetchNearby(latlng.lat, latlng.lng, 2000);
+      setNearbyRaw(nearby);
+      const ranked = rankResults(nearby);
+      setSearchResults(ranked);
+      setHasSearched(true);
+      setDetail(null);
+
+      if (ranked.length > 0) {
+        setSelectedId(ranked[0].id);
+        fetchDetail(ranked[0].id)
+          .then(setDetail)
+          .catch(() => setDetail(null));
+        fetchRoutes(ranked[0], dest);
+      } else {
+        setSelectedId(null);
+        clearRoutes();
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   };
 
   const WeatherIcon = getIconForWeather(weather);
@@ -703,7 +807,7 @@ export default function GoParkApp() {
                   </div>
                   <div className={`shrink-0 text-center rounded-lg px-3 py-2 ${darkMode ? 'bg-neutral-800 border border-neutral-600' : 'bg-blue-50 border border-blue-200'}`}>
                     <p className={`text-sm font-black ${darkMode ? 'text-gray-100' : 'text-blue-700'}`}>
-                      {durationHours >= 1 ? `${Math.floor(durationHours)}h${durationHours % 1 ? ` ${Math.round((durationHours % 1) * 60)} mins` : ''}` : `${Math.round(durationHours * 60)} mins`}
+                      {formatParkDuration(durationHours)}
                     </p>
                   </div>
                 </div>
@@ -878,7 +982,7 @@ export default function GoParkApp() {
                     No Data ({noAvail.length})
                   </button>
                   <span className={`text-[9px] font-bold ml-auto ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                    {durationHours >= 1 ? `${durationHours}h` : `${durationHours * 60}min`} &middot; {LOT_LABELS[vehicleType] || vehicleType}
+                    {formatParkDuration(durationHours)} &middot; {LOT_LABELS[vehicleType] || vehicleType}
                   </span>
                 </div>
                 {showing.map(cp => {
@@ -945,10 +1049,11 @@ export default function GoParkApp() {
       )}
 
       <div className="flex-1 min-w-0 relative">
-        <MapView carparks={hasSearched ? searchResults : allCarparks} selectedId={selectedId} destinationPoint={destinationPoint}
+        <MapView carparks={hasSearched ? searchResults : []} selectedId={selectedId} destinationPoint={destinationPoint}
           hasSearched={hasSearched} onSelectCarpark={selectCarpark} userLocation={userLocation}
           drivePolyline={drivePolyline} driveRoute={driveRoute}
-          walkPolyline={walkPolyline} walkRoute={walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} />
+          walkPolyline={walkPolyline} walkRoute={walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen}
+          eventHandlers={{ onMapClick: handleMapClick }} />
       </div>
 
       {detail && (
