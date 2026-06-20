@@ -38,6 +38,37 @@ router.get('/geoapify/geocode', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/geoapify/reverse', async (req: Request, res: Response) => {
+  try {
+    const lat = req.query.lat as string;
+    const lng = req.query.lng as string;
+    if (!lat || !lng) {
+      res.status(400).json({ error: 'Missing lat/lng' });
+      return;
+    }
+
+    const response = await geoapifyClient.get('/reverse', {
+      params: { lat, lon: lng },
+    });
+
+    const results = response.data?.results || [];
+    if (results.length === 0) {
+      res.json({ name: `${lat}, ${lng}`, formatted: `${lat}, ${lng}` });
+      return;
+    }
+
+    const place = results[0];
+    res.json({
+      name: place.name || place.street || place.formatted,
+      formatted: place.formatted,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    log.error(`reverse geocode error: ${message}`);
+    res.json({ name: `${req.query.lat}, ${req.query.lng}`, formatted: '' });
+  }
+});
+
 router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string;

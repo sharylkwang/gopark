@@ -11,24 +11,33 @@ router.get('/favorites', requireAuth, async (req: AuthRequest, res: Response) =>
     select: { carparkId: true },
     orderBy: { createdAt: 'desc' },
   });
+
   res.json(favs.map(f => f.carparkId));
 });
 
 router.post('/favorites/:carparkId', requireAuth, async (req: AuthRequest, res: Response) => {
-  const { carparkId } = req.params;
+  const userId = req.user!.id;
+  const carparkId = req.params.carparkId;
+
   await prisma.fav.upsert({
-    where: { userId_carparkId: { userId: req.user!.id, carparkId } },
-    create: { userId: req.user!.id, carparkId },
+    where: {
+      userId_carparkId: { userId, carparkId },
+    },
+    create: { userId, carparkId },
     update: {},
   });
+
   res.json({ ok: true });
 });
 
 router.delete('/favorites/:carparkId', requireAuth, async (req: AuthRequest, res: Response) => {
-  const { carparkId } = req.params;
+  const userId = req.user!.id;
+  const carparkId = req.params.carparkId;
+
   await prisma.fav.deleteMany({
-    where: { userId: req.user!.id, carparkId },
+    where: { userId, carparkId },
   });
+
   res.json({ ok: true });
 });
 
