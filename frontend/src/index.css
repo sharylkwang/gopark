@@ -107,6 +107,32 @@ body {
   100% { transform: translateY(-24px) rotate(3deg); }
 }
 
+.dest-shadow {
+  animation: shadowPulse 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes shadowPulse {
+  0% { stroke-opacity: 0.4; fill-opacity: 0.15; }
+  100% { stroke-opacity: 1; fill-opacity: 0.35; }
+}
+
+.drag-tooltip {
+  background: rgba(0, 0, 0, 0.8) !important;
+  border: none !important;
+  border-radius: 8px !important;
+  color: white !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  font-family: system-ui, -apple-system, sans-serif !important;
+  padding: 6px 10px !important;
+  white-space: nowrap !important;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2) !important;
+}
+
+.drag-tooltip::before {
+  border-top-color: rgba(0, 0, 0, 0.8) !important;
+}
+
 .dest-pulse {
   position: absolute;
   left: 50%;

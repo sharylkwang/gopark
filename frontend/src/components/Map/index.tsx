@@ -8,6 +8,7 @@ import { OSMBuildingLayer } from './layers/OSMBuildingLayer';
 import { SingaporeBoundary } from './layers/SingaporeBoundary';
 import { TileLayerSwitcher } from './TileLayerSwitcher';
 import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
+import { reverseGeocode } from '../../providers/geoapify';
 import type { CarparkSummary, DestinationPoint } from '../../types';
 import type { MapEventHandlers } from '../../types/map';
 import type { RouteResult, SpeedInterval } from '../../providers/google/routing';
@@ -275,59 +276,126 @@ function DraggableDestination({
   destinationPoint: DestinationPoint;
   onDragEnd?: (lat: number, lng: number) => void;
 }) {
+  const map = useMap();
   const markerRef = useRef<L.Marker | null>(null);
+  const tooltipRef = useRef<L.Tooltip | null>(null);
+  const shadowRef = useRef<L.CircleMarker | null>(null);
+  const geocodeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onDragEndRef = useRef(onDragEnd);
+  onDragEndRef.current = onDragEnd;
 
   useEffect(() => {
-    const marker = markerRef.current;
-    if (!marker) return;
+    const marker = L.marker(
+      [destinationPoint.lat, destinationPoint.lng],
+      { icon: getDestinationPin(), draggable: true, zIndexOffset: 2000 }
+    );
 
-    const onDragStart = () => {
+    marker.bindPopup(
+      `<div style="font-family:system-ui,sans-serif;white-space:nowrap">
+        <div style="font-size:14px;font-weight:900;color:#dc2626;margin-bottom:2px">${destinationPoint.name}</div>
+        <div style="font-size:11px;color:#9ca3af;font-weight:600">${destinationPoint.formatted}</div>
+      </div>`,
+      { closeButton: false, className: 'route-popup' }
+    );
+
+    marker.on('dragstart', () => {
       const el = marker.getElement();
       const inner = el?.querySelector('.dest-inner') as HTMLElement | null;
-      if (inner) {
-        inner.classList.add('dest-dragging');
-      }
-    };
+      if (inner) inner.classList.add('dest-dragging');
 
-    const onDragEndEvt = () => {
-      const el = marker.getElement();
-      const inner = el?.querySelector('.dest-inner') as HTMLElement | null;
-      if (inner) {
-        inner.classList.remove('dest-dragging');
-      }
+      marker.closePopup();
+
       const pos = marker.getLatLng();
-      onDragEnd?.(pos.lat, pos.lng);
-    };
+      shadowRef.current = L.circleMarker(pos, {
+        radius: 8,
+        color: '#dc2626',
+        fillColor: '#dc2626',
+        fillOpacity: 0.3,
+        weight: 2,
+        dashArray: '4,4',
+        className: 'dest-shadow',
+      }).addTo(map);
 
-    marker.on('dragstart', onDragStart);
-    marker.on('dragend', onDragEndEvt);
+      tooltipRef.current = L.tooltip({
+        permanent: true,
+        direction: 'top',
+        offset: [0, -60],
+        className: 'drag-tooltip',
+      })
+        .setLatLng(pos)
+        .setContent('📍 Loading...')
+        .addTo(map);
+
+      reverseGeocode(pos.lat, pos.lng).then(place => {
+        if (tooltipRef.current) {
+          tooltipRef.current.setContent(`📍 ${place.name || place.formatted}`);
+        }
+      });
+    });
+
+    marker.on('drag', () => {
+      const pos = marker.getLatLng();
+      if (tooltipRef.current) {
+        tooltipRef.current.setLatLng(pos);
+      }
+      if (shadowRef.current) {
+        shadowRef.current.setLatLng(pos);
+      }
+
+      if (geocodeTimer.current) clearTimeout(geocodeTimer.current);
+      geocodeTimer.current = setTimeout(() => {
+        reverseGeocode(pos.lat, pos.lng).then(place => {
+          if (tooltipRef.current) {
+            tooltipRef.current.setContent(`📍 ${place.name || place.formatted}`);
+          }
+        });
+      }, 300);
+    });
+
+    marker.on('dragend', () => {
+      const el = marker.getElement();
+      const inner = el?.querySelector('.dest-inner') as HTMLElement | null;
+      if (inner) inner.classList.remove('dest-dragging');
+
+      if (geocodeTimer.current) {
+        clearTimeout(geocodeTimer.current);
+        geocodeTimer.current = null;
+      }
+      if (tooltipRef.current) {
+        map.removeLayer(tooltipRef.current);
+        tooltipRef.current = null;
+      }
+      if (shadowRef.current) {
+        map.removeLayer(shadowRef.current);
+        shadowRef.current = null;
+      }
+
+      const pos = marker.getLatLng();
+      onDragEndRef.current?.(pos.lat, pos.lng);
+    });
+
+    marker.addTo(map);
+    markerRef.current = marker;
 
     return () => {
-      marker.off('dragstart', onDragStart);
-      marker.off('dragend', onDragEndEvt);
+      if (geocodeTimer.current) {
+        clearTimeout(geocodeTimer.current);
+        geocodeTimer.current = null;
+      }
+      map.removeLayer(marker);
+      if (tooltipRef.current) {
+        map.removeLayer(tooltipRef.current);
+        tooltipRef.current = null;
+      }
+      if (shadowRef.current) {
+        map.removeLayer(shadowRef.current);
+        shadowRef.current = null;
+      }
+      markerRef.current = null;
     };
-  }, [onDragEnd]);
+  }, [destinationPoint.lat, destinationPoint.lng, destinationPoint.name, map]);
 
-  return (
-    <Marker
-      ref={markerRef}
-      position={[destinationPoint.lat, destinationPoint.lng]}
-      icon={getDestinationPin()}
-      draggable={true}
-      zIndexOffset={2000}
-    >
-      <Popup closeButton={false} className="route-popup">
-        <div style={{ fontFamily: 'system-ui, sans-serif', whiteSpace: 'nowrap' }}>
-          <div style={{ fontSize: 14, fontWeight: 900, color: '#dc2626', marginBottom: 2 }}>
-            {destinationPoint.name}
-          </div>
-          <div style={{ fontSize: 11, color: '#9ca3af', fontWeight: 600 }}>
-            {destinationPoint.formatted}
-          </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
+  return null;
 }
 
 export function MapView({
