@@ -48,13 +48,18 @@ router.get('/carparks', async (_req: Request, res: Response) => {
 router.get('/carparks/nearby', async (req: Request, res: Response) => {
   const lat = parseFloat(req.query.lat as string);
   const lng = parseFloat(req.query.lng as string);
-  const radius = parseFloat(req.query.radius as string) || 1000;
-  const limit = parseInt(req.query.limit as string) || 50;
+  let radius = parseFloat(req.query.radius as string) || 1000;
+  let limit = parseInt(req.query.limit as string) || 50;
 
-  if (isNaN(lat) || isNaN(lng)) {
-    res.status(400).json({ error: 'lat and lng required' });
+  if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    res.status(400).json({ error: 'Invalid coordinates' });
     return;
   }
+
+  if (radius > 5000) radius = 5000;
+  if (radius < 100) radius = 100;
+  if (limit > 100) limit = 100;
+  if (limit < 1) limit = 1;
 
   const rows = await prisma.carpark.findMany({ where: { active: true }, select: NEARBY_SELECT });
   const nearby = rows

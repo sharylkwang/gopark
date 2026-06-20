@@ -12,17 +12,25 @@ export interface AuthRequest extends Request {
 
 export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
-  if (!header || !header.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Not authenticated' });
+  const cookieToken = req.cookies?.gopark_token;
+  let token = '';
+
+  if (header && header.startsWith('Bearer ')) {
+    token = header.slice(7);
+  } else if (cookieToken) {
+    token = cookieToken;
   }
 
-  const token = header.slice(7);
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
 
   try {
     const payload = jwt.verify(token, JWT_SECRET) as { id: string; email: string };
     req.user = { id: payload.id, email: payload.email };
     next();
   } catch {
+    res.clearCookie('gopark_token');
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
