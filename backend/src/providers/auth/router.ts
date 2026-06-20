@@ -76,8 +76,8 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
       return res.status(400).json({ error: 'Invalid email address' });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]/.test(password)) {
+      return res.status(400).json({ error: 'Password needs 8+ characters with uppercase, lowercase, number, and special character.' });
     }
 
     if (username.length > 50 || email.length > 100) {
@@ -319,8 +319,8 @@ router.post('/auth/password/reset', async (req: Request, res: Response) => {
     const { code, newPassword } = req.body;
     const email = (req.body.email || '').toLowerCase().trim();
 
-    if (!newPassword || newPassword.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    if (!newPassword || newPassword.length < 8 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/\d/.test(newPassword) || !/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]/.test(newPassword)) {
+      return res.status(400).json({ error: 'Password needs 8+ characters with uppercase, lowercase, number, and special character.' });
     }
 
     const cached = otpCache.get(email);
