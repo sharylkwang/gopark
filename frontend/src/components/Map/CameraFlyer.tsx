@@ -35,7 +35,7 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
     }
 
     if (destinationPoint) {
-      map.flyTo([destinationPoint.lat, destinationPoint.lng], 16, {
+      map.flyTo([destinationPoint.lat, destinationPoint.lng], 15, {
         duration: 1.5,
         easeLinearity: 0.25,
       });
