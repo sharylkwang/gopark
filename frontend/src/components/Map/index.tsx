@@ -237,33 +237,20 @@ function RouteLabel({ position, route, type }: {
 
   const icon = makePill(time, CAR_SVG, 'white', '#d1d5db', '#111827', trafficDot);
 
-  const trafficBit = trafficLabel
-    ? `<span style="
-        display:inline-flex;align-items:center;gap:4px;
-        font-size:11px;font-weight:700;color:${trafficDot};
-        background:${trafficDot}15;
-        padding:2px 8px;border-radius:10px;
-      ">
-        <span style="width:6px;height:6px;border-radius:50%;background:${trafficDot}"></span>
-        ${trafficLabel}
-      </span>`
-    : '';
-
-  const popupHtml = `<div style="
-    font-family:system-ui,sans-serif;
-    display:flex;align-items:center;gap:10px;
-    white-space:nowrap;
-  ">
-    <span style="font-size:11px;font-weight:800;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px">Drive</span>
-    <span style="font-size:16px;font-weight:900;color:#111827">${time}</span>
-    <span style="font-size:12px;color:#9ca3af">${dist}</span>
-    ${trafficBit}
-  </div>`;
-
   return (
     <Marker position={position} icon={icon} zIndexOffset={1000}>
       <Popup closeButton={false} className="route-popup" offset={[0, -5]}>
-        <div dangerouslySetInnerHTML={{ __html: popupHtml }} />
+        <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Drive</span>
+          <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>{time}</span>
+          <span style={{ fontSize: 12, color: '#9ca3af' }}>{dist}</span>
+          {trafficLabel && trafficDot && (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: trafficDot, background: `${trafficDot}15`, padding: '2px 8px', borderRadius: 10 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: trafficDot }} />
+              {trafficLabel}
+            </span>
+          )}
+        </div>
       </Popup>
     </Marker>
   );
@@ -411,7 +398,7 @@ export function MapView({
     <div className="h-full w-full relative">
       <MapContainer
         center={[1.3521, 103.8198]} zoom={12} className="h-full w-full z-0"
-        zoomSnap={1} zoomDelta={1} wheelPxPerZoomLevel={120} zoomAnimation={true}
+        zoomSnap={0} zoomDelta={1} wheelPxPerZoomLevel={60} zoomAnimation={true}
         doubleClickZoom={false}
         zoomControl={false} minZoom={11} maxZoom={19}
         maxBounds={new LatLngBounds([1.15, 103.59], [1.47, 104.12])} maxBoundsViscosity={1.0}
@@ -484,7 +471,7 @@ export function MapView({
       </MapContainer>
 
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
-        buildings3D={buildings3D} onToggleBuildings={() => setBuildings3D(v => !v)} sidebarOpen={false} />
+        buildings3D={buildings3D} onToggleBuildings={() => setBuildings3D(v => !v)} sidebarOpen={sidebarOpen} />
 
       <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-3 py-2.5">
         <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Availability</p>

@@ -6,7 +6,7 @@ import cookieParser from 'cookie-parser';
 import providers from './providers/index.js';
 import { startCron, shutdown } from './cron/index.js';
 import createLogger from './lib/logger.js';
-import authRouter from './providers/auth/router';
+import authRouter from './providers/auth/router.js';
 
 const log = createLogger('server');
 const app = express();
@@ -15,7 +15,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(helmet());
 app.use(cors({
-  origin: process.env.FRONTEND_URL || true,
+  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
   credentials: true,
 }));
 app.use(cookieParser());
