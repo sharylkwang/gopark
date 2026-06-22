@@ -742,8 +742,8 @@ export default function GoParkApp() {
   }
 
   const dt = detail ? totals(detail.availability) : null;
-  const driveSecs = driveRoute ? parseInt(driveRoute.duration.replace('s', '')) : 0;
-  const walkSecs = walkRoute ? parseInt(walkRoute.duration.replace('s', '')) : 0;
+  const driveSecs = driveRoute ? (parseInt(driveRoute.duration.replace('s', ''), 10) || 0) : 0;
+  const walkSecs = walkRoute ? (parseInt(walkRoute.duration.replace('s', ''), 10) || 0) : 0;
 
   return (
     <div className={`flex h-[100dvh] font-sans overflow-hidden ${darkMode ? 'dark' : ''}`}>

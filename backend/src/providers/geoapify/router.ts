@@ -84,7 +84,7 @@ router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
     res.json(response.data?.results || []);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Autocomplete API error:', message);
+    log.error(`autocomplete API error: ${message}`);
     res.status(500).json({ error: 'Failed to fetch autocomplete suggestions' });
   }
 });
