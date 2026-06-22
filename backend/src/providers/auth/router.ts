@@ -22,7 +22,7 @@ interface OtpEntry {
   attempts: number;
   type: 'register' | 'reset';
   username?: string;
-  password?: string;
+  hashedPassword?: string;
 }
 
 const otpCache = new Map<string, OtpEntry>();
@@ -90,10 +90,11 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
     }
 
     const otp = generateOtp();
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     otpCache.set(email, {
       username,
-      password,
+      hashedPassword,
       otp,
       attempts: 0,
       type: 'register',
@@ -151,16 +152,14 @@ router.post('/auth/register/verify', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Email already in use' });
     }
 
-    const hashedPassword = await bcrypt.hash(cached.password!, 10);
-
     const newUser = await prisma.user.create({
       data: {
         username: cached.username!,
         email,
-        password: hashedPassword,
+        password: cached.hashedPassword!,
         passwordHistory: {
           create: {
-            password: hashedPassword,
+            password: cached.hashedPassword!,
           },
         },
       },

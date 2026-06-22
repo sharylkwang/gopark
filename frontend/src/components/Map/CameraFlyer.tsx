@@ -29,7 +29,12 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
     if (selectedId) {
       const target = results.find((cp) => cp.id === selectedId);
       if (target) {
-        map.panTo([target.lat, target.lng], { animate: true, duration: 0.5 });
+        const zoom = map.getZoom();
+        if (zoom < 15) {
+          map.flyTo([target.lat, target.lng], 16, { duration: 1, easeLinearity: 0.25 });
+        } else {
+          map.panTo([target.lat, target.lng], { animate: true, duration: 0.5 });
+        }
       }
       return;
     }
