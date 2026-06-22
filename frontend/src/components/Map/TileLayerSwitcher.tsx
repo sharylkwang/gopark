@@ -84,8 +84,7 @@ export function TileLayerSwitcher({ currentTile, onTileChange, buildings3D, onTo
   return (
     <div
       ref={panelRef}
-      className="absolute bottom-6 z-[1000] transition-all duration-300"
-      style={{ left: sidebarOpen ? 'max(calc(min(85vw, 420px) + 12px), 12px)' : '12px' }}
+      className="absolute bottom-6 left-3 z-[1000]"
     >
       {open ? (
         <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-3 w-[340px]">
