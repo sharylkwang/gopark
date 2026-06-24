@@ -537,7 +537,7 @@ export function MapView({
       )}
 
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
-        mode3D={mode3D} onMode3DChange={setMode3D} sidebarOpen={sidebarOpen} />
+        mode3D={mode3D} onMode3DChange={setMode3D} />
 
       <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-3 py-2.5">
         <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Availability</p>

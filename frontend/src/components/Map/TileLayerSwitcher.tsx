@@ -9,7 +9,6 @@ interface Props {
   onTileChange: (id: string) => void;
   mode3D: Map3DMode | null;
   onMode3DChange: (mode: Map3DMode | null) => void;
-  sidebarOpen?: boolean;
 }
 
 function TileCard({ tile, active, disabled, onClick }: { tile: TileProviderConfig; active: boolean; disabled: boolean; onClick: () => void }) {
@@ -54,7 +53,7 @@ const MAP_3D_MODES: { id: Map3DMode; label: string; preview: string }[] = [
   { id: 'HYBRID', label: 'Hybrid', preview: '#1a3a2a' },
 ];
 
-export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, sidebarOpen = true }: Props) {
+export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange }: Props) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
