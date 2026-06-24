@@ -45,6 +45,7 @@ jobs:
           VLLM_URL=${{ vars.VLLM_URL }}
           VLLM_MODEL=${{ vars.VLLM_MODEL }}
           LOG_LEVEL=${{ vars.LOG_LEVEL }}
+          VITE_TURNSTILE_SITE_KEY=${{ vars.VITE_TURNSTILE_SITE_KEY }}
           EOF
       - name: Deploy
         run: |
