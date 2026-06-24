@@ -18,7 +18,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile.prod
     container_name: gopark-backend
-    command: sh -c "npx prisma migrate resolve --rolled-back 1_init 2>/dev/null; npx prisma migrate deploy && npm start"
+    command: sh -c "npx prisma migrate resolve --applied 1_init 2>/dev/null; npx prisma migrate deploy && npm start"
     env_file:
       - path: ./.env
         required: false
