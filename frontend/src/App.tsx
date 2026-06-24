@@ -278,7 +278,7 @@ export default function GoParkApp() {
         isLinkSent={auth.isLinkSent} setIsLinkSent={auth.setIsLinkSent}
         resetLoading={auth.resetLoading}
         showCaptcha={auth.showCaptcha} setShowCaptcha={auth.setShowCaptcha}
-        captchaLoading={auth.captchaLoading} onCaptchaToken={auth.handleCaptchaToken}
+        onCaptchaToken={auth.handleCaptchaToken}
         onAuth={auth.handleAuth} onVerify={auth.handleVerify}
         onRequestReset={auth.handleRequestResetCode} onResetPassword={auth.handleResetPassword}
         onGuest={auth.enterGuest}
