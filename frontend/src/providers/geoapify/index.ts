@@ -1,1 +1,1 @@
-export { geocodeLocation, autocompleteLocation, reverseGeocode } from './geocode';
+export { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation } from './geocode';

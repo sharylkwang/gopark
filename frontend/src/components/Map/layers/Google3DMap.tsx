@@ -1,0 +1,228 @@
+import { useEffect, useRef, useState, useCallback } from 'react';
+import axios from 'axios';
+import type { SpeedInterval } from '../../../providers/google/routing';
+
+export type Map3DMode = 'ROADMAP' | 'SATELLITE' | 'HYBRID';
+
+interface RouteOverlay {
+  polyline: [number, number][];
+  color: string;
+  width?: number;
+  dashed?: boolean;
+  speedIntervals?: SpeedInterval[];
+}
+
+interface MarkerOverlay {
+  lat: number;
+  lng: number;
+  color: string;
+  label?: string;
+  selected?: boolean;
+}
+
+interface Props {
+  mode: Map3DMode;
+  center: { lat: number; lng: number };
+  zoom: number;
+  routes?: RouteOverlay[];
+  markers?: MarkerOverlay[];
+  destination?: { lat: number; lng: number } | null;
+}
+
+const SPEED_COLORS: Record<string, string> = {
+  NORMAL: '#22c55e',
+  SLOW: '#f59e0b',
+  TRAFFIC_JAM: '#dc2626',
+};
+
+let apiLoading: Promise<void> | null = null;
+
+async function loadMapsApi(): Promise<void> {
+  if (apiLoading) return apiLoading;
+  apiLoading = (async () => {
+    const existing = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existing && (window as any).google?.maps) return;
+
+    const { data } = await axios.get('/api/google/maps-key');
+    if (!data.key) throw new Error('No Google Maps key configured');
+
+    await new Promise<void>((resolve, reject) => {
+      if (existing) {
+        existing.addEventListener('load', () => resolve());
+        existing.addEventListener('error', () => reject());
+        return;
+      }
+      const s = document.createElement('script');
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&v=alpha&libraries=maps3d`;
+      s.async = true;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error('Failed to load Google Maps'));
+      document.head.appendChild(s);
+    });
+  })();
+  return apiLoading;
+}
+
+function zoomToRange(z: number) {
+  return Math.max(200, 40000000 / Math.pow(2, z));
+}
+
+function getMaps3d() {
+  return (window as any).google?.maps?.maps3d;
+}
+
+function makeDashes(polyline: [number, number][], color: string) {
+  const segs: { coords: { lat: number; lng: number; altitude: number }[]; color: string }[] = [];
+  let buf: { lat: number; lng: number; altitude: number }[] = [];
+  let visible = true;
+
+  for (let i = 0; i < polyline.length; i++) {
+    buf.push({ lat: polyline[i][0], lng: polyline[i][1], altitude: 25 });
+    if (buf.length >= 3 && i < polyline.length - 1) {
+      if (visible) segs.push({ coords: [...buf], color });
+      buf = [buf[buf.length - 1]];
+      visible = !visible;
+    }
+  }
+  if (buf.length >= 2 && visible) segs.push({ coords: buf, color });
+  return segs;
+}
+
+function makeTrafficSegs(polyline: [number, number][], intervals: SpeedInterval[]) {
+  const segs: { coords: { lat: number; lng: number; altitude: number }[]; color: string }[] = [];
+  for (const iv of intervals) {
+    const s = iv.startPolylinePointIndex ?? 0;
+    const e = iv.endPolylinePointIndex ?? 0;
+    if (e <= s || s >= polyline.length) continue;
+    const pts = polyline.slice(s, Math.min(e + 1, polyline.length));
+    if (pts.length < 2) continue;
+    segs.push({
+      coords: pts.map(([lat, lng]) => ({ lat, lng, altitude: 30 })),
+      color: SPEED_COLORS[iv.speed] || SPEED_COLORS.NORMAL,
+    });
+  }
+  return segs;
+}
+
+function appendPoly(map: any, maps3d: any, coords: any[], color: string, width: number, overlays: any[]) {
+  const el = new maps3d.Polyline3DElement({
+    coordinates: coords, strokeColor: color, strokeWidth: width,
+    altitudeMode: 'RELATIVE_TO_GROUND',
+  });
+  map.append(el);
+  overlays.push(el);
+}
+
+function appendMarker(map: any, maps3d: any, lat: number, lng: number, html: string, overlays: any[]) {
+  const mk = new maps3d.Marker3DElement({
+    position: { lat, lng, altitude: 0 },
+    altitudeMode: 'CLAMP_TO_GROUND',
+    collisionBehavior: 'OPTIONAL_AND_HIDES_LOWER_PRIORITY',
+  });
+  const tpl = document.createElement('template');
+  tpl.setAttribute('slot', 'default');
+  tpl.innerHTML = html;
+  mk.append(tpl);
+  map.append(mk);
+  overlays.push(mk);
+}
+
+const DEST_PIN = `<div style="width:28px;height:28px;background:#dc2626;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 10px rgba(220,38,38,0.6);position:relative"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(45deg)"><svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='white'><path d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z'/><circle cx='12' cy='10' r='3' fill='#dc2626'/></svg></div></div>`;
+
+function carparkPin(color: string, sel: boolean) {
+  const sz = sel ? 22 : 14;
+  const bw = sel ? 3 : 2;
+  const ba = sel ? '1' : '0.8';
+  return `<div style="width:${sz}px;height:${sz}px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:${bw}px solid rgba(255,255,255,${ba});box-shadow:0 ${sel ? 2 : 1}px ${sel ? 10 : 4}px rgba(0,0,0,${sel ? 0.5 : 0.3})"></div>`;
+}
+
+export function Google3DMap({ mode, center, zoom, routes, markers, destination }: Props) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<any>(null);
+  const overlaysRef = useRef<any[]>([]);
+  const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadMapsApi().then(() => setReady(true)).catch(e => setError(e.message));
+  }, []);
+
+  useEffect(() => {
+    if (!ready || !containerRef.current) return;
+    const maps3d = getMaps3d();
+    if (!maps3d?.Map3DElement) { setError('Maps 3D not available'); return; }
+
+    mapRef.current?.remove();
+    const map = new maps3d.Map3DElement({
+      center: { lat: center.lat, lng: center.lng, altitude: 0 },
+      range: zoomToRange(zoom), tilt: 55, heading: 0, mode,
+    });
+    map.style.width = '100%';
+    map.style.height = '100%';
+    containerRef.current.appendChild(map);
+    mapRef.current = map;
+
+    return () => { mapRef.current?.remove(); mapRef.current = null; overlaysRef.current = []; };
+  }, [ready]);
+
+  useEffect(() => { if (mapRef.current) mapRef.current.mode = mode; }, [mode]);
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    mapRef.current.center = { lat: center.lat, lng: center.lng, altitude: 0 };
+    mapRef.current.range = zoomToRange(zoom);
+  }, [center.lat, center.lng, zoom]);
+
+  const clearOverlays = useCallback(() => {
+    overlaysRef.current.forEach(el => { try { el.remove(); } catch {} });
+    overlaysRef.current = [];
+  }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const m3d = getMaps3d();
+    if (!m3d) return;
+
+    clearOverlays();
+    const ov = overlaysRef.current;
+
+    if (routes) {
+      for (const r of routes) {
+        if (r.polyline.length < 2) continue;
+        try {
+          if (r.speedIntervals?.length) {
+            for (const seg of makeTrafficSegs(r.polyline, r.speedIntervals))
+              appendPoly(map, m3d, seg.coords, seg.color, r.width ?? 8, ov);
+          } else if (r.dashed) {
+            for (const seg of makeDashes(r.polyline, r.color))
+              appendPoly(map, m3d, seg.coords, seg.color, r.width ?? 5, ov);
+          } else {
+            const coords = r.polyline.map(([lat, lng]) => ({ lat, lng, altitude: 30 }));
+            appendPoly(map, m3d, coords, r.color, r.width ?? 8, ov);
+          }
+        } catch {}
+      }
+    }
+
+    if (destination && m3d.Marker3DElement) {
+      try { appendMarker(map, m3d, destination.lat, destination.lng, DEST_PIN, ov); } catch {}
+    }
+
+    if (markers?.length && m3d.Marker3DElement) {
+      for (const mk of markers) {
+        try { appendMarker(map, m3d, mk.lat, mk.lng, carparkPin(mk.color, !!mk.selected), ov); } catch {}
+      }
+    }
+  }, [ready, routes, markers, destination, clearOverlays]);
+
+  if (error) {
+    return (
+      <div className="absolute inset-0 z-[999] flex items-center justify-center bg-gray-900/80">
+        <p className="text-white text-sm font-bold">3D Maps unavailable: {error}</p>
+      </div>
+    );
+  }
+
+  return <div ref={containerRef} className="absolute inset-0 z-[999]" />;
+}
