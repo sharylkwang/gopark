@@ -9,7 +9,6 @@ import { fetchLocations, fetchDump, fetchRates } from './providers/parkaholic.js
 import { fetchSgcarmart } from './providers/sgcarmart.js';
 import { runScraper, smartSearch } from './scraper/index.js';
 import { applyScraped } from './scraper/apply.js';
-import { seedExists, loadSeed, saveSeed, exportDb } from './seed.js';
 
 const log = createLogger('cron');
 
@@ -136,9 +135,12 @@ async function fullMerge(): Promise<MergedCarpark[]> {
   const parkRates = ids.size ? await fetchRates([...ids]) : {};
   const merged = mergeAll(gov, govAvail, dm, parkLocs, parkDump, parkRates, sgc, []);
 
-  await upsert(merged);
-  await saveSeed(merged);
-  log.info(`merge done — ${merged.length} carparks in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
+  if (await dbHasData()) {
+    await upsert(merged);
+  } else {
+    await bulkInsert(merged);
+  }
+  log.info(`merge done - ${merged.length} carparks in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   return merged;
 }
 
@@ -149,24 +151,19 @@ async function dbHasData(): Promise<boolean> {
 
 async function bootstrap() {
   if (await dbHasData()) {
-    log.info(`db already seeded (${await prisma.carpark.count()} carparks), skipping seed`);
+    log.info(`db already populated (${await prisma.carpark.count()} carparks), skipping merge`);
     return;
   }
 
-  if (seedExists()) {
-    log.info('loading seed cache');
-    await bulkInsert(await loadSeed());
-  } else {
-    log.info('no seed cache, running initial merge');
-    await fullMerge();
-  }
+  log.info('empty db, running initial merge');
+  await fullMerge();
 }
 
 function schedule() {
   if (scheduled) { log.warn('schedule already active, skipping'); return; }
   scheduled = true;
   const delay = 60000 - (Date.now() % 60000);
-  log.info(`scheduling — availability: 1min (in ${(delay / 1000).toFixed(0)}s) | merge: 6hr | scraper: 30d`);
+  log.info(`scheduling - availability: 1min (in ${(delay / 1000).toFixed(0)}s) | merge: 6hr | scraper: 30d`);
 
   setTimeout(() => { refreshAvailability(); setInterval(refreshAvailability, CRON.availabilityInterval); }, delay);
 
@@ -199,6 +196,6 @@ export async function startCron() {
 
 export async function shutdown() {
   log.info('shutting down');
-  try { await exportDb(); await prisma.$disconnect(); }
+  try { await prisma.$disconnect(); }
   catch (e) { log.error('shutdown failed', e); }
 }

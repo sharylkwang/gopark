@@ -1,3 +1,5 @@
+name: gopark-prod
+
 services:
   nginx:
     build:
