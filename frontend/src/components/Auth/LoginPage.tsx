@@ -16,7 +16,6 @@ interface Props {
   isLinkSent: boolean; setIsLinkSent: (v: boolean) => void;
   resetLoading: boolean;
   showCaptcha: boolean; setShowCaptcha: (v: boolean) => void;
-  captchaLoading: boolean;
   onCaptchaToken: (token: string) => void;
   setAuthError: (v: string) => void;
   onAuth: (e: React.FormEvent) => void;
@@ -31,7 +30,7 @@ export function LoginPage({
   authError, isLoggingIn, username, setUsername,
   isLoginView, setIsLoginView, showOtpView, setShowOtpView,
   otp, setOtp, isResetView, setIsResetView,
-  showCaptcha, setShowCaptcha, captchaLoading, onCaptchaToken,
+  showCaptcha, setShowCaptcha, onCaptchaToken,
   newPassword, setNewPassword, isLinkSent, setIsLinkSent, resetLoading,
   setAuthError, onAuth, onVerify, onRequestReset, onResetPassword, onGuest,
 }: Props) {
@@ -48,7 +47,6 @@ export function LoginPage({
         {showCaptcha ? (
           <CaptchaView
             authError={authError}
-            loading={captchaLoading}
             onToken={onCaptchaToken}
             onBack={() => { setShowCaptcha(false); setAuthError(''); }}
           />
@@ -132,8 +130,8 @@ function InputRow({ icon, children }: { icon: React.ReactNode; children: React.R
   );
 }
 
-function CaptchaView({ authError, loading, onToken, onBack }: {
-  authError: string; loading: boolean;
+function CaptchaView({ authError, onToken, onBack }: {
+  authError: string;
   onToken: (token: string) => void; onBack: () => void;
 }) {
   return (
@@ -142,7 +140,6 @@ function CaptchaView({ authError, loading, onToken, onBack }: {
         Verify You're Human
       </h2>
       {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
-      {loading && <p className="text-sm font-bold text-gray-500 text-center">Verifying...</p>}
       <div className="flex justify-center">
         <Turnstile
           sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ''}
