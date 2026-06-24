@@ -16,7 +16,7 @@ jobs:
       DATAMALL_API: ${{ secrets.DATAMALL_API }}
       GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
       ZHIPUAI_API_KEY: ${{ secrets.ZHIPUAI_API_KEY }}
-      ZHIPUAI_MODEL: ${{ vars.ZHIPUAI_MODEL }}
+      ZHIPUAI_MODEL: ${{ secrets.ZHIPUAI_MODEL }}
     steps:
       - uses: actions/checkout@v4
       - name: Verify API keys
@@ -31,26 +31,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Write .env
+        env:
+          DATAGOVSG_KEY: ${{ secrets.DATAGOVSG_KEY }}
+          GEOAPIFY_KEY: ${{ secrets.GEOAPIFY_KEY }}
+          GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
+          DATAMALL_API: ${{ secrets.DATAMALL_API }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          ZHIPUAI_API_KEY: ${{ secrets.ZHIPUAI_API_KEY }}
+          CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          ZHIPUAI_MODEL: ${{ secrets.ZHIPUAI_MODEL }}
+          VLLM_URL: ${{ secrets.VLLM_URL }}
+          VLLM_MODEL: ${{ secrets.VLLM_MODEL }}
+          LOG_LEVEL: ${{ secrets.LOG_LEVEL }}
+          VITE_TURNSTILE_SITE_KEY: ${{ secrets.VITE_TURNSTILE_SITE_KEY }}
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+          EMAIL_USER: ${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+          TURNSTILE_SECRET_KEY: ${{ secrets.TURNSTILE_SECRET_KEY }}
+          ONEMAP_EMAIL: ${{ secrets.ONEMAP_EMAIL }}
+          ONEMAP_EMAIL_PASSWORD: ${{ secrets.ONEMAP_EMAIL_PASSWORD }}
         run: |
-          cat > .env <<'EOF'
-          DATAGOVSG_KEY=${{ secrets.DATAGOVSG_KEY }}
-          GEOAPIFY_KEY=${{ secrets.GEOAPIFY_KEY }}
-          GOOGLE_MAPS_KEY=${{ secrets.GOOGLE_MAPS_KEY }}
-          DATAMALL_API=${{ secrets.DATAMALL_API }}
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          ZHIPUAI_API_KEY=${{ secrets.ZHIPUAI_API_KEY }}
-          CLOUDFLARE_TUNNEL_TOKEN=${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
-          HF_TOKEN=${{ secrets.HF_TOKEN }}
-          ZHIPUAI_MODEL=${{ vars.ZHIPUAI_MODEL }}
-          VLLM_URL=${{ vars.VLLM_URL }}
-          VLLM_MODEL=${{ vars.VLLM_MODEL }}
-          LOG_LEVEL=${{ vars.LOG_LEVEL }}
-          VITE_TURNSTILE_SITE_KEY=${{ vars.VITE_TURNSTILE_SITE_KEY }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          EMAIL_USER=${{ secrets.EMAIL_USER }}
-          EMAIL_APP_PASSWORD=${{ secrets.EMAIL_APP_PASSWORD }}
-          TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}
-          EOF
+          env | grep -E '^(DATAGOVSG_KEY|GEOAPIFY_KEY|GOOGLE_MAPS_KEY|DATAMALL_API|DATABASE_URL|ZHIPUAI_API_KEY|CLOUDFLARE_TUNNEL_TOKEN|HF_TOKEN|ZHIPUAI_MODEL|VLLM_URL|VLLM_MODEL|LOG_LEVEL|VITE_TURNSTILE_SITE_KEY|JWT_SECRET|EMAIL_USER|EMAIL_APP_PASSWORD|TURNSTILE_SECRET_KEY|ONEMAP_EMAIL|ONEMAP_EMAIL_PASSWORD)=' > .env
       - name: Deploy
         run: |
           docker compose -f docker-compose.prod.yml down --remove-orphans || true
