@@ -52,6 +52,11 @@ export interface DatamallResult {
   agencies: Record<string, { agency: string; area: string; development: string }>;
 }
 
+export interface JustParkResult {
+  records: CarparkRecord[];
+  availability: Record<string, Record<string, AvailabilityEntry>>;
+}
+
 export interface ScrapedCarpark {
   name: string;
   address?: string;

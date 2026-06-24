@@ -7,6 +7,8 @@ import { fetchMapping, fetchAvailability } from './providers/govsg.js';
 import { fetchDatamall } from './providers/datamall.js';
 import { fetchLocations, fetchDump, fetchRates } from './providers/parkaholic.js';
 import { fetchSgcarmart } from './providers/sgcarmart.js';
+import { fetchJustpark, fetchJustparkAvailability } from './providers/justpark.js';
+import { fetchUraCapacity } from './providers/uraCapacity.js';
 import { runScraper, smartSearch } from './scraper/index.js';
 import { applyScraped } from './scraper/apply.js';
 
@@ -45,6 +47,7 @@ async function upsert(carparks: MergedCarpark[]) {
       });
     }
   }
+  await prisma.$executeRawUnsafe(`UPDATE carparks SET geom = ST_SetSRID(ST_MakePoint(lng, lat), 4326) WHERE lat != 0 AND lng != 0 AND geom IS NULL`);
   log.info(`upserted ${carparks.length} carparks`);
 }
 
@@ -74,6 +77,7 @@ async function bulkInsert(carparks: MergedCarpark[]) {
   for (const batch of chunk(rateRows, 2000)) await prisma.rate.createMany({ data: batch, skipDuplicates: true });
   for (const batch of chunk(availabilityRows, 2000)) await prisma.availability.createMany({ data: batch, skipDuplicates: true });
 
+  await prisma.$executeRawUnsafe(`UPDATE carparks SET geom = ST_SetSRID(ST_MakePoint(lng, lat), 4326) WHERE lat != 0 AND lng != 0 AND geom IS NULL`);
   log.info(`bulk inserted ${carparkRows.length} carparks, ${rateRows.length} rates, ${availabilityRows.length} availability`);
 }
 
@@ -81,34 +85,44 @@ async function refreshAvailability() {
   if (refreshing) return;
   refreshing = true;
   try {
-    const [govR, dmR, pkR] = await Promise.allSettled([fetchAvailability(), fetchDatamall(), fetchDump()]);
+    const [govR, dmR, pkR, jpR] = await Promise.allSettled([fetchAvailability(), fetchDatamall(), fetchDump(), fetchJustparkAvailability()]);
     const gov = govR.status === 'fulfilled' ? govR.value : {};
     const dm = dmR.status === 'fulfilled' ? dmR.value : { availability: {} };
     const pk = pkR.status === 'fulfilled' ? pkR.value : {};
+    const jp = jpR.status === 'fulfilled' ? jpR.value : {};
     const now = new Date();
     const touched = new Set<string>();
 
+    async function updateAvail(carparkId: string, lotType: string, available: number | null, total: number | null) {
+      const existing = await prisma.availability.findUnique({ where: { carparkId_lotType: { carparkId, lotType } } });
+      if (!existing) return;
+      const newTotal = total ?? (available != null && (existing.total == null || available > existing.total) ? available : existing.total);
+      await prisma.availability.update({ where: { carparkId_lotType: { carparkId, lotType } }, data: { available, total: newTotal, updatedAt: now } });
+      touched.add(carparkId);
+    }
+
     for (const [id, lots] of Object.entries(gov)) {
-      for (const [lt, e] of Object.entries(lots)) {
-        await prisma.availability.updateMany({ where: { carparkId: id, lotType: lt }, data: { available: e.available, total: e.total, updatedAt: now } });
-        touched.add(id);
-      }
+      for (const [lt, e] of Object.entries(lots)) await updateAvail(id, lt, e.available, e.total);
     }
     for (const [id, lots] of Object.entries(dm.availability)) {
-      for (const [lt, e] of Object.entries(lots)) {
-        await prisma.availability.updateMany({ where: { carparkId: id, lotType: lt }, data: { available: e.available, updatedAt: now } });
-        touched.add(id);
-      }
+      for (const [lt, e] of Object.entries(lots)) await updateAvail(id, lt, e.available, null);
     }
     for (const [id, d] of Object.entries(pk)) {
-      for (const [lt, e] of Object.entries(d.availability)) {
-        await prisma.availability.updateMany({ where: { carparkId: id, lotType: lt }, data: { available: e.available, updatedAt: now } });
-        touched.add(id);
-      }
+      for (const [lt, e] of Object.entries(d.availability)) await updateAvail(id, lt, e.available, null);
+    }
+    const jpCarparks = await prisma.carpark.findMany({ where: { sources: { has: 'justpark' } }, select: { id: true, sourceIds: true } });
+    const jpIdMap: Record<string, string> = {};
+    for (const cp of jpCarparks) {
+      const ids = cp.sourceIds as Record<string, string>;
+      if (ids.justpark) jpIdMap[ids.justpark] = cp.id;
+    }
+    for (const [jpId, lots] of Object.entries(jp)) {
+      const carparkId = jpIdMap[jpId] ?? jpId;
+      for (const [lt, e] of Object.entries(lots)) await updateAvail(carparkId, lt, e.available, e.total);
     }
 
     if (touched.size) await prisma.carpark.updateMany({ where: { id: { in: [...touched] } }, data: { availabilityUpdatedAt: now } });
-    const fails = [govR, dmR, pkR].filter(r => r.status === 'rejected').length;
+    const fails = [govR, dmR, pkR, jpR].filter(r => r.status === 'rejected').length;
     log.info(`availability: ${touched.size} carparks${fails ? ` (${fails} failed)` : ''}`);
   } catch (e) { log.error('availability refresh failed', e); }
   finally { refreshing = false; }
@@ -118,7 +132,7 @@ async function fullMerge(): Promise<MergedCarpark[]> {
   log.info('full merge starting');
   const t0 = Date.now();
 
-  const results = await Promise.allSettled([fetchMapping(), fetchAvailability(), fetchDatamall(), fetchLocations(), fetchDump(), fetchSgcarmart()]);
+  const results = await Promise.allSettled([fetchMapping(), fetchAvailability(), fetchDatamall(), fetchLocations(), fetchDump(), fetchSgcarmart(), fetchJustpark(), fetchUraCapacity()]);
   const val = <T>(r: PromiseSettledResult<T>, fallback: T) => r.status === 'fulfilled' ? r.value : fallback;
 
   const gov = val(results[0], [] as Awaited<ReturnType<typeof fetchMapping>>);
@@ -127,13 +141,15 @@ async function fullMerge(): Promise<MergedCarpark[]> {
   const parkLocs = val(results[3], [] as Awaited<ReturnType<typeof fetchLocations>>);
   const parkDump = val(results[4], {} as Awaited<ReturnType<typeof fetchDump>>);
   const sgc = val(results[5], [] as Awaited<ReturnType<typeof fetchSgcarmart>>);
+  const jp = val(results[6], { records: [], availability: {} } as Awaited<ReturnType<typeof fetchJustpark>>);
+  const uraCap = val(results[7], {} as Awaited<ReturnType<typeof fetchUraCapacity>>);
 
   const fails = results.filter(r => r.status === 'rejected');
   if (fails.length) for (const f of fails) if (f.status === 'rejected') log.warn(`source failed: ${f.reason}`);
 
   const ids = new Set([...gov.map(r => r.id), ...parkLocs.map(r => r.id)]);
   const parkRates = ids.size ? await fetchRates([...ids]) : {};
-  const merged = mergeAll(gov, govAvail, dm, parkLocs, parkDump, parkRates, sgc, []);
+  const merged = mergeAll(gov, govAvail, dm, parkLocs, parkDump, parkRates, sgc, [], jp, uraCap);
 
   if (await dbHasData()) {
     await upsert(merged);
