@@ -166,12 +166,9 @@ async function dbHasData(): Promise<boolean> {
 }
 
 async function bootstrap() {
-  if (await dbHasData()) {
-    log.info(`db already populated (${await prisma.carpark.count()} carparks), skipping merge`);
-    return;
-  }
-
-  log.info('empty db, running initial merge');
+  const hasData = await dbHasData();
+  if (hasData) log.info(`db has ${await prisma.carpark.count()} carparks, running startup merge`);
+  else log.info('empty db, running initial merge');
   await fullMerge();
 }
 
