@@ -13,6 +13,6 @@ frontend/.vite/
 
 # Seed cache (generated at runtime)
 backend/data/
-backend/prisma/migrations
+data/seed.json
 
-# data/seed.json
+backend/prisma/migrations
