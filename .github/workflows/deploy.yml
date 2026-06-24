@@ -46,6 +46,10 @@ jobs:
           VLLM_MODEL=${{ vars.VLLM_MODEL }}
           LOG_LEVEL=${{ vars.LOG_LEVEL }}
           VITE_TURNSTILE_SITE_KEY=${{ vars.VITE_TURNSTILE_SITE_KEY }}
+          JWT_SECRET=${{ secrets.JWT_SECRET }}
+          EMAIL_USER=${{ secrets.EMAIL_USER }}
+          EMAIL_APP_PASSWORD=${{ secrets.EMAIL_APP_PASSWORD }}
+          TURNSTILE_SECRET_KEY=${{ secrets.TURNSTILE_SECRET_KEY }}
           EOF
       - name: Deploy
         run: |
