@@ -52,11 +52,10 @@ function formatDistance(meters: number) {
 }
 
 function formatParkDuration(hours: number) {
-  if (hours < 1) {
-    return `${Math.round(hours * 60)} mins`;
-  }
-  const h = Math.floor(hours);
-  const m = Math.round((hours % 1) * 60);
+  const totalMins = Math.round(hours * 60);
+  const h = Math.floor(totalMins / 60);
+  const m = totalMins % 60;
+  if (h === 0) return `${m} mins`;
   return m > 0 ? `${h}h ${m} mins` : `${h}h`;
 }
 
@@ -79,7 +78,8 @@ export default function GoParkApp() {
     const until = new Date();
     until.setHours(h, m, 0, 0);
     if (until <= now) until.setDate(until.getDate() + 1);
-    return Math.max(0.5, (until.getTime() - now.getTime()) / 3600000);
+    const diffMins = Math.round((until.getTime() - now.getTime()) / 60000);
+    return Math.max(0.5, diffMins / 60);
   })();
   const [vehicleType, setVehicleType] = useState<string>('C');
   const [startPoint, setStartPoint] = useState('');
