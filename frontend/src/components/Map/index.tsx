@@ -1,12 +1,13 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, ZoomControl, Polyline, useMap } from 'react-leaflet';
 import L, { LatLngBounds } from 'leaflet';
 import { CameraFlyer } from './CameraFlyer';
 import { EventHandler } from './EventHandler';
 import { MarkerCluster } from './MarkerCluster';
-import { OSMBuildingLayer } from './layers/OSMBuildingLayer';
 import { SingaporeBoundary } from './layers/SingaporeBoundary';
 import { TileLayerSwitcher } from './TileLayerSwitcher';
+import { Google3DMap } from './layers/Google3DMap';
+import type { Map3DMode } from './layers/Google3DMap';
 import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import { reverseGeocode } from '../../providers/geoapify';
 import type { CarparkSummary, DestinationPoint } from '../../types';
@@ -178,6 +179,20 @@ function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
     const t = setTimeout(() => map.invalidateSize(), 300);
     return () => clearTimeout(t);
   }, [sidebarOpen]);
+  return null;
+}
+
+function PositionTracker({ onMove }: { onMove: (center: { lat: number; lng: number }, zoom: number) => void }) {
+  const map = useMap();
+  useEffect(() => {
+    const handler = () => {
+      const c = map.getCenter();
+      onMove({ lat: c.lat, lng: c.lng }, map.getZoom());
+    };
+    map.on('moveend', handler);
+    map.on('zoomend', handler);
+    return () => { map.off('moveend', handler); map.off('zoomend', handler); };
+  }, [map, onMove]);
   return null;
 }
 
@@ -391,8 +406,48 @@ export function MapView({
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
-  const [buildings3D, setBuildings3D] = useState(false);
+  const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
+  const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 1.3521, lng: 103.8198 });
+  const [mapZoom, setMapZoom] = useState(12);
   const tile = getTileProvider(tileId) ?? getTileProvider(DEFAULT_TILE)!;
+
+  const handlePositionChange = useCallback((c: { lat: number; lng: number }, z: number) => {
+    setMapCenter(c);
+    setMapZoom(z);
+  }, []);
+
+  const dest3D = useMemo(() =>
+    destinationPoint ? { lat: destinationPoint.lat, lng: destinationPoint.lng } : null,
+  [destinationPoint?.lat, destinationPoint?.lng]);
+
+  const routes3D = useMemo(() => [
+    ...(drivePolyline && drivePolyline.length > 1
+      ? [{
+          polyline: drivePolyline,
+          color: '#4285f4',
+          width: 8,
+          speedIntervals: driveRoute?.speedIntervals,
+        }]
+      : []),
+    ...(walkPolyline && walkPolyline.length > 1
+      ? [{
+          polyline: walkPolyline,
+          color: walkRoute?.travelMode === 'BFA' ? '#8b5cf6' : '#60a5fa',
+          width: 5,
+          dashed: true,
+        }]
+      : []),
+  ], [drivePolyline, walkPolyline, walkRoute?.travelMode, driveRoute?.speedIntervals]);
+
+  const markers3D = useMemo(() =>
+    carparks.map(cp => ({
+      lat: cp.lat,
+      lng: cp.lng,
+      color: cp.id === selectedId ? '#2563eb' : '#22c55e',
+      label: cp.name,
+      selected: cp.id === selectedId,
+    })),
+  [carparks, selectedId]);
 
   return (
     <div className="h-full w-full relative">
@@ -404,6 +459,7 @@ export function MapView({
         maxBounds={new LatLngBounds([1.15, 103.59], [1.47, 104.12])} maxBoundsViscosity={1.0}
       >
         <MapResizer sidebarOpen={sidebarOpen} />
+        <PositionTracker onMove={handlePositionChange} />
         <ZoomControl position="bottomright" />
         <TileLayer key={tile.id} url={tile.url} attribution={tile.attribution}
           maxZoom={tile.maxZoom} subdomains={tile.subdomains ?? []}
@@ -413,7 +469,6 @@ export function MapView({
           destinationPoint={destinationPoint} userLocation={userLocation} />
 
         <SingaporeBoundary />
-        {buildings3D && <OSMBuildingLayer />}
         {eventHandlers && <EventHandler {...eventHandlers} />}
 
         {destinationPoint && (
@@ -470,8 +525,19 @@ export function MapView({
         )}
       </MapContainer>
 
+      {mode3D && (
+        <Google3DMap
+          mode={mode3D}
+          center={dest3D || mapCenter}
+          zoom={dest3D ? 16 : mapZoom}
+          routes={routes3D}
+          markers={markers3D}
+          destination={dest3D}
+        />
+      )}
+
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
-        buildings3D={buildings3D} onToggleBuildings={() => setBuildings3D(v => !v)} sidebarOpen={sidebarOpen} />
+        mode3D={mode3D} onMode3DChange={setMode3D} sidebarOpen={sidebarOpen} />
 
       <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-3 py-2.5">
         <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Availability</p>

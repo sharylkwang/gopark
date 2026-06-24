@@ -13,16 +13,4 @@ export const OSM_TILES: TileProviderConfig[] = [
     proxy: false,
     preview: '#e8e0d8',
   },
-  {
-    id: 'osm',
-    name: 'OSM',
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-    maxZoom: 19,
-    subdomains: ['a', 'b', 'c'],
-    category: 'free',
-    proxy: false,
-    preview: '#aad3a5',
-  },
 ];

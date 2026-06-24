@@ -39,11 +39,18 @@ export interface CarparkDetail extends CarparkSummary {
   availability: Record<string, CarparkAvailability & { updatedAt?: string }>;
 }
 
+export interface PlaceClassification {
+  type: string | null;
+  hasParking: boolean | null;
+  parkingHint: string | null;
+}
+
 export interface DestinationPoint {
   name: string;
   formatted: string;
   lat: number;
   lng: number;
+  classification?: PlaceClassification | null;
 }
 
 export interface GeocodeResponse {
