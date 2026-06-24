@@ -6,6 +6,16 @@ export async function geocodeLocation(query: string): Promise<GeocodeResponse> {
   return res.json();
 }
 
+export async function reverseGeocode(lat: number, lng: number): Promise<{ name: string; formatted: string }> {
+  try {
+    const res = await fetch(`/api/geoapify/reverse?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return { name: `${lat.toFixed(4)}, ${lng.toFixed(4)}`, formatted: '' };
+    return res.json();
+  } catch {
+    return { name: `${lat.toFixed(4)}, ${lng.toFixed(4)}`, formatted: '' };
+  }
+}
+
 export async function autocompleteLocation(query: string): Promise<PlaceSuggestion[]> {
   if (!query.trim()) return [];
   try {

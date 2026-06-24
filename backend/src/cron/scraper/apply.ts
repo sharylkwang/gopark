@@ -121,5 +121,5 @@ export async function applyScraped(results: ScrapedResult[]): Promise<void> {
     if (!active) { deactivated++; log.info(`deactivated stale scraped carpark ${cp.id} after ${misses} misses`); }
   }
 
-  log.info(`scraped applied — ${matched} matched, ${created} new, ${skipped} skipped, ${deactivated} deactivated`);
+  log.info(`scraped applied - ${matched} matched, ${created} new, ${skipped} skipped, ${deactivated} deactivated`);
 }

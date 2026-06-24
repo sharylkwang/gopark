@@ -26,22 +26,24 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
   useEffect(() => {
     if (!hasSearched) return;
 
-    if (destinationPoint) {
-      map.flyTo([destinationPoint.lat, destinationPoint.lng], 16, {
-        duration: 1.5,
-        easeLinearity: 0.25,
-      });
-      return;
-    }
-
     if (selectedId) {
       const target = results.find((cp) => cp.id === selectedId);
       if (target) {
-        map.flyTo([target.lat, target.lng], 16, {
-          duration: 1.5,
-          easeLinearity: 0.25,
-        });
+        const zoom = map.getZoom();
+        if (zoom < 15) {
+          map.flyTo([target.lat, target.lng], 16, { duration: 1, easeLinearity: 0.25 });
+        } else {
+          map.panTo([target.lat, target.lng], { animate: true, duration: 0.5 });
+        }
       }
+      return;
+    }
+
+    if (destinationPoint) {
+      map.flyTo([destinationPoint.lat, destinationPoint.lng], 15, {
+        duration: 1.5,
+        easeLinearity: 0.25,
+      });
     }
   }, [selectedId, results, map, hasSearched, destinationPoint]);
 

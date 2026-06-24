@@ -7,8 +7,9 @@ COPY backend/prisma ./prisma/
 RUN npm install
 RUN npx prisma generate
 
-COPY backend/ .
-COPY data/seed.json data/singapore.geojson ./data/
+COPY backend/src ./src/
+COPY backend/tsconfig.json ./
+COPY data/singapore.geojson ./data/
 
 EXPOSE 3000
 
