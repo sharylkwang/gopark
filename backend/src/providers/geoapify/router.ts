@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
-import axios from 'axios';
+import geoapifyClient from '../../lib/geoapifyClient';
 import createLogger from '../../lib/logger.js';
 
 const log = createLogger('geoapify');
@@ -14,13 +14,8 @@ router.get('/geoapify/geocode', async (req: Request, res: Response) => {
       return;
     }
 
-    const response = await axios.get('https://api.geoapify.com/v1/geocode/search', {
-      params: {
-        text: q,
-        filter: 'countrycode:sg',
-        format: 'json',
-        apiKey: process.env.GEOAPIFY_KEY,
-      },
+    const response = await geoapifyClient.get('/search', {
+      params: { text: q },
     });
 
     const results = response.data?.results || [];
@@ -43,6 +38,37 @@ router.get('/geoapify/geocode', async (req: Request, res: Response) => {
   }
 });
 
+router.get('/geoapify/reverse', async (req: Request, res: Response) => {
+  try {
+    const lat = parseFloat(req.query.lat as string);
+    const lng = parseFloat(req.query.lng as string);
+    if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      res.status(400).json({ error: 'Invalid coordinates' });
+      return;
+    }
+
+    const response = await geoapifyClient.get('/reverse', {
+      params: { lat, lon: lng },
+    });
+
+    const results = response.data?.results || [];
+    if (results.length === 0) {
+      res.json({ name: `${lat}, ${lng}`, formatted: `${lat}, ${lng}` });
+      return;
+    }
+
+    const place = results[0];
+    res.json({
+      name: place.name || place.street || place.formatted,
+      formatted: place.formatted,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    log.error(`reverse geocode error: ${message}`);
+    res.json({ name: `${req.query.lat}, ${req.query.lng}`, formatted: '' });
+  }
+});
+
 router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string;
@@ -51,19 +77,14 @@ router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
       return;
     }
 
-    const response = await axios.get('https://api.geoapify.com/v1/geocode/autocomplete', {
-      params: {
-        text: q,
-        filter: 'countrycode:sg', 
-        format: 'json',
-        apiKey: process.env.GEOAPIFY_KEY,
-      },
+    const response = await geoapifyClient.get('/autocomplete', {
+      params: { text: q },
     });
 
     res.json(response.data?.results || []);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error';
-    console.error('Autocomplete API error:', message);
+    log.error(`autocomplete API error: ${message}`);
     res.status(500).json({ error: 'Failed to fetch autocomplete suggestions' });
   }
 });

@@ -9,15 +9,15 @@ export const TILE_PROVIDERS: TileProviderConfig[] = [
   ...ONEMAP_TILES,
 ];
 
-export const DEFAULT_TILE = 'onemap-default';
+export const DEFAULT_TILE = 'google-roads';
 
 export function getTileProvider(id: string): TileProviderConfig | undefined {
   return TILE_PROVIDERS.find((p) => p.id === id);
 }
 
-const PREVIEW_Z = 11;
-const PREVIEW_X = 1614;
-const PREVIEW_Y = 1020;
+const PREVIEW_Z = 12;
+const PREVIEW_X = 3228;
+const PREVIEW_Y = 2040;
 
 export function getPreviewUrl(tile: TileProviderConfig): string | null {
   if (!tile.url) return null;

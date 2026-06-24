@@ -1,3 +1,5 @@
+name: gopark-prod
+
 services:
   nginx:
     build:
@@ -43,8 +45,6 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password123
       - POSTGRES_DB=gopark
-    ports:
-      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:

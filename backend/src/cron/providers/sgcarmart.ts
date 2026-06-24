@@ -1,12 +1,10 @@
-import axios from 'axios';
+import sgcarmartClient from '../../lib/sgcarmartClient';
 import type { CarparkRecord } from '../pipeline/types.js';
-import { SGCARMART, TIMEOUTS } from '../config.js';
-
-const API = 'https://www.sgcarmart.com/api/carpark/fetch-carpark-detail-data';
+import { SGCARMART } from '../config.js';
 
 async function fetchOne(id: number): Promise<CarparkRecord | null> {
   try {
-    const { data } = await axios.get(API, { params: { id }, timeout: TIMEOUTS.sgcarmart });
+    const { data } = await sgcarmartClient.get('/fetch-carpark-detail-data', { params: { id } });
     if (!data?.data?.success) return null;
     const d = data.data.data;
     return {

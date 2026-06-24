@@ -31,10 +31,10 @@ async function cacheResult(url: string, domain: string, source: string, prompt: 
   if (existing) {
     const changed = existing.dataHash !== h;
     await prisma.scrapedPage.update({ where: { url }, data: { dataHash: h, carparks: carparks.length, lastScraped: now, ...(changed ? { lastChanged: now } : {}) } });
-    log[changed ? 'info' : 'debug'](`${url} — ${changed ? 'updated' : 'unchanged'} (${carparks.length} carparks)`);
+    log[changed ? 'info' : 'debug'](`${url} - ${changed ? 'updated' : 'unchanged'} (${carparks.length} carparks)`);
   } else {
     await prisma.scrapedPage.create({ data: { url, domain, source, dataHash: h, carparks: carparks.length, lastScraped: now, lastChanged: now } });
-    log.info(`${url} — cached (${carparks.length} carparks)`);
+    log.info(`${url} - cached (${carparks.length} carparks)`);
   }
   return carparks;
 }
@@ -67,7 +67,7 @@ export async function runScraper(): Promise<ScrapedResult[]> {
   }
 
   const backend = await detect();
-  if (backend === 'none') { log.warn('no LLM backend — skipping'); return []; }
+  if (backend === 'none') { log.warn('no LLM backend - skipping'); return []; }
   log.info(`backend: ${backend}`);
 
   await syncDomains();
@@ -91,7 +91,7 @@ export async function runScraper(): Promise<ScrapedResult[]> {
         if (urls.length) await prisma.scraperDomain.update({ where: { id: dom.id }, data: { lastSearched: new Date() } });
       } else {
         urls = cached.filter(p => p.lastScraped < cutoff).map(p => p.url);
-        if (!urls.length) { log.debug(`${dom.domain} — fresh`); continue; }
+        if (!urls.length) { log.debug(`${dom.domain} - fresh`); continue; }
       }
 
       const carparks: ScrapedCarpark[] = [];
@@ -100,7 +100,7 @@ export async function runScraper(): Promise<ScrapedResult[]> {
         catch (e) { log.error(`scrape failed: ${url}`, e); }
       }
       if (carparks.length) results.push({ source: dom.domain, carparks });
-      log.info(`${dom.domain} — ${carparks.length} carparks`);
+      log.info(`${dom.domain} - ${carparks.length} carparks`);
     } catch (e) { log.error(`domain failed: ${dom.domain}`, e); }
   }
   return results;
@@ -113,10 +113,10 @@ export async function smartSearch(): Promise<ScrapedResult[]> {
   }
 
   const backend = await detect();
-  if (backend === 'none') { log.warn('smart search skipped — no LLM'); return []; }
+  if (backend === 'none') { log.warn('smart search skipped - no LLM'); return []; }
 
   const known = new Set((await prisma.scrapedPage.findMany({ select: { url: true } })).map(p => p.url));
-  log.info(`smart search — ${known.size} cached URLs`);
+  log.info(`smart search - ${known.size} cached URLs`);
 
   const found: string[] = [];
   for (const q of SCRAPER.smartQueries) {
@@ -126,8 +126,8 @@ export async function smartSearch(): Promise<ScrapedResult[]> {
   }
 
   const fresh = [...new Set(found)].filter(u => !known.has(u));
-  if (!fresh.length) { log.info('smart search — nothing new'); return []; }
-  log.info(`smart search — ${fresh.length} new pages`);
+  if (!fresh.length) { log.info('smart search - nothing new'); return []; }
+  log.info(`smart search - ${fresh.length} new pages`);
 
   const carparks: ScrapedCarpark[] = [];
   for (const url of fresh) {
@@ -135,6 +135,6 @@ export async function smartSearch(): Promise<ScrapedResult[]> {
     catch (e) { log.warn(`smart search failed: ${url}`, e); }
   }
 
-  log.info(`smart search — ${carparks.length} carparks from ${fresh.length} pages`);
+  log.info(`smart search - ${carparks.length} carparks from ${fresh.length} pages`);
   return carparks.length ? [{ source: 'smart_search', carparks }] : [];
 }
