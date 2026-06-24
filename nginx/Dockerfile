@@ -1,5 +1,7 @@
 FROM node:20-alpine AS build
 
+ARG VITE_TURNSTILE_SITE_KEY
+
 WORKDIR /app
 COPY frontend/package*.json ./
 RUN npm install

@@ -6,6 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import rateLimit from 'express-rate-limit';
 import { requireAuth, AuthRequest } from '../../middleware/auth';
+import { captchaVerify } from './routing';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -61,6 +62,36 @@ const emailLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests. Please wait a few minutes before trying again.' },
+});
+
+const captchaLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many attempts. Please try again in a few minutes.' },
+});
+
+
+
+router.post('/auth/verify/captcha', captchaLimiter, async (req: Request, res: Response) => {
+  try {
+    const { token } = req.body;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Captcha token is required' });
+    }
+
+    const response = await captchaVerify(token);
+    if (!response.success) {
+      return res.status(400).json({ error: response.message });
+    }
+
+    res.status(200).json({ success: true, message: 'Captcha verified successfully' });
+  } catch (err) {
+    console.error('Captcha error:', err);
+    res.status(500).json({ error: 'Failed to verify captcha' });
+  }
 });
 
 router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: Response) => {
