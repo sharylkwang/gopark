@@ -15,7 +15,7 @@ services:
     container_name: gopark-backend
     ports:
       - "3000:3000"
-    command: sh -c "npm install && npx prisma generate && npx prisma migrate deploy && npm run dev"
+    command: sh -c "rm -rf node_modules/.bin && npm install && npx prisma generate && npx prisma migrate deploy && npm run dev"
     env_file:
       - path: ./.env
         required: false
