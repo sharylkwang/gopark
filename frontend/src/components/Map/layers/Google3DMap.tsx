@@ -53,7 +53,7 @@ async function loadMapsApi(): Promise<void> {
         return;
       }
       const s = document.createElement('script');
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&v=alpha&libraries=maps3d`;
+      s.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&v=weekly&libraries=maps3d`;
       s.async = true;
       s.onload = () => resolve();
       s.onerror = () => reject(new Error('Failed to load Google Maps'));
