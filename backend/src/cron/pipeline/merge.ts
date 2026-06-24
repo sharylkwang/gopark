@@ -1,4 +1,4 @@
-import type { CarparkRecord, RateEntry, AvailabilityEntry, MergedCarpark, DatamallResult, ScrapedResult } from './types.js';
+import type { CarparkRecord, RateEntry, AvailabilityEntry, MergedCarpark, DatamallResult, ScrapedResult, JustParkResult } from './types.js';
 import { parseParkaholic, parseSgcarmart } from './rates.js';
 import { MERGE } from '../config.js';
 import { isInSingapore } from '../../lib/geofence.js';
@@ -52,6 +52,8 @@ export function mergeAll(
   parkRates: Record<string, Record<string, string>>,
   sgcarmart: CarparkRecord[],
   scraped: ScrapedResult[],
+  justpark?: JustParkResult,
+  uraCap?: Record<string, { cars: number; motorcycles: number; heavyVehicles: number; lat: number; lng: number; name: string }>,
 ): MergedCarpark[] {
   const map: Record<string, MergedCarpark> = {};
   const ts = new Date().toISOString();
@@ -152,6 +154,27 @@ export function mergeAll(
     }
   }
 
+  if (justpark) {
+    for (const r of justpark.records) {
+      const existing = findByName(map, r.name);
+      if (existing) {
+        addSource(existing, 'justpark', r.id);
+        addRates(existing, r.rates);
+        mergeAvailability(existing, r.availability);
+        existing.agency = existing.agency || 'CapitaLand';
+        Object.assign(existing.metadata, r.metadata);
+      } else {
+        const cp = touch(r.id, r.name, r.lat, r.lng);
+        cp.address = r.address;
+        cp.agency = 'CapitaLand';
+        addSource(cp, 'justpark', r.id);
+        addRates(cp, r.rates);
+        mergeAvailability(cp, r.availability);
+        Object.assign(cp.metadata, r.metadata);
+      }
+    }
+  }
+
   for (const { source, carparks } of scraped) {
     for (const ai of carparks) {
       const name = (ai.name ?? '').toLowerCase();
@@ -171,6 +194,25 @@ export function mergeAll(
         source,
       })));
       addSource(match, source, ai.name);
+    }
+  }
+
+  if (uraCap) {
+    for (const cp of Object.values(map)) {
+      const uraId = cp.source_ids['datamall']?.replace('URA-', '');
+      const place = uraId ? uraCap[uraId] : null;
+      if (place) {
+        if (place.cars > 0 && cp.availability['C'] && !cp.availability['C'].total) {
+          cp.availability['C'].total = place.cars;
+        }
+        if (place.motorcycles > 0) {
+          if (cp.availability['Y'] && !cp.availability['Y'].total) cp.availability['Y'].total = place.motorcycles;
+          else if (!cp.availability['Y'] && place.motorcycles > 0) cp.availability['Y'] = { available: null, total: place.motorcycles };
+        }
+        if (place.heavyVehicles > 0) {
+          if (cp.availability['H'] && !cp.availability['H'].total) cp.availability['H'].total = place.heavyVehicles;
+        }
+      }
     }
   }
 

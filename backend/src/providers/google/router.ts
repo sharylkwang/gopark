@@ -6,6 +6,11 @@ import { computeRoute, type TravelMode } from './routing';
 const VALID_MODES = new Set(['DRIVE', 'WALK', 'BICYCLE']);
 const router = Router();
 
+router.get('/google/maps-key', (_req: Request, res: Response) => {
+  const key = process.env.GOOGLE_MAPS_KEY || '';
+  res.json({ key });
+});
+
 router.get('/google/tiles/:type/:z/:x/:y', async (req: Request, res: Response) => {
   const { type, z, x, y } = req.params;
 

@@ -3,7 +3,7 @@ import { Zap, Mail, Lock, User, ArrowRight, Heart, LogOut, Navigation, Search, C
 import { MapView } from './components/Map';
 import { CircularProgress } from './components/CircularProgress';
 import { AvailabilityBar } from './components/AvailabilityBar';
-import { geocodeLocation, autocompleteLocation, reverseGeocode } from './providers/geoapify';
+import { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './providers/carparks';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, AppState, PlaceSuggestion } from './types';
 import { getWeatherByIP, getWeatherForCoords, getIconForWeather } from './providers/govsg';
@@ -439,6 +439,14 @@ export default function GoParkApp() {
       destinationRef.current = dest;
       setDestination(formattedAddress || placeName);
 
+      classifyLocation(lat, lng).then(c => {
+        if (c) {
+          const updated = { ...dest, classification: c };
+          setDestinationPoint(updated);
+          destinationRef.current = updated;
+        }
+      });
+
       const nearby = await fetchNearby(lat, lng, 2000);
       setNearbyRaw(nearby);
       const ranked = rankResults(nearby);
@@ -551,6 +559,14 @@ export default function GoParkApp() {
     setDestinationPoint(dest);
     destinationRef.current = dest;
     setDestination(placeName);
+
+    classifyLocation(lat, lng).then(c => {
+      if (c) {
+        const updated = { ...dest, classification: c };
+        setDestinationPoint(updated);
+        destinationRef.current = updated;
+      }
+    });
 
     try {
       const nearby = await fetchNearby(lat, lng, 2000);
@@ -1012,6 +1028,19 @@ export default function GoParkApp() {
                     }`}>{driveRoute.trafficCondition}</p>
                     <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Traffic</p>
                   </div>
+                )}
+              </div>
+            )}
+            {hasSearched && destinationPoint?.classification?.type && (
+              <div className={`flex items-center gap-2 px-3 py-2 border-b ${darkMode ? 'bg-neutral-900 border-neutral-700' : 'bg-white border-gray-200'}`}>
+                <MapPin size={14} className={destinationPoint.classification.hasParking ? 'text-green-500' : 'text-amber-500'} />
+                <span className={`text-[10px] font-black uppercase tracking-wider ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {destinationPoint.classification.type}
+                </span>
+                {destinationPoint.classification.parkingHint && (
+                  <span className={`text-[10px] font-bold ml-auto ${destinationPoint.classification.hasParking ? 'text-green-600' : 'text-amber-600'}`}>
+                    {destinationPoint.classification.parkingHint}
+                  </span>
                 )}
               </div>
             )}
