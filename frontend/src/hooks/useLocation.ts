@@ -7,12 +7,34 @@ export function useLocation() {
   const tooltipRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (navigator.geolocation) {
+    if (!navigator.geolocation) return;
+
+    navigator.permissions?.query({ name: 'geolocation' }).then(status => {
+      if (status.state === 'granted') {
+        navigator.geolocation.getCurrentPosition(pos => {
+          setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+          setLocationShared(true);
+        });
+      }
+      status.addEventListener('change', () => {
+        if (status.state === 'granted') {
+          navigator.geolocation.getCurrentPosition(pos => {
+            setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+            setLocationShared(true);
+          });
+        } else if (status.state === 'denied') {
+          setLocationShared(false);
+        }
+      });
+    }).catch(() => {
       navigator.geolocation.getCurrentPosition(
-        pos => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
+        pos => {
+          setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+          setLocationShared(true);
+        },
         () => {}
       );
-    }
+    });
   }, []);
 
   useEffect(() => {

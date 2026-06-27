@@ -37,7 +37,7 @@ export function LoginPage({
   return (
     <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 font-sans">
       <div className="text-center mb-8">
-        <h1 className="text-6xl font-black text-white italic tracking-tight flex items-center justify-center gap-1 uppercase drop-shadow-lg">
+        <h1 className="text-4xl sm:text-6xl font-black text-white italic tracking-tight flex items-center justify-center gap-1 uppercase drop-shadow-lg">
           GoPark <Zap className="text-yellow-400 fill-yellow-400 h-10 w-10" />
         </h1>
         <p className="text-yellow-400 font-bold tracking-widest uppercase text-xs mt-2">Smart parking. Fast.</p>
@@ -145,6 +145,8 @@ function CaptchaView({ authError, onToken, onBack }: {
           sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ''}
           theme="light"
           onVerify={onToken}
+          onError={(e) => console.error('Turnstile error:', e)}
+          onExpire={() => console.warn('Turnstile expired')}
         />
       </div>
       <button type="button" onClick={onBack}

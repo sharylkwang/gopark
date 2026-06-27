@@ -1,1 +1,1 @@
-export { getWeatherForCoords, getWeatherByIP, getIconForWeather } from './weather';
+export { getWeatherForCoords, getWeatherByIP, getEmojiForWeather } from './weather';

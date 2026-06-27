@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Menu } from 'lucide-react';
 import { MapView } from './components/Map';
 import { LoginPage } from './components/Auth/LoginPage';
@@ -17,14 +17,19 @@ import { useLocation } from './hooks/useLocation';
 import { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './providers/carparks';
 import { estimateCost } from './utils/estimateCost';
+import { totals, parseDurationSecs } from './utils/format';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, PlaceSuggestion } from './types';
 
 export default function GoParkApp() {
   const auth = useAuth();
-  const { weather, WeatherIcon, updateForCoords } = useWeather();
+  const { weather, temp, emoji: weatherEmoji, updateForCoords } = useWeather();
   const { darkMode, toggleDarkMode } = useDarkMode();
   const { favorites, loadFavorites, toggleFav, clearFavorites } = useFavorites(auth.appState);
   const loc = useLocation();
+
+  useEffect(() => {
+    if (loc.userLocation) updateForCoords(loc.userLocation[0], loc.userLocation[1]);
+  }, [loc.userLocation]);
 
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -32,26 +37,25 @@ export default function GoParkApp() {
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
+
+  const formatTime = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+
   const [parkUntil, setParkUntil] = useState<string>(() => {
     const d = new Date();
     d.setHours(d.getHours() + 1, 0, 0, 0);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    return formatTime(d);
   });
-  const durationHours = (() => {
-    const [h, m] = parkUntil.split(':').map(Number);
-    const now = new Date();
-    const until = new Date();
-    until.setHours(h, m, 0, 0);
-    if (until <= now) until.setDate(until.getDate() + 1);
-    return Math.max(0.5, Math.round((until.getTime() - now.getTime()) / 60000) / 60);
-  })();
   const [vehicleType, setVehicleType] = useState('C');
   const [startPoint, setStartPoint] = useState('');
   const [startCoords, setStartCoords] = useState<[number, number] | null>(null);
   const [startSuggestions, setStartSuggestions] = useState<PlaceSuggestion[]>([]);
   const [startDropdownOpen, setStartDropdownOpen] = useState(false);
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
-  const [resultTab, setResultTab] = useState<'avail' | 'other'>('avail');
   const [sidebarTab, setSidebarTab] = useState<'search' | 'favorites'>('search');
   const [allCarparks, setAllCarparks] = useState<CarparkSummary[]>([]);
   const [nearbyRaw, setNearbyRaw] = useState<CarparkSummary[]>([]);
@@ -59,8 +63,31 @@ export default function GoParkApp() {
   const [detail, setDetail] = useState<CarparkDetail | null>(null);
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [pickMode, setPickMode] = useState<'start' | 'destination' | null>(null);
 
   const routes = useRoutes(startCoords, loc.userLocation);
+  const travelMins = routes.driveRoute ? Math.ceil(parseDurationSecs(routes.driveRoute.duration) / 60) : 0;
+  const arrivalTime = new Date(now.getTime() + travelMins * 60000);
+
+  useEffect(() => {
+    const [h, m] = parkUntil.split(':').map(Number);
+    const until = new Date(arrivalTime);
+    until.setHours(h, m, 0, 0);
+    if (until <= arrivalTime) {
+      const bumped = new Date(arrivalTime);
+      bumped.setHours(bumped.getHours() + 1, 0, 0, 0);
+      setParkUntil(formatTime(bumped));
+    }
+  }, [now, travelMins]);
+
+  const durationHours = (() => {
+    const [h, m] = parkUntil.split(':').map(Number);
+    const until = new Date(arrivalTime);
+    until.setHours(h, m, 0, 0);
+    if (until <= arrivalTime) until.setDate(until.getDate() + 1);
+    return Math.max(0.5, Math.round((until.getTime() - arrivalTime.getTime()) / 60000) / 60);
+  })();
+
   const destinationRef = useRef<DestinationPoint | null>(null);
 
   auth.onLogin.current = (ids: string[]) => loadFavorites(ids);
@@ -68,35 +95,65 @@ export default function GoParkApp() {
   useEffect(() => { fetchAll().then(setAllCarparks).catch(() => {}); }, []);
 
   useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && detail) { setDetail(null); setSelectedId(null); }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [detail]);
+
+  useEffect(() => {
     if (auth.appState === 'login') return;
     const interval = setInterval(() => {
       fetchAvailability().then(({ carparks: avMap }) => {
         setAllCarparks(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
         setSearchResults(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
+        setDetail(prev => prev && avMap[prev.id] ? { ...prev, availability: { ...prev.availability, ...avMap[prev.id] } } : prev);
       }).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
   }, [auth.appState]);
 
   const rankResults = (nearby: CarparkSummary[]) => {
-    let filtered = nearby.filter(cp => cp.availability[vehicleType] || Object.keys(cp.availability).length === 0);
-    if (filtered.length === 0 && (vehicleType === 'C' || vehicleType === 'Y'))
-      filtered = nearby.filter(cp => cp.agency === 'HDB' || Object.keys(cp.availability).length === 0);
-
-    let results = filtered.map(cp => ({
+    let results = nearby.map(cp => ({
       ...cp,
-      estimatedCost: cp.rates ? estimateCost(cp.rates, durationHours, vehicleType) : null,
+      estimatedCost: cp.rates ? estimateCost(cp.rates, durationHours, vehicleType, arrivalTime) : null,
     }));
 
     if (maxPrice !== null)
       results = results.filter(cp => cp.estimatedCost === null || cp.estimatedCost <= maxPrice);
 
-    results.sort((a, b) => {
-      const dd = (a.distance ?? Infinity) - (b.distance ?? Infinity);
-      return dd !== 0 ? dd : (a.estimatedCost ?? Infinity) - (b.estimatedCost ?? Infinity);
-    });
-    return results.slice(0, 10);
+    const maxDist = Math.max(...results.map(r => r.distance ?? 0), 1);
+    const maxCost = Math.max(...results.map(r => r.estimatedCost ?? 0), 1);
+
+    const score = (cp: typeof results[0]) => {
+      const vAvail = cp.availability[vehicleType];
+      const t = totals(cp.availability);
+      const avail = vAvail ? (vAvail.available ?? 0) : t.available;
+      const full = vAvail ? (vAvail.total ?? 0) > 0 && avail === 0 : t.total > 0 && avail === 0;
+      if (full) return Infinity;
+
+      const hasVehicleData = vAvail ? 0 : 0.5;
+      const hasData = (t.total > 0 ? 0 : 1) + (cp.estimatedCost != null ? 0 : 1);
+      const distNorm = (cp.distance ?? maxDist) / maxDist;
+      const costNorm = (cp.estimatedCost ?? maxCost) / maxCost;
+      const availBonus = avail > 0 ? 0 : 0.3;
+
+      return hasVehicleData + hasData + distNorm * 0.35 + costNorm * 0.45 + availBonus;
+    };
+
+    results.sort((a, b) => score(a) - score(b));
+    return results.slice(0, 20);
   };
+
+  const costRange = useMemo(() => {
+    if (!nearbyRaw.length) return { min: 1, max: 50 };
+    const costs = nearbyRaw
+      .map(cp => cp.rates ? estimateCost(cp.rates, durationHours, vehicleType, arrivalTime) : null)
+      .filter((c): c is number => c !== null && c > 0);
+    if (!costs.length) return { min: 1, max: 50 };
+    return { min: Math.floor(Math.min(...costs)), max: Math.ceil(Math.max(...costs)) };
+  }, [nearbyRaw, durationHours, vehicleType]);
 
   useEffect(() => {
     if (!hasSearched || nearbyRaw.length === 0) return;
@@ -120,6 +177,10 @@ export default function GoParkApp() {
   };
 
   const executeSearch = async (query: string) => {
+    setSuggestions([]);
+    setStartSuggestions([]);
+    setIsDropdownOpen(false);
+    setStartDropdownOpen(false);
     setLoading(true);
     try {
       let lat = 0, lng = 0, placeName = query, formatted = query;
@@ -187,7 +248,7 @@ export default function GoParkApp() {
     const name = s.formatted || s.name || destination;
     setDestination(name);
     setIsDropdownOpen(false);
-    executeSearch(name);
+    searchAndClose(name);
   };
 
   const handleStartChange = async (val: string) => {
@@ -221,6 +282,21 @@ export default function GoParkApp() {
       setDestinationPoint({ lat: cp.lat, lng: cp.lng, name: cp.name, formatted: cp.address || cp.name });
       setHasSearched(true);
     }
+  };
+
+  const handleMapPick = async (pos: { lat: number; lng: number }) => {
+    if (!pickMode) return;
+    const place = await reverseGeocode(pos.lat, pos.lng);
+    const name = place.name || `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
+    if (pickMode === 'start') {
+      setStartPoint(name);
+      setStartCoords([pos.lat, pos.lng]);
+    } else {
+      setDestination(name);
+      setDestinationPoint({ name, formatted: place.formatted || name, lat: pos.lat, lng: pos.lng });
+      destinationRef.current = { name, formatted: place.formatted || name, lat: pos.lat, lng: pos.lng };
+    }
+    setPickMode(null);
   };
 
   const handleDestinationDrag = async (lat: number, lng: number) => {
@@ -286,72 +362,94 @@ export default function GoParkApp() {
     );
   }
 
+  const closeSidebarOnMobile = () => {
+    if (window.matchMedia('(max-width: 767px)').matches) setSidebarOpen(false);
+  };
+
+  const searchAndClose = async (query: string) => {
+    setSuggestions([]);
+    setStartSuggestions([]);
+    setIsDropdownOpen(false);
+    setStartDropdownOpen(false);
+    await executeSearch(query);
+    closeSidebarOnMobile();
+  };
+
+  const selectAndClose = async (id: string) => {
+    await selectCarpark(id);
+    closeSidebarOnMobile();
+  };
+
   return (
-    <div className={`flex h-[100dvh] font-sans overflow-hidden ${darkMode ? 'dark' : ''}`}>
+    <div className={`relative h-[100dvh] font-sans overflow-hidden ${darkMode ? 'dark' : ''}`}>
       {sidebarOpen && (
-        <div className={`w-[400px] min-w-[360px] max-w-[440px] flex flex-col z-20 shrink-0 ${darkMode ? 'bg-neutral-900 border-r border-neutral-700' : 'bg-white border-r border-gray-200'}`}>
+        <div className={`fixed inset-0 md:absolute md:inset-auto md:top-3 md:left-3 md:bottom-3 w-full md:w-[340px] md:rounded-2xl flex flex-col z-20 shadow-2xl ${darkMode ? 'bg-neutral-900 border border-neutral-700/50' : 'bg-white border border-gray-200/60'}`}>
           <SidebarHeader
             darkMode={darkMode} toggleDarkMode={toggleDarkMode}
             onLogout={handleLogout} onClose={() => setSidebarOpen(false)} onReset={resetHome}
-            weather={weather} WeatherIcon={WeatherIcon}
             locationShared={loc.locationShared}
-            showTooltip={loc.showTooltip} setShowTooltip={loc.setShowTooltip} tooltipRef={loc.tooltipRef}
             onShareLocation={() => loc.shareLocation((lat, lng) => updateForCoords(lat, lng))}
           />
 
-          <SearchForm
-            darkMode={darkMode}
-            destination={destination} onDestinationChange={handleDestinationChange}
-            suggestions={suggestions} isDropdownOpen={isDropdownOpen}
-            setIsDropdownOpen={setIsDropdownOpen} onSelectSuggestion={selectSuggestion}
-            startPoint={startPoint} onStartChange={handleStartChange}
-            startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
-            startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
-            setStartDropdownOpen={setStartDropdownOpen} onSelectStart={selectStart}
-            locationShared={loc.locationShared}
-            parkUntil={parkUntil} setParkUntil={setParkUntil} durationHours={durationHours}
-            vehicleType={vehicleType} setVehicleType={setVehicleType}
-            maxPrice={maxPrice} setMaxPrice={setMaxPrice}
-            loading={loading} onSubmit={executeSearch}
-          />
+          {detail ? (
+            <div className={`flex-1 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-900' : 'bg-white'}`}>
+              <DetailPanel detail={detail} darkMode={darkMode} onClose={() => { setDetail(null); setSelectedId(null); }}
+                arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil} durationHours={durationHours} vehicleType={vehicleType} />
+            </div>
+          ) : (
+            <>
+              <SearchForm
+                darkMode={darkMode}
+                destination={destination} onDestinationChange={handleDestinationChange}
+                suggestions={suggestions} isDropdownOpen={isDropdownOpen}
+                setIsDropdownOpen={setIsDropdownOpen} onSelectSuggestion={selectSuggestion}
+                startPoint={startPoint} onStartChange={handleStartChange}
+                startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
+                startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
+                setStartDropdownOpen={setStartDropdownOpen} onSelectStart={selectStart}
+                locationShared={loc.locationShared}
+                arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil}
+                vehicleType={vehicleType} setVehicleType={setVehicleType}
+                maxPrice={maxPrice} setMaxPrice={setMaxPrice} costRange={costRange}
+                loading={loading} onSubmit={searchAndClose}
+                onPickStart={() => setPickMode('start')} onPickDestination={() => setPickMode('destination')}
+              />
 
-          <div className={`flex-1 overflow-y-auto ${darkMode ? 'bg-neutral-800' : 'bg-gray-50'}`}>
-            {auth.appState === 'user' && (
-              <div className={`flex border-b shrink-0 ${darkMode ? 'border-neutral-700' : 'border-gray-200'}`}>
-                {(['search', 'favorites'] as const).map(tab => (
-                  <button key={tab} onClick={() => setSidebarTab(tab)}
-                    className={`flex-1 py-2.5 text-[10px] font-black uppercase tracking-widest transition ${
-                      sidebarTab === tab
-                        ? darkMode ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-red-600 border-b-2 border-red-600'
-                        : darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
-                    }`}>
-                    {tab === 'search' ? 'Search' : `Favorites (${favorites.size})`}
-                  </button>
-                ))}
+              <RouteInfo darkMode={darkMode} driveRoute={routes.driveRoute} walkRoute={routes.walkRoute}
+                destinationPoint={destinationPoint} hasSearched={hasSearched} />
+
+              {auth.appState === 'user' && (
+                <div className={`flex border-b shrink-0 ${darkMode ? 'border-neutral-700/50' : 'border-gray-200/40'}`}>
+                  {(['search', 'favorites'] as const).map(tab => (
+                    <button key={tab} onClick={() => setSidebarTab(tab)}
+                      className={`flex-1 py-2 text-[9px] font-black uppercase tracking-widest transition ${
+                        sidebarTab === tab
+                          ? darkMode ? 'text-yellow-400 border-b-2 border-yellow-400' : 'text-gray-900 border-b-2 border-gray-900'
+                          : darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'
+                      }`}>
+                      {tab === 'search' ? 'Search' : `Favorites (${favorites.size})`}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className={`flex-1 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-800/30' : 'bg-white'}`}>
+                {sidebarTab === 'favorites' && auth.appState === 'user' ? (
+                  <FavoritesList darkMode={darkMode} allCarparks={allCarparks} favorites={favorites}
+                    selectedId={selectedId} onSelectCarpark={selectAndClose} onToggleFav={toggleFav} />
+                ) : (
+                  <ResultsList darkMode={darkMode} hasSearched={hasSearched} searchResults={searchResults}
+                    selectedId={selectedId} favorites={favorites} vehicleType={vehicleType}
+                    durationHours={durationHours}
+                    onSelectCarpark={selectAndClose} onToggleFav={toggleFav} />
+                )}
               </div>
-            )}
+            </>
+          )}
 
-            {sidebarTab === 'favorites' && auth.appState === 'user' ? (
-              <FavoritesList darkMode={darkMode} allCarparks={allCarparks} favorites={favorites}
-                selectedId={selectedId} onSelectCarpark={selectCarpark} onToggleFav={toggleFav} />
-            ) : (
-              <>
-                <RouteInfo darkMode={darkMode} driveRoute={routes.driveRoute} walkRoute={routes.walkRoute}
-                  destinationPoint={destinationPoint} hasSearched={hasSearched} />
-                <ResultsList darkMode={darkMode} hasSearched={hasSearched} searchResults={searchResults}
-                  selectedId={selectedId} favorites={favorites} vehicleType={vehicleType}
-                  durationHours={durationHours} resultTab={resultTab} setResultTab={setResultTab}
-                  onSelectCarpark={selectCarpark} onToggleFav={toggleFav} />
-              </>
-            )}
-          </div>
-
-          <div className={`px-4 py-3 text-center border-t shrink-0 ${darkMode ? 'border-neutral-700' : 'border-gray-100'}`}>
-            <p className={`text-[9px] font-bold tracking-wide ${darkMode ? 'text-gray-600' : 'text-gray-300'}`}>
-              Yong Man Ting · Kwang Le Ping Sharyl
-            </p>
-            <p className={`text-[8px] font-bold tracking-widest uppercase mt-0.5 ${darkMode ? 'text-gray-700' : 'text-gray-200'}`}>
-              NUS Orbital 2026 🚀🌏
+          <div className={`px-3 py-2 text-center border-t shrink-0 ${darkMode ? 'border-neutral-700/50' : 'border-gray-200/40'}`}>
+            <p className={`text-[8px] font-bold tracking-wide ${darkMode ? 'text-gray-600' : 'text-gray-400'}`}>
+              Yong Man Ting · Kwang Le Ping Sharyl · Orbital 2026
             </p>
           </div>
         </div>
@@ -364,14 +462,28 @@ export default function GoParkApp() {
         </button>
       )}
 
-      <div className="flex-1 min-w-0 relative">
-        <MapView carparks={hasSearched ? searchResults : []} selectedId={selectedId} destinationPoint={destinationPoint}
-          hasSearched={hasSearched} onSelectCarpark={selectCarpark} onDestinationDrag={handleDestinationDrag}
+      <div className="absolute inset-0">
+        <MapView carparks={hasSearched ? searchResults : []} backgroundCarparks={hasSearched ? nearbyRaw : []} selectedId={selectedId} destinationPoint={destinationPoint}
+          hasSearched={hasSearched} onSelectCarpark={selectAndClose} onDestinationDrag={handleDestinationDrag}
+          eventHandlers={pickMode ? { onMapClick: handleMapPick } : undefined}
           userLocation={loc.userLocation} drivePolyline={routes.drivePolyline} driveRoute={routes.driveRoute}
           walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} />
       </div>
 
-      {detail && <DetailPanel detail={detail} darkMode={darkMode} onClose={() => { setDetail(null); setSelectedId(null); }} />}
+      {pickMode && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-gray-900/90 backdrop-blur-lg text-white px-4 py-2 rounded-xl shadow-xl flex items-center gap-3">
+          <span className="text-xs font-bold">Tap the map to set {pickMode === 'start' ? 'start point' : 'destination'}</span>
+          <button onClick={() => setPickMode(null)} className="text-gray-400 hover:text-white text-xs font-black">Cancel</button>
+        </div>
+      )}
+
+      <div className="absolute top-3 z-30 -translate-x-1/2 max-md:left-1/2" style={{ left: sidebarOpen ? 'calc(358px + (100% - 358px) / 2)' : '50%' }}>
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-lg border ${darkMode ? 'bg-neutral-800/80 text-gray-200 border-neutral-700/50' : 'bg-white/80 text-gray-700 border-gray-200/60'}`}>
+          <span className="text-base leading-none">{weatherEmoji}</span>
+          <span className="text-[11px] font-bold whitespace-nowrap">{weather}{temp != null ? ` · ${temp}°C` : ''}</span>
+        </div>
+      </div>
+
     </div>
   );
 }
