@@ -168,6 +168,7 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
     const map = new maps3d.Map3DElement({
       center: { lat: center.lat, lng: center.lng, altitude: 0 },
       range: zoomToRange(zoom), tilt: 55, heading: 0, mode,
+      bounds: { south: 1.15, west: 103.59, north: 1.47, east: 104.12 },
     });
     map.style.width = '100%';
     map.style.height = '100%';

@@ -23,7 +23,7 @@ export function AvailabilityBar({ available, total, compact }: Props) {
         <div className={`h-full rounded-full transition-all duration-500 ${colorForPct(pct)}`} style={{ width: `${pct}%` }} />
       </div>
       <span className={`font-black whitespace-nowrap ${compact ? 'text-[10px]' : 'text-xs'}`}>
-        {available}/{total}
+        {Math.min(available, total)}/{total}
       </span>
     </div>
   );

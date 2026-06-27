@@ -14,11 +14,11 @@ import { useDarkMode } from './hooks/useDarkMode';
 import { useFavorites } from './hooks/useFavorites';
 import { useRoutes } from './hooks/useRoutes';
 import { useLocation } from './hooks/useLocation';
-import { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation } from './providers/geoapify';
+import { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation, fetchNearbyParking } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './providers/carparks';
 import { estimateCost } from './utils/estimateCost';
 import { totals, parseDurationSecs } from './utils/format';
-import type { CarparkSummary, CarparkDetail, DestinationPoint, PlaceSuggestion } from './types';
+import type { CarparkSummary, CarparkDetail, DestinationPoint, PlaceSuggestion, NearbyParking } from './types';
 
 export default function GoParkApp() {
   const auth = useAuth();
@@ -27,16 +27,20 @@ export default function GoParkApp() {
   const { favorites, loadFavorites, toggleFav, clearFavorites } = useFavorites(auth.appState);
   const loc = useLocation();
 
-  useEffect(() => {
-    if (loc.userLocation) updateForCoords(loc.userLocation[0], loc.userLocation[1]);
-  }, [loc.userLocation]);
-
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [destination, setDestination] = useState('');
   const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
+
+  useEffect(() => {
+    if (destinationPoint) {
+      updateForCoords(destinationPoint.lat, destinationPoint.lng);
+    } else if (loc.userLocation) {
+      updateForCoords(loc.userLocation[0], loc.userLocation[1]);
+    }
+  }, [loc.userLocation, destinationPoint?.lat, destinationPoint?.lng]);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 60000);
@@ -64,6 +68,8 @@ export default function GoParkApp() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pickMode, setPickMode] = useState<'start' | 'destination' | null>(null);
+  const [nearbyParking, setNearbyParking] = useState<NearbyParking[]>([]);
+  const prefetchedParkingRef = useRef<NearbyParking[] | null>(null);
 
   const routes = useRoutes(startCoords, loc.userLocation);
   const travelMins = routes.driveRoute ? Math.ceil(parseDurationSecs(routes.driveRoute.duration) / 60) : 0;
@@ -163,6 +169,7 @@ export default function GoParkApp() {
   const resetHome = () => {
     setHasSearched(false);
     setDestinationPoint(null);
+    setNearbyParking([]);
     destinationRef.current = null;
     setDetail(null);
     setSelectedId(null);
@@ -184,35 +191,50 @@ export default function GoParkApp() {
     setLoading(true);
     try {
       let lat = 0, lng = 0, placeName = query, formatted = query;
-      const postalMatch = query.match(/\b\d{6}\b/);
 
-      if (postalMatch) {
-        const res = await fetch(`https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${postalMatch[0]}&returnGeom=Y&getAddrDetails=Y`);
-        const data = await res.json();
-        if (data.found > 0) {
-          lat = parseFloat(data.results[0].LATITUDE);
-          lng = parseFloat(data.results[0].LONGITUDE);
-          placeName = `${data.results[0].BLK_NO} ${data.results[0].ROAD_NAME}`;
-          formatted = `Singapore ${postalMatch[0]}`;
+      const picked = destinationRef.current;
+      const pickedMatchesQuery = picked && picked.lat && picked.lng
+        && (query === picked.name || query === picked.formatted);
+      if (pickedMatchesQuery) {
+        lat = picked.lat;
+        lng = picked.lng;
+        placeName = picked.name || query;
+        formatted = picked.formatted || query;
+      } else {
+        const postalMatch = query.match(/\b\d{6}\b/);
+        if (postalMatch) {
+          const res = await fetch(`https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${postalMatch[0]}&returnGeom=Y&getAddrDetails=Y`);
+          const data = await res.json();
+          if (data.found > 0) {
+            lat = parseFloat(data.results[0].LATITUDE);
+            lng = parseFloat(data.results[0].LONGITUDE);
+            placeName = `${data.results[0].BLK_NO} ${data.results[0].ROAD_NAME}`;
+            formatted = `Singapore ${postalMatch[0]}`;
+          }
         }
-      }
 
-      if (lat === 0 || lng === 0) {
-        const place = await geocodeLocation(query);
-        lat = place.lat; lng = place.lon;
-        placeName = place.name || query; formatted = place.formatted;
+        if (lat === 0 || lng === 0) {
+          const place = await geocodeLocation(query);
+          lat = place.lat; lng = place.lon;
+          placeName = place.name || query; formatted = place.formatted;
+        }
       }
 
       const dest: DestinationPoint = { name: placeName, formatted, lat, lng };
       setDestinationPoint(dest);
+      setNearbyParking([]);
       destinationRef.current = dest;
       setDestination(formatted || placeName);
 
+      prefetchedParkingRef.current = null;
       classifyLocation(lat, lng).then(c => {
         if (c) {
           const updated = { ...dest, classification: c };
           setDestinationPoint(updated);
           destinationRef.current = updated;
+          if (c.hasParking && !/HDB|Residential/i.test(c.type || '')) {
+            fetchNearbyParking(lat, lng).then(spots => { prefetchedParkingRef.current = spots; });
+          }
         }
       });
 
@@ -294,6 +316,7 @@ export default function GoParkApp() {
     } else {
       setDestination(name);
       setDestinationPoint({ name, formatted: place.formatted || name, lat: pos.lat, lng: pos.lng });
+      setNearbyParking([]);
       destinationRef.current = { name, formatted: place.formatted || name, lat: pos.lat, lng: pos.lng };
     }
     setPickMode(null);
@@ -307,14 +330,19 @@ export default function GoParkApp() {
     const placeName = place.name || `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
     const dest: DestinationPoint = { name: placeName, formatted: place.formatted || placeName, lat, lng };
     setDestinationPoint(dest);
+    setNearbyParking([]);
     destinationRef.current = dest;
     setDestination(placeName);
 
+    prefetchedParkingRef.current = null;
     classifyLocation(lat, lng).then(c => {
       if (c) {
         const updated = { ...dest, classification: c };
         setDestinationPoint(updated);
         destinationRef.current = updated;
+        if (c.hasParking && !/HDB|Residential/i.test(c.type || '')) {
+          fetchNearbyParking(lat, lng).then(spots => { prefetchedParkingRef.current = spots; });
+        }
       }
     });
 
@@ -467,21 +495,47 @@ export default function GoParkApp() {
           hasSearched={hasSearched} onSelectCarpark={selectAndClose} onDestinationDrag={handleDestinationDrag}
           eventHandlers={pickMode ? { onMapClick: handleMapPick } : undefined}
           userLocation={loc.userLocation} drivePolyline={routes.drivePolyline} driveRoute={routes.driveRoute}
-          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} />
+          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} nearbyParking={nearbyParking} />
       </div>
 
-      {pickMode && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 bg-gray-900/90 backdrop-blur-lg text-white px-4 py-2 rounded-xl shadow-xl flex items-center gap-3">
-          <span className="text-xs font-bold">Tap the map to set {pickMode === 'start' ? 'start point' : 'destination'}</span>
-          <button onClick={() => setPickMode(null)} className="text-gray-400 hover:text-white text-xs font-black">Cancel</button>
-        </div>
-      )}
-
-      <div className="absolute top-3 z-30 -translate-x-1/2 max-md:left-1/2" style={{ left: sidebarOpen ? 'calc(358px + (100% - 358px) / 2)' : '50%' }}>
+      <div className="absolute top-3 z-40 -translate-x-1/2 max-md:left-1/2 flex flex-col items-center gap-2" style={{ left: sidebarOpen ? 'calc(358px + (100% - 358px) / 2)' : '50%' }}>
         <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-lg border ${darkMode ? 'bg-neutral-800/80 text-gray-200 border-neutral-700/50' : 'bg-white/80 text-gray-700 border-gray-200/60'}`}>
           <span className="text-base leading-none">{weatherEmoji}</span>
           <span className="text-[11px] font-bold whitespace-nowrap">{weather}{temp != null ? ` · ${temp}°C` : ''}</span>
         </div>
+        {pickMode && (
+          <div className="tap-hint flex items-center gap-2 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-lg border bg-gray-900/90 text-white border-white/20">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span className="text-[11px] font-bold whitespace-nowrap">Tap the map to set {pickMode === 'start' ? 'start point' : 'destination'}</span>
+            <button onClick={() => setPickMode(null)} className="text-gray-400 hover:text-white text-[11px] font-black ml-1">Cancel</button>
+          </div>
+        )}
+        {destinationPoint && !pickMode && (
+          <div className="flex flex-col items-center gap-1.5">
+            {destinationPoint.classification?.parkingHint && !/HDB|Residential/i.test(destinationPoint.classification.type || '') && (
+              <button onClick={async () => {
+                if (nearbyParking.length) { setNearbyParking([]); return; }
+                const spots = prefetchedParkingRef.current ?? await fetchNearbyParking(destinationPoint.lat, destinationPoint.lng);
+                const plotted = hasSearched ? [...searchResults, ...nearbyRaw] : allCarparks;
+                const filtered = spots.filter(p =>
+                  !plotted.some(cp => Math.abs(cp.lat - p.lat) < 0.0005 && Math.abs(cp.lng - p.lng) < 0.0005)
+                );
+                setNearbyParking(filtered);
+              }}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-lg border cursor-pointer transition ${nearbyParking.length ? 'bg-green-600/80 border-green-400/30' : 'bg-blue-600/80 border-blue-400/30'} text-white`}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                <span className="text-[11px] font-bold whitespace-nowrap">{destinationPoint.classification.type} — {nearbyParking.length ? `${nearbyParking.length} parking locations nearby` : destinationPoint.classification.parkingHint}</span>
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5 opacity-60"><path d={nearbyParking.length ? 'M18 6L6 18M6 6l12 12' : 'M9 18l6-6-6-6'}/></svg>
+              </button>
+            )}
+            {!hasSearched && (
+              <div className="tap-hint flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-lg border bg-gray-900/70 text-white border-white/20">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 9l4 4L19 3"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                <span className="text-[11px] font-bold whitespace-nowrap">Drag the pin to adjust destination</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
     </div>

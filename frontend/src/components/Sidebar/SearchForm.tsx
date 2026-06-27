@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useState, useCallback } from 'react';
 import { Navigation, Search, Clock, MapPin, X, Crosshair } from 'lucide-react';
 import { VEHICLE_OPTIONS } from '../../utils/constants';
 import type { PlaceSuggestion } from '../../types';
@@ -67,7 +67,7 @@ export function SearchForm({
 
   return (
     <div className={`px-3 py-3 border-b shrink-0 ${dm ? 'bg-neutral-900 border-neutral-700/40' : 'bg-white border-gray-200/30'}`}>
-      <form onSubmit={e => { e.preventDefault(); submitted.current = true; setIsDropdownOpen(false); setStartDropdownOpen(false); (document.activeElement as HTMLElement)?.blur(); onSubmit(destination); setTimeout(() => { submitted.current = false; }, 500); }} className="space-y-2.5">
+      <form onSubmit={e => { e.preventDefault(); submitted.current = true; setIsDropdownOpen(false); setStartDropdownOpen(false); (document.activeElement as HTMLElement)?.blur(); if (suggestions.length > 0) { onSelectSuggestion(suggestions[0]); } else { onSubmit(destination); } setTimeout(() => { submitted.current = false; }, 500); }} className="space-y-2.5">
         <div className="relative">
           <label className={labelClass}>Start</label>
           <div className={`flex items-center rounded-xl px-2.5 py-2 transition ${inputBg} ${startCoords ? 'border-green-500/50' : 'focus-within:border-blue-500/50'}`}>
@@ -180,15 +180,40 @@ export function SearchForm({
   );
 }
 
+const PAGE_SIZE = 10;
+
 function SuggestionList({ items, onSelect, darkMode }: {
   items: PlaceSuggestion[]; onSelect: (s: PlaceSuggestion) => void; darkMode: boolean;
 }) {
+  const [hovered, setHovered] = useState(-1);
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const listRef = useRef<HTMLUListElement>(null);
+
+  const handleScroll = useCallback(() => {
+    const el = listRef.current;
+    if (!el || visibleCount >= items.length) return;
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
+      setVisibleCount(v => Math.min(v + PAGE_SIZE, items.length));
+    }
+  }, [visibleCount, items.length]);
+
+  const visible = items.slice(0, visibleCount);
+  const active = hovered >= 0 ? hovered : 0;
+
   return (
-    <ul className={`absolute top-full left-0 w-full mt-1 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-800/95 backdrop-blur-xl border border-neutral-600/50' : 'bg-white/95 backdrop-blur-xl border border-gray-200/50'}`}>
-      {items.map((s, i) => (
-        <li key={i} onClick={() => onSelect(s)}
-          className={`px-3 py-2.5 cursor-pointer last:border-0 text-sm font-bold flex items-center gap-2 ${darkMode ? 'border-b border-neutral-700/50 text-gray-200 hover:bg-neutral-700/50' : 'border-b border-gray-100/50 text-gray-700 hover:bg-gray-50/80'}`}>
-          <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+    <ul ref={listRef} onScroll={handleScroll}
+      className={`absolute top-full left-0 w-full mt-1 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-800/95 backdrop-blur-xl border border-neutral-600/50' : 'bg-white/95 backdrop-blur-xl border border-gray-200/50'}`}>
+      {visible.map((s, i) => (
+        <li key={i}
+          onClick={() => onSelect(s)}
+          onMouseEnter={() => setHovered(i)}
+          onMouseLeave={() => setHovered(-1)}
+          className={`px-3 py-2.5 cursor-pointer last:border-0 text-sm font-bold flex items-center gap-2 ${
+            i === active
+              ? darkMode ? 'bg-neutral-700/70 text-white' : 'bg-blue-50 text-gray-900'
+              : darkMode ? 'border-b border-neutral-700/50 text-gray-200' : 'border-b border-gray-100/50 text-gray-700'
+          }`}>
+          <MapPin size={13} className={`flex-shrink-0 ${i === active ? 'text-blue-500' : 'text-gray-400'}`} />
           <span className="truncate">{s.formatted || s.name}</span>
         </li>
       ))}

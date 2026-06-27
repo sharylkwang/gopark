@@ -34,6 +34,7 @@ export function totals(avail: Record<string, { available: number | null; total: 
   const entries = Object.values(avail);
   const available = entries.reduce((sum, e) => sum + (e.available ?? 0), 0);
   const total = entries.reduce((sum, e) => sum + (e.total ?? 0), 0);
-  const pct = total > 0 ? (available / total) * 100 : 0;
-  return { available, total, pct };
+  const capped = Math.min(available, total);
+  const pct = total > 0 ? Math.min((capped / total) * 100, 100) : 0;
+  return { available: capped, total, pct };
 }

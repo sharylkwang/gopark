@@ -1,4 +1,4 @@
-import type { GeocodeResponse, PlaceSuggestion, PlaceClassification } from '../../types';
+import type { GeocodeResponse, PlaceSuggestion, PlaceClassification, NearbyParking } from '../../types';
 
 export async function geocodeLocation(query: string): Promise<GeocodeResponse> {
   const res = await fetch(`/api/geoapify/geocode?q=${encodeURIComponent(query)}`);
@@ -24,6 +24,16 @@ export async function classifyLocation(lat: number, lng: number): Promise<PlaceC
     return data.type ? data : null;
   } catch {
     return null;
+  }
+}
+
+export async function fetchNearbyParking(lat: number, lng: number): Promise<NearbyParking[]> {
+  try {
+    const res = await fetch(`/api/overpass/nearby-parking?lat=${lat}&lng=${lng}`);
+    if (!res.ok) return [];
+    return res.json();
+  } catch {
+    return [];
   }
 }
 

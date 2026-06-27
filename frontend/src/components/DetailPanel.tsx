@@ -35,7 +35,7 @@ interface Props {
 export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil, setParkUntil, durationHours, vehicleType }: Props) {
   const vAvail = detail.availability[vehicleType];
   const dt = vAvail
-    ? { available: vAvail.available ?? 0, total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? ((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100 : 0 }
+    ? { available: Math.min(vAvail.available ?? 0, vAvail.total ?? 0), total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? Math.min(((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100, 100) : 0 }
     : totals(detail.availability);
   const dm = darkMode;
   const cost = detail.rates?.length ? estimateCost(detail.rates, durationHours, vehicleType, arrivalTime) : null;

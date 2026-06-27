@@ -18,12 +18,16 @@ function distanceColor(cp: CarparkSummary, maxDist: number) {
 const P_ICON = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='3' width='16' height='18' rx='2'/><path d='M9 17V7h4a3 3 0 0 1 0 6H9'/></svg>`;
 
 function pin(color: string, size: number, selected: boolean, dimOthers: boolean) {
-  const opacity = selected ? '1' : dimOthers ? '0.65' : '1';
+  const opacity = selected ? '1' : dimOthers ? '0.8' : '1';
   const border = selected
     ? '3px solid white'
-    : '2px solid rgba(255,255,255,0.6)';
+    : '2.5px solid white';
   const hit = size + 12;
   const iconSz = Math.round(size * 0.5);
+
+  const shadow = selected
+    ? 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))'
+    : 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))';
 
   const inner = [
     `width:${size}px`,
@@ -35,6 +39,7 @@ function pin(color: string, size: number, selected: boolean, dimOthers: boolean)
     `opacity:${opacity}`,
     `pointer-events:none`,
     `position:relative`,
+    `filter:${shadow}`,
   ].join(';');
 
   const iconStyle = [
@@ -225,7 +230,7 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
       iconCreateFunction: (c) => bgClusterIcon(c.getChildCount(), map.getZoom()),
     });
 
-    const icon = bgPin(22);
+    const icon = bgPin(28);
     for (const cp of bgCarparks) {
       const marker = L.marker([cp.lat, cp.lng], { icon, zIndexOffset: -100 });
       marker.on('click', () => onSelectRef.current(cp.id));
@@ -278,7 +283,7 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
         : '#3b82f6';
 
       const marker = L.marker([cp.lat, cp.lng], {
-        icon: pin(color, 20, false, false),
+        icon: pin(color, 26, false, false),
       });
 
       marker.on('click', () => onSelectRef.current(cp.id));
@@ -314,7 +319,7 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
         color = distanceColor(cp, maxDist);
       }
 
-      const size = isSelected ? 34 : 20;
+      const size = isSelected ? 34 : 26;
       marker.setIcon(pin(color, size, isSelected, dimOthers));
       marker.setZIndexOffset(isSelected ? 1000 : 0);
     }

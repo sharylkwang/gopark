@@ -27,7 +27,7 @@ export function CircularProgress({ percentage, size = 80, stroke = 8, label }: P
             className="transition-all duration-500" />
         </svg>
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-lg font-black" style={{ color }}>{Math.round(percentage)}%</span>
+          <span className="text-lg font-black" style={{ color }}>{Math.round(Math.min(percentage, 100))}%</span>
         </div>
       </div>
       {label && <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>}
