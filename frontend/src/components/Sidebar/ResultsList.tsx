@@ -1,6 +1,9 @@
 import { CarparkCard } from '../CarparkCard';
+<<<<<<< HEAD
 import { formatParkDuration } from '../../utils/format';
 import { LOT_LABELS } from '../../utils/constants';
+=======
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
 import type { CarparkSummary } from '../../types';
 
 interface Props {
@@ -11,15 +14,22 @@ interface Props {
   favorites: Set<string>;
   vehicleType: string;
   durationHours: number;
+<<<<<<< HEAD
   resultTab: 'avail' | 'other';
   setResultTab: (t: 'avail' | 'other') => void;
+=======
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
   onSelectCarpark: (id: string) => void;
   onToggleFav: (e: React.MouseEvent, id: string) => void;
 }
 
 export function ResultsList({
   darkMode, hasSearched, searchResults, selectedId, favorites,
+<<<<<<< HEAD
   vehicleType, durationHours, resultTab, setResultTab,
+=======
+  vehicleType,
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
   onSelectCarpark, onToggleFav,
 }: Props) {
   const dm = darkMode;
@@ -28,6 +38,7 @@ export function ResultsList({
     return <p className={`text-sm font-bold italic text-center py-8 ${dm ? 'text-gray-400' : 'text-gray-500'}`}>Search for a destination to find nearby parking.</p>;
   }
 
+<<<<<<< HEAD
   const withAvail = searchResults.filter(cp => Object.keys(cp.availability).length > 0);
   const noAvail = searchResults.filter(cp => Object.keys(cp.availability).length === 0);
   const showing = resultTab === 'avail' ? withAvail : noAvail;
@@ -54,6 +65,14 @@ export function ResultsList({
       {showing.map(cp => (
         <CarparkCard key={cp.id} cp={cp} selected={selectedId === cp.id}
           isFav={favorites.has(cp.id)} darkMode={dm} vehicleType={vehicleType}
+=======
+  return (
+    <div className="p-3 space-y-2">
+      {searchResults.map((cp, i) => (
+        <CarparkCard key={cp.id} cp={cp} selected={selectedId === cp.id}
+          isFav={favorites.has(cp.id)} darkMode={dm} vehicleType={vehicleType}
+          recommended={i === 0}
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
           onSelect={() => onSelectCarpark(cp.id)}
           onToggleFav={e => onToggleFav(e, cp.id)} />
       ))}

@@ -198,25 +198,47 @@ export function mergeAll(
   }
 
   if (uraCap) {
+    const uraEntries = Object.entries(uraCap);
     for (const cp of Object.values(map)) {
       const uraId = cp.source_ids['datamall']?.replace('URA-', '');
-      const place = uraId ? uraCap[uraId] : null;
-      if (place) {
-        if (place.cars > 0 && cp.availability['C'] && !cp.availability['C'].total) {
-          cp.availability['C'].total = place.cars;
+      let place = uraId ? uraCap[uraId] : null;
+
+      if (!place) {
+        for (const [, p] of uraEntries) {
+          if (Math.hypot(cp.lat - p.lat, cp.lng - p.lng) < MERGE.proximityThreshold) {
+            place = p;
+            break;
+          }
         }
-        if (place.motorcycles > 0) {
-          if (cp.availability['Y'] && !cp.availability['Y'].total) cp.availability['Y'].total = place.motorcycles;
-          else if (!cp.availability['Y'] && place.motorcycles > 0) cp.availability['Y'] = { available: null, total: place.motorcycles };
-        }
-        if (place.heavyVehicles > 0) {
-          if (cp.availability['H'] && !cp.availability['H'].total) cp.availability['H'].total = place.heavyVehicles;
-        }
+      }
+
+      if (!place) continue;
+
+      if (place.cars > 0) {
+        if (cp.availability['C'] && !cp.availability['C'].total) cp.availability['C'].total = place.cars;
+        else if (!cp.availability['C']) cp.availability['C'] = { available: null, total: place.cars };
+      }
+      if (place.motorcycles > 0) {
+        if (cp.availability['Y'] && !cp.availability['Y'].total) cp.availability['Y'].total = place.motorcycles;
+        else if (!cp.availability['Y']) cp.availability['Y'] = { available: null, total: place.motorcycles };
+      }
+      if (place.heavyVehicles > 0) {
+        if (cp.availability['H'] && !cp.availability['H'].total) cp.availability['H'].total = place.heavyVehicles;
+        else if (!cp.availability['H']) cp.availability['H'] = { available: null, total: place.heavyVehicles };
       }
     }
   }
 
+  const LT_NAMES: Record<string, string> = { C: 'Car', Y: 'Motorcycle', H: 'Heavy Vehicle' };
   return Object.values(map)
     .filter(cp => isInSingapore(cp.lat, cp.lng))
-    .map(cp => ({ ...cp, sources: [...new Set(cp.sources)], source_count: new Set(cp.sources).size }));
+    .map(cp => {
+      const availTypes = Object.keys(cp.availability).map(k => LT_NAMES[k]).filter(Boolean);
+      if (availTypes.length && !cp.lot_types) cp.lot_types = availTypes.join(', ');
+      else if (availTypes.length) {
+        const existing = new Set(cp.lot_types.split(',').map(s => s.trim()));
+        for (const t of availTypes) if (!existing.has(t)) cp.lot_types += `, ${t}`;
+      }
+      return { ...cp, sources: [...new Set(cp.sources)], source_count: new Set(cp.sources).size };
+    });
 }

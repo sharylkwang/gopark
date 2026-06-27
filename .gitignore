@@ -1,16 +1,4 @@
 # Block node_modules everywhere in the project
+# Block node_modules everywhere in the project
 node_modules/
-**/node_modules/
-
-# Block environment secret files everywhere
 .env
-**/.env
-.env.local
-
-# OS junk
-**/.DS_Store
-frontend/.vite/
-
-# Seed cache (generated at runtime)
-backend/data/
-data/seed.json

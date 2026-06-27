@@ -68,8 +68,18 @@ export function useAuth() {
       setAuthError(PASSWORD_ERROR);
       return;
     }
+<<<<<<< HEAD
     setPendingAction(isLoginView ? 'login' : 'signup');
     setShowCaptcha(true);
+=======
+    const action = isLoginView ? 'login' : 'signup';
+    if (import.meta.env.DEV) {
+      await executePendingAction(action);
+    } else {
+      setPendingAction(action);
+      setShowCaptcha(true);
+    }
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
   };
 
   const handleCaptchaToken = async (token: string) => {
@@ -134,8 +144,17 @@ export function useAuth() {
 
   const enterGuest = () => {
     setAuthError('');
+<<<<<<< HEAD
     setPendingAction('guest');
     setShowCaptcha(true);
+=======
+    if (import.meta.env.DEV) {
+      setAppState('guest');
+    } else {
+      setPendingAction('guest');
+      setShowCaptcha(true);
+    }
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
   };
 
   useEffect(() => {

@@ -69,6 +69,7 @@ function WalkRoute({ polyline, isBfa }: { polyline: [number, number][]; isBfa?: 
 }
 
 const CAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg>`;
+const WALK_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="1.5"/><path d="M9 20l2-5"/><path d="M15 20l-2-5-2-4 3-2 2 4h3"/><path d="M6 9l3 2"/></svg>`;
 
 
 function makePill(time: string, svg: string, bg: string, border: string, textColor: string, dotColor?: string) {
@@ -158,6 +159,7 @@ const getUserDot = () => {
 
 interface Props {
   carparks: CarparkSummary[];
+  backgroundCarparks?: CarparkSummary[];
   selectedId: string | null;
   destinationPoint: DestinationPoint | null;
   hasSearched: boolean;
@@ -217,6 +219,32 @@ function TrafficPolyline({ points, intervals }: { points: [number, number][]; in
   );
 }
 
+function makeCombinedPill(driveTime: string, walkTime: string) {
+  return L.divIcon({
+    className: 'route-pill-wrapper',
+    html: `<div class="route-pill" style="
+      display:inline-flex;align-items:center;gap:8px;
+      background:white;border:2px solid #d1d5db;
+      border-radius:20px;padding:5px 12px;
+      box-shadow:0 2px 10px rgba(0,0,0,0.25);
+      cursor:pointer;white-space:nowrap;
+      font-family:system-ui,-apple-system,sans-serif;
+    ">
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="display:flex;color:#111827;">${CAR_SVG}</span>
+        <span style="font-size:13px;font-weight:800;color:#111827;line-height:1;">${driveTime}</span>
+      </span>
+      <span style="width:1px;height:16px;background:#d1d5db;"></span>
+      <span style="display:flex;align-items:center;gap:4px;">
+        <span style="display:flex;color:#1e40af;">${WALK_SVG}</span>
+        <span style="font-size:13px;font-weight:800;color:#1e40af;line-height:1;">${walkTime}</span>
+      </span>
+    </div>`,
+    iconSize: [200, 30],
+    iconAnchor: [100, 15],
+  });
+}
+
 function RouteLabel({ position, route, type }: {
   position: [number, number];
   route: RouteResult;
@@ -224,39 +252,19 @@ function RouteLabel({ position, route, type }: {
 }) {
   const time = parseDuration(route.duration);
   const dist = formatDist(route.distanceMeters);
-  const trafficLabel = type === 'drive' ? (TRAFFIC_LABELS[route.trafficCondition] || '') : '';
-  const trafficDot = type === 'drive' ? (TRAFFIC_DOT[route.trafficCondition] || '') : '';
+  const isDrive = type === 'drive';
+  const trafficLabel = isDrive ? (TRAFFIC_LABELS[route.trafficCondition] || '') : '';
+  const trafficDot = isDrive ? (TRAFFIC_DOT[route.trafficCondition] || '') : '';
+  const label = isDrive ? 'Drive' : 'Walk';
+  const svg = isDrive ? CAR_SVG : WALK_SVG;
 
-  if (type !== 'drive') {
-    const walkIcon = L.divIcon({
-      className: 'route-pill-wrapper',
-      html: `<div style="
-        display:inline-flex;align-items:center;gap:6px;
-        background:linear-gradient(135deg,#eff6ff,#e0e7ff);
-        border:1.5px solid #93c5fd;
-        border-radius:16px;padding:6px 12px;
-        white-space:nowrap;cursor:default;
-        font-family:system-ui,-apple-system,sans-serif;
-      ">
-        <span style="font-size:15px">&#x1F6B6;&#x200D;&#x2640;&#xFE0F;</span>
-        <span style="font-size:14px;font-weight:900;color:#1e40af;line-height:1">${time}</span>
-        <span style="font-size:11px;font-weight:700;color:#60a5fa;line-height:1">${dist}</span>
-        <span style="font-size:12px">&#x2728;</span>
-      </div>`,
-      iconSize: [160, 34],
-      iconAnchor: [80, 17],
-    });
-
-    return <Marker position={position} icon={walkIcon} zIndexOffset={1000} />;
-  }
-
-  const icon = makePill(time, CAR_SVG, 'white', '#d1d5db', '#111827', trafficDot);
+  const icon = makePill(time, svg, 'white', isDrive ? '#d1d5db' : '#93c5fd', isDrive ? '#111827' : '#1e40af', isDrive ? trafficDot : undefined);
 
   return (
     <Marker position={position} icon={icon} zIndexOffset={1000}>
       <Popup closeButton={false} className="route-popup" offset={[0, -5]}>
         <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Drive</span>
+          <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</span>
           <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>{time}</span>
           <span style={{ fontSize: 12, color: '#9ca3af' }}>{dist}</span>
           {trafficLabel && trafficDot && (
@@ -268,6 +276,82 @@ function RouteLabel({ position, route, type }: {
         </div>
       </Popup>
     </Marker>
+  );
+}
+
+function CombinedRouteLabel({ position, driveRoute, walkRoute }: {
+  position: [number, number];
+  driveRoute: RouteResult;
+  walkRoute: RouteResult;
+}) {
+  const driveTime = parseDuration(driveRoute.duration);
+  const driveDist = formatDist(driveRoute.distanceMeters);
+  const walkTime = parseDuration(walkRoute.duration);
+  const walkDist = formatDist(walkRoute.distanceMeters);
+  const trafficLabel = TRAFFIC_LABELS[driveRoute.trafficCondition] || '';
+  const trafficDot = TRAFFIC_DOT[driveRoute.trafficCondition] || '';
+
+  const icon = makeCombinedPill(driveTime, walkTime);
+
+  return (
+    <Marker position={position} icon={icon} zIndexOffset={1000}>
+      <Popup closeButton={false} className="route-popup" offset={[0, -5]}>
+        <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', flexDirection: 'column', gap: 6, whiteSpace: 'nowrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Drive</span>
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>{driveTime}</span>
+            <span style={{ fontSize: 12, color: '#9ca3af' }}>{driveDist}</span>
+            {trafficLabel && trafficDot && (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: trafficDot, background: `${trafficDot}15`, padding: '2px 8px', borderRadius: 10 }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: trafficDot }} />
+                {trafficLabel}
+              </span>
+            )}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Walk</span>
+            <span style={{ fontSize: 16, fontWeight: 900, color: '#1e40af' }}>{walkTime}</span>
+            <span style={{ fontSize: 12, color: '#9ca3af' }}>{walkDist}</span>
+          </div>
+        </div>
+      </Popup>
+    </Marker>
+  );
+}
+
+function RouteLabels({ drivePolyline, driveRoute, walkPolyline, walkRoute }: {
+  drivePolyline: [number, number][] | null;
+  driveRoute: RouteResult | null;
+  walkPolyline: [number, number][] | null;
+  walkRoute: RouteResult | null;
+}) {
+  const map = useMap();
+  const [zoomed, setZoomed] = useState(map.getZoom() >= 15);
+
+  useEffect(() => {
+    const onZoom = () => setZoomed(map.getZoom() >= 15);
+    map.on('zoomend', onZoom);
+    return () => { map.off('zoomend', onZoom); };
+  }, [map]);
+
+  const hasDrive = drivePolyline && driveRoute && drivePolyline.length > 1;
+  const hasWalk = walkPolyline && walkRoute && walkPolyline.length > 1;
+
+  if (!zoomed && hasDrive && hasWalk) {
+    return (
+      <CombinedRouteLabel
+        position={midpoint(drivePolyline)}
+        driveRoute={driveRoute}
+        walkRoute={walkRoute}
+      />
+    );
+  }
+
+  return (
+    <>
+      {hasDrive && <RouteLabel position={midpoint(drivePolyline)} route={driveRoute} type="drive" />}
+      {hasWalk && <RouteLabel position={midpoint(walkPolyline)} route={walkRoute} type="walk" />}
+    </>
   );
 }
 
@@ -401,7 +485,11 @@ function DraggableDestination({
 }
 
 export function MapView({
+<<<<<<< HEAD
   carparks, selectedId, destinationPoint, hasSearched,
+=======
+  carparks, backgroundCarparks, selectedId, destinationPoint, hasSearched,
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
   onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
 }: Props) {
@@ -498,9 +586,7 @@ export function MapView({
           </Marker>
         )}
 
-        {carparks.length > 0 && (
-          <MarkerCluster carparks={carparks} selectedId={selectedId} onSelect={onSelectCarpark} hasSearched={hasSearched} />
-        )}
+        <MarkerCluster carparks={carparks} backgroundCarparks={backgroundCarparks} selectedId={selectedId} onSelect={onSelectCarpark} hasSearched={hasSearched} />
 
         {drivePolyline && drivePolyline.length > 0 && (
           <>
@@ -516,13 +602,12 @@ export function MapView({
           <WalkRoute polyline={walkPolyline} isBfa={walkRoute?.travelMode === 'BFA'} />
         )}
 
-        {drivePolyline && driveRoute && drivePolyline.length > 1 && (
-          <RouteLabel position={midpoint(drivePolyline)} route={driveRoute} type="drive" />
-        )}
-
-        {walkPolyline && walkRoute && walkPolyline.length > 1 && (
-          <RouteLabel position={midpoint(walkPolyline)} route={walkRoute} type="walk" />
-        )}
+        <RouteLabels
+          drivePolyline={drivePolyline ?? null}
+          driveRoute={driveRoute ?? null}
+          walkPolyline={walkPolyline ?? null}
+          walkRoute={walkRoute ?? null}
+        />
       </MapContainer>
 
       {mode3D && (
@@ -537,23 +622,10 @@ export function MapView({
       )}
 
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
-        mode3D={mode3D} onMode3DChange={setMode3D} />
+        mode3D={mode3D} onMode3DChange={setMode3D}
+        mapCenter={mapCenter} mapZoom={mapZoom} />
 
-      <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 px-3 py-2.5">
-        <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mb-1.5">Availability</p>
-        {[
-          ['#22c55e', 'High (>30%)'],
-          ['#f59e0b', 'Low (10-30%)'],
-          ['#ef4444', 'Very Low (<10%)'],
-          ['#3b82f6', 'Available (no capacity)'],
-          ['#9ca3af', 'No Data'],
-        ].map(([color, label]) => (
-          <div key={label} className="flex items-center gap-2 py-0.5">
-            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: color }} />
-            <span className="text-[10px] font-bold text-gray-600">{label}</span>
-          </div>
-        ))}
-      </div>
+      {/* Legend hidden for now */}
     </div>
   );
 }

@@ -40,22 +40,27 @@ let apiLoading: Promise<void> | null = null;
 async function loadMapsApi(): Promise<void> {
   if (apiLoading) return apiLoading;
   apiLoading = (async () => {
-    const existing = document.querySelector('script[src*="maps.googleapis.com"]');
-    if (existing && (window as any).google?.maps) return;
+    if ((window as any).google?.maps?.maps3d) return;
 
     const { data } = await axios.get('/api/google/maps-key');
     if (!data.key) throw new Error('No Google Maps key configured');
 
+    const existing = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existing) existing.remove();
+
     await new Promise<void>((resolve, reject) => {
-      if (existing) {
-        existing.addEventListener('load', () => resolve());
-        existing.addEventListener('error', () => reject());
-        return;
-      }
       const s = document.createElement('script');
       s.src = `https://maps.googleapis.com/maps/api/js?key=${data.key}&v=alpha&libraries=maps3d`;
       s.async = true;
-      s.onload = () => resolve();
+      s.onload = () => {
+        const poll = setInterval(() => {
+          if ((window as any).google?.maps?.maps3d?.Map3DElement) {
+            clearInterval(poll);
+            resolve();
+          }
+        }, 100);
+        setTimeout(() => { clearInterval(poll); reject(new Error('Maps 3D timed out')); }, 15000);
+      };
       s.onerror = () => reject(new Error('Failed to load Google Maps'));
       document.head.appendChild(s);
     });
@@ -106,7 +111,11 @@ function makeTrafficSegs(polyline: [number, number][], intervals: SpeedInterval[
 
 function appendPoly(map: any, maps3d: any, coords: any[], color: string, width: number, overlays: any[]) {
   const el = new maps3d.Polyline3DElement({
+<<<<<<< HEAD
     coordinates: coords, strokeColor: color, strokeWidth: width,
+=======
+    path: coords, strokeColor: color, strokeWidth: width,
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
     altitudeMode: 'RELATIVE_TO_GROUND',
   });
   map.append(el);
@@ -129,11 +138,18 @@ function appendMarker(map: any, maps3d: any, lat: number, lng: number, html: str
 
 const DEST_PIN = `<div style="width:28px;height:28px;background:#dc2626;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 2px 10px rgba(220,38,38,0.6);position:relative"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(45deg)"><svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='white'><path d='M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 1 1 16 0Z'/><circle cx='12' cy='10' r='3' fill='#dc2626'/></svg></div></div>`;
 
-function carparkPin(color: string, sel: boolean) {
-  const sz = sel ? 22 : 14;
-  const bw = sel ? 3 : 2;
-  const ba = sel ? '1' : '0.8';
-  return `<div style="width:${sz}px;height:${sz}px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:${bw}px solid rgba(255,255,255,${ba});box-shadow:0 ${sel ? 2 : 1}px ${sel ? 10 : 4}px rgba(0,0,0,${sel ? 0.5 : 0.3})"></div>`;
+function carparkPin(color: string, sel: boolean, label?: string) {
+  const sz = sel ? 32 : 22;
+  const bw = sel ? 4 : 2;
+  const shadow = sel ? '0 3px 12px rgba(0,0,0,0.5)' : '0 2px 6px rgba(0,0,0,0.35)';
+  const opacity = sel ? '1' : '0.85';
+  const iconSz = Math.round(sz * 0.45);
+  const pIcon = `<svg xmlns='http://www.w3.org/2000/svg' width='${iconSz}' height='${iconSz}' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='3' width='16' height='18' rx='2'/><path d='M9 17V7h4a3 3 0 0 1 0 6H9'/></svg>`;
+  const pin = `<div style="display:flex;flex-direction:column;align-items:center;opacity:${opacity}">
+    <div style="width:${sz}px;height:${sz}px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:${bw}px solid white;box-shadow:${shadow};position:relative"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(45deg)">${pIcon}</div></div>
+    ${label && sel ? `<div style="margin-top:4px;background:rgba(0,0,0,0.75);color:white;font-size:10px;font-weight:800;font-family:system-ui,sans-serif;padding:2px 6px;border-radius:6px;white-space:nowrap;max-width:120px;overflow:hidden;text-overflow:ellipsis">${label}</div>` : ''}
+  </div>`;
+  return pin;
 }
 
 export function Google3DMap({ mode, center, zoom, routes, markers, destination }: Props) {
@@ -211,18 +227,22 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
 
     if (markers?.length && m3d.Marker3DElement) {
       for (const mk of markers) {
+<<<<<<< HEAD
         try { appendMarker(map, m3d, mk.lat, mk.lng, carparkPin(mk.color, !!mk.selected), ov); } catch {}
+=======
+        try { appendMarker(map, m3d, mk.lat, mk.lng, carparkPin(mk.color, !!mk.selected, mk.label), ov); } catch {}
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
       }
     }
   }, [ready, routes, markers, destination, clearOverlays]);
 
   if (error) {
     return (
-      <div className="absolute inset-0 z-[999] flex items-center justify-center bg-gray-900/80">
+      <div className="absolute inset-0 z-10 flex items-center justify-center bg-gray-900/80">
         <p className="text-white text-sm font-bold">3D Maps unavailable: {error}</p>
       </div>
     );
   }
 
-  return <div ref={containerRef} className="absolute inset-0 z-[999]" />;
+  return <div ref={containerRef} className="absolute inset-0 z-10" />;
 }

@@ -1,4 +1,4 @@
-import { Heart, Navigation } from 'lucide-react';
+import { Heart, Navigation, ParkingSquare } from 'lucide-react';
 import { AvailabilityBar } from './AvailabilityBar';
 import { formatDistance, totals } from '../utils/format';
 import type { CarparkSummary } from '../types';
@@ -9,11 +9,12 @@ interface Props {
   isFav: boolean;
   darkMode: boolean;
   vehicleType?: string;
+  recommended?: boolean;
   onSelect: () => void;
   onToggleFav: (e: React.MouseEvent) => void;
 }
 
-export function CarparkCard({ cp, selected, isFav, darkMode, vehicleType, onSelect, onToggleFav }: Props) {
+export function CarparkCard({ cp, selected, isFav, darkMode, vehicleType, recommended, onSelect, onToggleFav }: Props) {
   const vAvail = vehicleType ? cp.availability[vehicleType] : null;
   const t = vAvail
     ? { available: vAvail.available ?? 0, total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? ((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100 : 0 }
@@ -21,15 +22,25 @@ export function CarparkCard({ cp, selected, isFav, darkMode, vehicleType, onSele
 
   return (
     <div onClick={onSelect}
-      className={`border-2 rounded-xl p-3 cursor-pointer transition-all duration-200 ${
+      className={`rounded-2xl p-2.5 cursor-pointer transition-all duration-200 ${
+        recommended ? 'recommended-card border-2 ' : 'border '
+      }${
         selected
-          ? darkMode ? 'bg-neutral-700 border-blue-500 shadow-lg ring-4 ring-blue-500/20' : 'bg-white border-red-600 shadow-lg ring-4 ring-red-100'
-          : darkMode ? 'bg-neutral-800 border-neutral-700 hover:border-blue-400' : 'bg-white border-gray-100 hover:border-red-400'
+          ? darkMode ? 'bg-neutral-700/60 border-blue-500/70 shadow-lg ring-2 ring-blue-500/20' : 'bg-white/70 border-red-500/60 shadow-lg ring-2 ring-red-100/60'
+          : recommended
+            ? darkMode ? 'bg-neutral-800/40 border-emerald-500 shadow-md' : 'bg-white/60 border-emerald-500 shadow-md'
+            : darkMode ? 'bg-neutral-800/40 border-neutral-600/40 hover:border-blue-400/50' : 'bg-white/40 border-gray-200/40 hover:border-red-400/50'
       }`}>
       <div className="flex justify-between items-start mb-1.5">
-        <div className="flex-1 min-w-0">
-          <h3 className={`font-black text-sm leading-tight truncate ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>{cp.name}</h3>
-          <p className={`text-[10px] truncate ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{cp.address || cp.id}</p>
+        <div className="flex items-start gap-2 flex-1 min-w-0">
+          <ParkingSquare size={16} className={`shrink-0 mt-0.5 ${selected ? 'text-blue-500' : recommended ? 'text-emerald-500' : darkMode ? 'text-gray-500' : 'text-gray-400'}`} />
+          <div className="min-w-0">
+            <div className="flex items-center gap-1.5">
+              <h3 className={`font-black text-sm leading-tight truncate ${darkMode ? 'text-gray-100' : 'text-gray-800'}`}>{cp.name}</h3>
+              {recommended && <span className="recommended-tag text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full text-white shrink-0">Top Pick</span>}
+            </div>
+            <p className={`text-[10px] truncate ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>{cp.address || cp.id}</p>
+          </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-2">
           <button onClick={onToggleFav} className={`transition hover:scale-110 ${isFav ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}>

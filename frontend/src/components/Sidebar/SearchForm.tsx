@@ -1,8 +1,31 @@
+<<<<<<< HEAD
 import { Navigation, Search, Clock, MapPin, X } from 'lucide-react';
 import { formatParkDuration } from '../../utils/format';
 import { VEHICLE_OPTIONS, BUDGET_OPTIONS } from '../../utils/constants';
 import type { PlaceSuggestion } from '../../types';
 
+=======
+import { useRef } from 'react';
+import { Navigation, Search, Clock, MapPin, X, Crosshair } from 'lucide-react';
+import { VEHICLE_OPTIONS } from '../../utils/constants';
+import type { PlaceSuggestion } from '../../types';
+
+function to12hr(d: Date) {
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+function parseTime(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
 interface Props {
   darkMode: boolean;
   destination: string;
@@ -20,15 +43,29 @@ interface Props {
   setStartDropdownOpen: (v: boolean) => void;
   onSelectStart: (s: PlaceSuggestion) => void;
   locationShared: boolean;
+<<<<<<< HEAD
   parkUntil: string;
   setParkUntil: (v: string) => void;
   durationHours: number;
+=======
+  arrivalTime: Date;
+  parkUntil: string;
+  setParkUntil: (v: string) => void;
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
   vehicleType: string;
   setVehicleType: (v: string) => void;
   maxPrice: number | null;
   setMaxPrice: (v: number | null) => void;
+<<<<<<< HEAD
   loading: boolean;
   onSubmit: (q: string) => void;
+=======
+  costRange: { min: number; max: number };
+  loading: boolean;
+  onSubmit: (q: string) => void;
+  onPickStart: () => void;
+  onPickDestination: () => void;
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
 }
 
 export function SearchForm({
@@ -36,6 +73,7 @@ export function SearchForm({
   suggestions, isDropdownOpen, setIsDropdownOpen, onSelectSuggestion,
   startPoint, onStartChange, startCoords, clearStart,
   startSuggestions, startDropdownOpen, setStartDropdownOpen, onSelectStart,
+<<<<<<< HEAD
   locationShared, parkUntil, setParkUntil, durationHours,
   vehicleType, setVehicleType, maxPrice, setMaxPrice,
   loading, onSubmit,
@@ -64,11 +102,47 @@ export function SearchForm({
           </div>
           {startDropdownOpen && startSuggestions.length > 0 && (
             <SuggestionList items={startSuggestions} onSelect={onSelectStart} darkMode={dm} color="blue" />
+=======
+  locationShared, arrivalTime, parkUntil, setParkUntil,
+  vehicleType, setVehicleType, maxPrice, setMaxPrice, costRange,
+  loading, onSubmit, onPickStart, onPickDestination,
+}: Props) {
+  const dm = darkMode;
+  const inputBg = dm ? 'bg-neutral-800/60 border border-neutral-600/50' : 'bg-white/60 border border-gray-300';
+  const inputText = dm ? 'text-gray-100' : 'text-gray-800';
+  const labelClass = `text-[11px] font-black uppercase tracking-widest mb-1 block ${dm ? 'text-gray-500' : 'text-gray-400'}`;
+  const pickBtn = `shrink-0 p-1.5 rounded-lg transition ${dm ? 'text-gray-400 hover:text-blue-400 hover:bg-neutral-700/50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50/60'}`;
+  const submitted = useRef(false);
+
+  return (
+    <div className={`px-3 py-3 border-b shrink-0 ${dm ? 'bg-neutral-900 border-neutral-700/40' : 'bg-white border-gray-200/30'}`}>
+      <form onSubmit={e => { e.preventDefault(); submitted.current = true; setIsDropdownOpen(false); setStartDropdownOpen(false); (document.activeElement as HTMLElement)?.blur(); onSubmit(destination); setTimeout(() => { submitted.current = false; }, 500); }} className="space-y-2.5">
+        <div className="relative">
+          <label className={labelClass}>Start</label>
+          <div className={`flex items-center rounded-xl px-2.5 py-2 transition ${inputBg} ${startCoords ? 'border-green-500/50' : 'focus-within:border-blue-500/50'}`}>
+            <Navigation className={`mr-2 shrink-0 ${startCoords ? 'text-green-500' : 'text-blue-500'}`} size={15} />
+            <input type="text" value={startPoint}
+              onChange={e => onStartChange(e.target.value)}
+              onFocus={() => !submitted.current && startPoint.length > 2 && setStartDropdownOpen(true)}
+              onBlur={() => setTimeout(() => setStartDropdownOpen(false), 200)}
+              placeholder={locationShared ? 'Current location' : 'Current location (allow GPS)'}
+              className={`bg-transparent w-full outline-none text-sm font-bold placeholder-gray-400 ${inputText}`} />
+            <button type="button" onClick={onPickStart} className={pickBtn} title="Pick from map">
+              <Crosshair size={14} />
+            </button>
+            {startCoords && (
+              <button type="button" onClick={clearStart} className="text-gray-400 hover:text-gray-600 ml-0.5 shrink-0"><X size={14} /></button>
+            )}
+          </div>
+          {startDropdownOpen && startSuggestions.length > 0 && (
+            <SuggestionList items={startSuggestions} onSelect={onSelectStart} darkMode={dm} />
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
           )}
         </div>
 
         <div className="relative">
           <label className={labelClass}>Destination</label>
+<<<<<<< HEAD
           <div className={`flex items-center rounded-lg p-2.5 focus-within:border-red-500 transition ${inputBg}`}>
             <Search className="text-red-500 mr-2 shrink-0" size={18} />
             <input required type="text" value={destination}
@@ -80,10 +154,27 @@ export function SearchForm({
           </div>
           {isDropdownOpen && suggestions.length > 0 && (
             <SuggestionList items={suggestions} onSelect={onSelectSuggestion} darkMode={dm} color="red" />
+=======
+          <div className={`flex items-center rounded-xl px-2.5 py-2 focus-within:border-blue-500/50 transition ${inputBg}`}>
+            <Search className="text-gray-400 mr-2 shrink-0" size={15} />
+            <input required type="text" value={destination}
+              onChange={onDestinationChange}
+              onFocus={() => !submitted.current && destination.length > 2 && setIsDropdownOpen(true)}
+              onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+              placeholder="e.g. Orchard Gateway"
+              className={`bg-transparent w-full outline-none text-sm font-bold placeholder-gray-400 ${inputText}`} />
+            <button type="button" onClick={onPickDestination} className={pickBtn} title="Pick from map">
+              <Crosshair size={14} />
+            </button>
+          </div>
+          {isDropdownOpen && suggestions.length > 0 && (
+            <SuggestionList items={suggestions} onSelect={onSelectSuggestion} darkMode={dm} />
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
           )}
         </div>
 
         <div>
+<<<<<<< HEAD
           <label className={labelClass}>Park Until</label>
           <div className="flex gap-2 items-center">
             <div className={`flex-1 flex items-center rounded-lg p-2.5 focus-within:border-red-500 transition ${inputBg}`}>
@@ -110,10 +201,55 @@ export function SearchForm({
                 <Icon size={14} />{label}
               </button>
             ))}
+=======
+          <label className={labelClass}>Park from {to12hr(arrivalTime)} → {to12hr(parseTime(parkUntil))}</label>
+          <div className="flex gap-1.5">
+            {[0.5, 1, 2, 3, 4, 6].map(h => {
+              const target = new Date(arrivalTime.getTime() + h * 3600000);
+              const val = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+              const active = parkUntil === val;
+              return (
+                <button key={h} type="button" onClick={() => setParkUntil(val)}
+                  className={`flex-1 py-1.5 rounded-xl border text-[11px] font-black transition ${
+                    active
+                      ? dm ? 'bg-blue-600/80 border-blue-500 text-white' : 'bg-gray-900 border-gray-900 text-white'
+                      : dm ? 'bg-neutral-800/60 border-neutral-600/50 text-gray-400 hover:border-gray-400' : 'bg-white/50 border-gray-200/50 text-gray-500 hover:border-gray-400'
+                  }`}>
+                  {h < 1 ? '30m' : `${h}h`}
+                </button>
+              );
+            })}
+            <div className={`flex-1 relative rounded-xl border text-[11px] font-black ${dm ? 'bg-neutral-800/60 border-neutral-600/50 text-gray-400' : 'bg-white/50 border-gray-200/50 text-gray-500'}`}>
+              <span className="flex items-center justify-center h-full pointer-events-none">
+                <Clock size={11} className="mr-0.5" />Set
+              </span>
+              <input type="time" value={parkUntil} onChange={e => setParkUntil(e.target.value)}
+                className="absolute inset-0 opacity-0 cursor-pointer" />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-2 items-end">
+          <div className="flex-1">
+            <label className={labelClass}>Vehicle</label>
+            <div className="flex gap-1.5">
+              {VEHICLE_OPTIONS.map(([code, Icon, label]) => (
+                <button key={code} type="button" onClick={() => setVehicleType(code)}
+                  className={`flex-1 flex items-center justify-center gap-1 py-2 rounded-xl border text-[11px] font-black uppercase tracking-wider transition ${
+                    vehicleType === code
+                      ? dm ? 'bg-blue-600/80 border-blue-500 text-white' : 'bg-gray-900 border-gray-900 text-white'
+                      : dm ? 'bg-neutral-800/60 border-neutral-600/50 text-gray-400 hover:border-gray-400' : 'bg-white/50 border-gray-200/50 text-gray-500 hover:border-gray-400'
+                  }`}>
+                  <Icon size={14} />{label}
+                </button>
+              ))}
+            </div>
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
           </div>
         </div>
 
         <div>
+<<<<<<< HEAD
           <label className={labelClass}>Max Budget {maxPrice !== null ? `— $${maxPrice}` : '— Any'}</label>
           <div className="flex gap-1.5 flex-wrap">
             {BUDGET_OPTIONS.map(price => (
@@ -126,11 +262,29 @@ export function SearchForm({
                 {price === null ? 'Any' : `≤$${price}`}
               </button>
             ))}
+=======
+          <div className="flex items-center justify-between">
+            <label className={labelClass + ' !mb-0'}>Budget <span className={`${maxPrice === null ? 'text-green-500' : dm ? 'text-gray-300' : 'text-gray-600'}`}>{maxPrice === null ? 'Any' : `≤$${maxPrice}`}</span></label>
+            {maxPrice !== null && <button type="button" onClick={() => setMaxPrice(null)} className={`text-[9px] font-bold ${dm ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>Reset</button>}
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-bold shrink-0 ${dm ? 'text-gray-500' : 'text-gray-400'}`}>${costRange.min}</span>
+            <input type="range" min={costRange.min} max={costRange.max} step={1}
+              value={maxPrice ?? costRange.max}
+              onChange={e => { const v = Number(e.target.value); setMaxPrice(v >= costRange.max ? null : v); }}
+              className="budget-slider w-full h-1.5 rounded-full appearance-none cursor-pointer"
+              style={{ background: '#3b82f6' }} />
+            <span className={`text-[10px] font-bold shrink-0 ${dm ? 'text-gray-500' : 'text-gray-400'}`}>${costRange.max}+</span>
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
           </div>
         </div>
 
         <button type="submit" disabled={loading}
+<<<<<<< HEAD
           className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-3 rounded-lg shadow-[0_4px_0_rgb(180,140,0)] active:shadow-none active:translate-y-1 transition text-sm disabled:opacity-50">
+=======
+          className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-900 font-black uppercase tracking-widest py-2.5 rounded-xl shadow-[0_3px_0_rgb(180,140,0)] active:shadow-none active:translate-y-0.5 transition text-sm disabled:opacity-50">
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
           {loading ? 'Searching...' : 'Find Parking'}
         </button>
       </form>
@@ -138,6 +292,7 @@ export function SearchForm({
   );
 }
 
+<<<<<<< HEAD
 function SuggestionList({ items, onSelect, darkMode, color }: {
   items: PlaceSuggestion[]; onSelect: (s: PlaceSuggestion) => void; darkMode: boolean; color: 'blue' | 'red';
 }) {
@@ -148,6 +303,17 @@ function SuggestionList({ items, onSelect, darkMode, color }: {
         <li key={i} onClick={() => onSelect(s)}
           className={`px-4 py-3 cursor-pointer last:border-0 text-sm font-bold flex items-center gap-2 ${hoverBg} ${darkMode ? 'border-b border-neutral-700 text-gray-200' : 'border-b border-gray-100 text-gray-700'}`}>
           <MapPin size={14} className={`text-${color}-400 flex-shrink-0`} />
+=======
+function SuggestionList({ items, onSelect, darkMode }: {
+  items: PlaceSuggestion[]; onSelect: (s: PlaceSuggestion) => void; darkMode: boolean;
+}) {
+  return (
+    <ul className={`absolute top-full left-0 w-full mt-1 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-800/95 backdrop-blur-xl border border-neutral-600/50' : 'bg-white/95 backdrop-blur-xl border border-gray-200/50'}`}>
+      {items.map((s, i) => (
+        <li key={i} onClick={() => onSelect(s)}
+          className={`px-3 py-2.5 cursor-pointer last:border-0 text-sm font-bold flex items-center gap-2 ${darkMode ? 'border-b border-neutral-700/50 text-gray-200 hover:bg-neutral-700/50' : 'border-b border-gray-100/50 text-gray-700 hover:bg-gray-50/80'}`}>
+          <MapPin size={13} className="text-gray-400 flex-shrink-0" />
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
           <span className="truncate">{s.formatted || s.name}</span>
         </li>
       ))}

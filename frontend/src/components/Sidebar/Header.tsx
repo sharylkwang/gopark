@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 import { Zap, Navigation, LogOut, X, Moon, Sun } from 'lucide-react';
+=======
+import { Zap, LogOut, X, Moon, Sun, Navigation } from 'lucide-react';
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
 
 interface Props {
   darkMode: boolean;
@@ -6,17 +10,22 @@ interface Props {
   onLogout: () => void;
   onClose: () => void;
   onReset: () => void;
+<<<<<<< HEAD
   weather: string;
   WeatherIcon: React.ComponentType<{ size: number; className?: string }>;
   locationShared: boolean;
   showTooltip: boolean;
   setShowTooltip: (v: boolean) => void;
   tooltipRef: React.RefObject<HTMLDivElement | null>;
+=======
+  locationShared: boolean;
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
   onShareLocation: () => void;
 }
 
 export function SidebarHeader({
   darkMode, toggleDarkMode, onLogout, onClose, onReset,
+<<<<<<< HEAD
   weather, WeatherIcon, locationShared,
   showTooltip, setShowTooltip, tooltipRef, onShareLocation,
 }: Props) {
@@ -52,6 +61,22 @@ export function SidebarHeader({
           </div>
         )}
       </div>
+=======
+  locationShared, onShareLocation,
+}: Props) {
+  return (
+    <div className="bg-neutral-900/90 md:rounded-t-2xl p-3 flex items-center gap-2 border-b-4 border-yellow-400 shrink-0">
+      <h1 className="text-lg font-black italic text-white flex items-center uppercase cursor-pointer shrink-0" onClick={onReset}>
+        GoPark <Zap className="text-yellow-400 fill-yellow-400 h-4 w-4 ml-1" />
+      </h1>
+      {!locationShared && (
+        <button onClick={onShareLocation}
+          className="bg-gray-800 p-2 rounded transition hover:bg-gray-700 gps-blink">
+          <Navigation size={14} className="text-red-400" />
+        </button>
+      )}
+      <div className="flex-1" />
+>>>>>>> d022c4adbd0c79d8d8ffcc3282ee36f0e8c2d7a1
       <div className="flex items-center gap-1 shrink-0">
         <button onClick={toggleDarkMode} className="bg-gray-800 p-2 rounded text-gray-400 hover:text-white transition">
           {darkMode ? <Sun size={16} /> : <Moon size={16} />}
