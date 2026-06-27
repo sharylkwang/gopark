@@ -62,22 +62,15 @@ export async function getWeatherForCoords(lat: number, lng: number): Promise<{ f
 }
 
 export async function getWeatherByIP(): Promise<{ forecast: string; temp: number | null; lat: number; lng: number }> {
+  const lat = 1.3521;
+  const lng = 103.8198;
   try {
-    const ipRes = await fetch('https://ipapi.co/json/');
-    const ipData = await ipRes.json();
-    const lat = ipData.latitude ?? 1.2838;
-    const lng = ipData.longitude ?? 103.8607;
-
     const [forecastData, tempData] = await Promise.all([fetchForecast(), fetchTemperature().catch(() => null)]);
     const forecast = findClosestForecast(forecastData, lat, lng);
     const temp = tempData ? findClosestTemp(tempData, lat, lng) : null;
     return { forecast, temp, lat, lng };
   } catch {
-    const data = await fetchForecast().catch(() => null);
-    if (data) {
-      return { forecast: findClosestForecast(data, 1.2838, 103.8607), temp: null, lat: 1.2838, lng: 103.8607 };
-    }
-    return { forecast: 'Fair', temp: null, lat: 1.2838, lng: 103.8607 };
+    return { forecast: 'Fair', temp: null, lat, lng };
   }
 }
 

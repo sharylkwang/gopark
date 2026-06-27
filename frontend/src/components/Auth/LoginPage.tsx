@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Zap, Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Turnstile } from 'react-turnstile';
 
@@ -72,43 +73,45 @@ export function LoginPage({
               {isLoginView ? 'Driver Login' : 'Create Account'}
             </h2>
             <form onSubmit={onAuth} className="flex flex-col gap-3">
-              {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
+              {authError && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{authError}</div>}
               {!isLoginView && (
-                <InputRow icon={<User className="text-gray-400 mr-3 shrink-0" size={18} />}>
+                <InputRow icon={<User className="text-gray-400 mr-3 shrink-0" size={20} />}>
                   <input type="text" placeholder="Username" value={username}
                     onChange={e => setUsername(e.target.value)} required
-                    className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" />
+                    className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
                 </InputRow>
               )}
-              <InputRow icon={<Mail className="text-gray-400 mr-3 shrink-0" size={18} />}>
+              <InputRow icon={<Mail className="text-gray-400 mr-3 shrink-0" size={20} />}>
                 <input type="email" placeholder="Email Address" value={email}
                   onChange={e => setEmail(e.target.value)} required
-                  className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" />
+                  className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
               </InputRow>
-              <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={18} />}>
-                <input type={showPassword ? 'text' : 'password'} placeholder="Password" value={password}
-                  onChange={e => setPassword(e.target.value)} required
-                  className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" />
-                <button type="button" onClick={() => setShowPassword(!showPassword)}
-                  className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition">
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </InputRow>
-              <div className="flex flex-col gap-1.5 mt-2">
-                <button type="submit" disabled={isLoggingIn}
-                  className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50">
-                  {isLoggingIn ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')} <ArrowRight size={18} />
-                </button>
-                <button type="button" onClick={() => { setIsLoginView(!isLoginView); setAuthError(''); }}
-                  className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2">
-                  {isLoginView ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
-                </button>
+              <div>
+                <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
+                  <input type={showPassword ? 'text' : 'password'} placeholder="Password" value={password}
+                    onChange={e => setPassword(e.target.value)} required
+                    className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition">
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </InputRow>
                 {isLoginView && (
                   <button type="button" onClick={() => setIsResetView(true)}
-                    className="text-[11px] text-red-600 font-bold hover:text-red-800 transition text-center">
+                    className="text-xs text-red-600 font-bold hover:text-red-800 transition mt-1">
                     Forgot Password?
                   </button>
                 )}
+              </div>
+              <div className="flex flex-col gap-1.5 mt-2">
+                <button type="submit" disabled={isLoggingIn}
+                  className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition text-sm flex justify-center items-center gap-2 disabled:opacity-50">
+                  {isLoggingIn ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')} <ArrowRight size={18} />
+                </button>
+                <button type="button" onClick={() => { setIsLoginView(!isLoginView); setAuthError(''); }}
+                  className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">
+                  {isLoginView ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
+                </button>
               </div>
             </form>
             <button onClick={onGuest}
@@ -139,7 +142,7 @@ function CaptchaView({ authError, onToken, onBack }: {
       <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
         Verify You're Human
       </h2>
-      {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
+      {authError && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{authError}</div>}
       <div className="flex justify-center">
         <Turnstile
           sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ''}
@@ -150,7 +153,7 @@ function CaptchaView({ authError, onToken, onBack }: {
         />
       </div>
       <button type="button" onClick={onBack}
-        className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
+        className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
     </div>
   );
 }
@@ -163,11 +166,11 @@ function OtpView({ email, otp, setOtp, authError, isLoggingIn, onVerify, onBack 
   return (
     <div className="p-6 flex flex-col gap-3">
       <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">Verify Email</h2>
-      <p className="text-xs font-bold text-gray-500 mb-2">
+      <p className="text-sm font-bold text-gray-500 mb-2">
         We sent a 6-digit code to <span className="text-gray-900">{email}</span>.
       </p>
       <form onSubmit={onVerify} className="flex flex-col gap-3">
-        {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
+        {authError && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{authError}</div>}
         <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
           <input type="text" placeholder="000000" value={otp}
             onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
@@ -176,11 +179,11 @@ function OtpView({ email, otp, setOtp, authError, isLoggingIn, onVerify, onBack 
         </div>
         <div className="flex flex-col gap-1.5 mt-2">
           <button type="submit" disabled={isLoggingIn}
-            className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition flex justify-center items-center gap-2 disabled:opacity-50">
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition text-sm flex justify-center items-center gap-2 disabled:opacity-50">
             {isLoggingIn ? 'Verifying...' : 'Verify & Enter'} <ArrowRight size={18} />
           </button>
           <button type="button" onClick={onBack}
-            className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
+            className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
         </div>
       </form>
     </div>
@@ -197,50 +200,92 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
   onReset: (e: React.FormEvent) => void;
   onBack: () => void;
 }) {
+  const [otpVerified, setOtpVerified] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [localError, setLocalError] = useState('');
+
+  const step = !isLinkSent ? 'email' : !otpVerified ? 'otp' : 'password';
+  const error = localError || authError;
+
   return (
     <div className="p-6 flex flex-col gap-3">
       <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">Reset Password</h2>
-      {authError && <div className="text-red-600 bg-red-50 p-2 rounded text-sm font-bold border border-red-200">{authError}</div>}
-      {!isLinkSent ? (
+      <div className="flex gap-1 mb-1">
+        {['email', 'otp', 'password'].map((s, i) => {
+          const current = ['email', 'otp', 'password'].indexOf(step);
+          const filled = current > i;
+          const active = current === i;
+          return (
+            <div key={s} className="flex-1 h-1 rounded-full bg-gray-200 overflow-hidden">
+              <div className={`h-full rounded-full ${filled ? 'bg-red-600 w-full' : active ? 'bg-red-600 animate-progress-fill' : 'w-0'}`}
+                style={filled ? undefined : active ? { animation: 'progressFill 0.5s ease-out forwards' } : undefined} />
+            </div>
+          );
+        })}
+      </div>
+      {error && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{error}</div>}
+
+      {step === 'email' && (
         <form onSubmit={onRequestCode} className="flex flex-col gap-3">
-          <p className="text-xs font-bold text-gray-500">Enter your email and we'll send you a 6-digit reset code.</p>
-          <InputRow icon={<Mail className="text-gray-400 mr-3 shrink-0" size={18} />}>
+          <p className="text-sm font-bold text-gray-500">Enter your email and we'll send you a 6-digit reset code.</p>
+          <InputRow icon={<Mail className="text-gray-400 mr-3 shrink-0" size={20} />}>
             <input type="email" placeholder="Email Address" value={email}
               onChange={e => setEmail(e.target.value)} required
-              className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" />
+              className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
           </InputRow>
           <button type="submit" disabled={loading}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">
             {loading ? 'Sending...' : 'Send Reset Code'}
           </button>
         </form>
-      ) : (
-        <form onSubmit={onReset} className="flex flex-col gap-3">
-          <p className="text-xs font-bold text-gray-500">
-            Enter the 6-digit code sent to <span className="text-gray-900">{email}</span> and choose a new password.
+      )}
+
+      {step === 'otp' && (
+        <form onSubmit={e => { e.preventDefault(); setLocalError(''); if (otp.length !== 6) { setLocalError('Please enter the 6-digit code'); return; } setOtpVerified(true); }} className="flex flex-col gap-3">
+          <p className="text-sm font-bold text-gray-500">
+            Enter the 6-digit code sent to <span className="text-gray-900">{email}</span>
           </p>
           <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
             <input type="text" inputMode="numeric" placeholder="000000" value={otp}
-              onChange={e => setOtp(e.target.value.replace(/\D/g, ''))} maxLength={6} required
+              onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); setLocalError(''); }} maxLength={6} required autoFocus
               className="bg-transparent w-full outline-none text-center text-2xl font-black text-gray-800 tracking-[0.4em]" />
           </div>
-          <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={18} />}>
+          <button type="submit"
+            className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">
+            Verify Code
+          </button>
+        </form>
+      )}
+
+      {step === 'password' && (
+        <form onSubmit={e => { setLocalError(''); if (newPassword !== confirmPassword) { e.preventDefault(); setLocalError('Passwords do not match'); return; } onReset(e); }} className="flex flex-col gap-3">
+          <p className="text-sm font-bold text-gray-500">Choose a new password.</p>
+          <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
             <input type={showPassword ? 'text' : 'password'} placeholder="New Password" value={newPassword}
-              onChange={e => setNewPassword(e.target.value)} required
-              className="bg-transparent w-full outline-none text-sm font-bold text-gray-700" />
+              onChange={e => { setNewPassword(e.target.value); setLocalError(''); }} required
+              className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
             <button type="button" onClick={() => setShowPassword(!showPassword)}
               className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition">
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </InputRow>
+          <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
+            <input type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={confirmPassword}
+              onChange={e => { setConfirmPassword(e.target.value); setLocalError(''); }} required
+              className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+          </InputRow>
+          <p className="text-xs text-gray-400 font-bold">8+ characters with uppercase, lowercase, number, and special character.</p>
           <button type="submit" disabled={loading}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">
             {loading ? 'Updating...' : 'Update Password'}
           </button>
         </form>
       )}
-      <button type="button" onClick={onBack}
-        className="text-[11px] text-gray-500 font-bold hover:text-red-600 transition text-center py-2">Back to Login</button>
+
+      <button type="button" onClick={() => { if (step === 'password') { setOtpVerified(false); setLocalError(''); } else if (step === 'otp') { onBack(); } else { onBack(); } }}
+        className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">
+        {step === 'email' ? 'Back to Login' : 'Go Back'}
+      </button>
     </div>
   );
 }

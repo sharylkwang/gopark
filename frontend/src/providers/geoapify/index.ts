@@ -1,1 +1,1 @@
-export { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation } from './geocode';
+export { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation, fetchNearbyParking } from './geocode';

@@ -45,6 +45,15 @@ export interface PlaceClassification {
   parkingHint: string | null;
 }
 
+export interface NearbyParking {
+  lat: number;
+  lng: number;
+  name: string | null;
+  type: string;
+  access: string | null;
+  capacity: number | null;
+}
+
 export interface DestinationPoint {
   name: string;
   formatted: string;

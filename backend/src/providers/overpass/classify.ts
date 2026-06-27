@@ -5,6 +5,10 @@ const log = createLogger('overpass');
 
 const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
+const classifyCache = new Map<string, { data: PlaceClassification | null; ts: number }>();
+const parkingCache = new Map<string, { data: NearbyParking[]; ts: number }>();
+const CACHE_TTL = 10 * 60 * 1000;
+
 interface PlaceClassification {
   type: string;
   hasParking: boolean;
@@ -90,7 +94,90 @@ function classifyTags(tags: Record<string, string>): PlaceClassification | null 
   return null;
 }
 
+export interface NearbyParking {
+  lat: number;
+  lng: number;
+  name: string | null;
+  type: string;
+  access: string | null;
+  capacity: number | null;
+}
+
+export async function findNearbyParking(lat: number, lng: number, radius = 300): Promise<NearbyParking[]> {
+  const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  const cached = parkingCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
+  const query = `
+    [out:json][timeout:10];
+    (
+      node(around:${radius},${lat},${lng})["amenity"="parking"];
+      way(around:${radius},${lat},${lng})["amenity"="parking"];
+      node(around:${radius},${lat},${lng})["parking"];
+      way(around:${radius},${lat},${lng})["parking"];
+    );
+    out center tags;
+  `;
+
+  try {
+    const { data } = await axios.post(OVERPASS_URL, `data=${encodeURIComponent(query)}`, {
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'User-Agent': 'GoPark/1.0',
+      },
+      timeout: 8000,
+    });
+
+    const seen = new Set<string>();
+    const results: NearbyParking[] = [];
+
+    for (const el of data?.elements ?? []) {
+      const elLat = el.lat ?? el.center?.lat;
+      const elLng = el.lon ?? el.center?.lon;
+      if (!elLat || !elLng) continue;
+
+      const key = `${elLat.toFixed(5)},${elLng.toFixed(5)}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+
+      const tags = el.tags || {};
+      const parking = tags['parking'] || tags['amenity'];
+      const pType = parking === 'multi-storey' ? 'Multi-Storey'
+        : parking === 'underground' ? 'Underground'
+        : parking === 'surface' ? 'Surface Lot'
+        : parking === 'street_side' || parking === 'on_street' || parking === 'lane' ? 'Street Parking'
+        : 'Carpark';
+
+      const nameLC = (tags['name'] || '').toLowerCase();
+      const isHdb = nameLC.includes('hdb') || nameLC.includes('blk ') || nameLC.includes('block ')
+        || tags['operator']?.toLowerCase().includes('hdb')
+        || tags['residential'] === 'HDB';
+      if (isHdb) continue;
+
+      results.push({
+        lat: elLat,
+        lng: elLng,
+        name: tags['name'] || null,
+        type: pType,
+        access: tags['access'] || null,
+        capacity: tags['capacity'] ? parseInt(tags['capacity'], 10) : null,
+      });
+    }
+
+    parkingCache.set(cacheKey, { data: results, ts: Date.now() });
+    return results;
+  } catch (e) {
+    log.warn(`overpass nearby parking failed: ${e instanceof Error ? e.message : e}`);
+    return [];
+  }
+}
+
 export async function classifyPlace(lat: number, lng: number): Promise<PlaceClassification | null> {
+  const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+  const cached = classifyCache.get(cacheKey);
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+
   const query = `
     [out:json][timeout:10];
     (
@@ -108,8 +195,12 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
 
   try {
     const { data } = await axios.post(OVERPASS_URL, `data=${encodeURIComponent(query)}`, {
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      timeout: 15000,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json',
+        'User-Agent': 'GoPark/1.0',
+      },
+      timeout: 8000,
     });
 
     const elements = data?.elements ?? [];
@@ -122,9 +213,13 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
 
     for (const el of elements) {
       const result = classifyTags(el.tags || {});
-      if (result) return result;
+      if (result) {
+        classifyCache.set(cacheKey, { data: result, ts: Date.now() });
+        return result;
+      }
     }
 
+    classifyCache.set(cacheKey, { data: null, ts: Date.now() });
     return null;
   } catch (e) {
     log.warn(`overpass classify failed: ${e instanceof Error ? e.message : e}`);

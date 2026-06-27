@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import geoapifyClient from '../../lib/geoapifyClient';
-import { classifyPlace } from '../overpass/classify.js';
+import { classifyPlace, findNearbyParking } from '../overpass/classify.js';
 import createLogger from '../../lib/logger.js';
 
 const log = createLogger('geoapify');
@@ -101,6 +101,18 @@ router.get('/overpass/classify', async (req: Request, res: Response) => {
     res.json(await classifyPlace(lat, lng) || EMPTY_CLASS);
   } catch {
     res.json(EMPTY_CLASS);
+  }
+});
+
+router.get('/overpass/nearby-parking', async (req: Request, res: Response) => {
+  const lat = parseFloat(req.query.lat as string);
+  const lng = parseFloat(req.query.lng as string);
+  if (isNaN(lat) || isNaN(lng)) { res.status(400).json({ error: 'Invalid coordinates' }); return; }
+
+  try {
+    res.json(await findNearbyParking(lat, lng));
+  } catch {
+    res.json([]);
   }
 });
 

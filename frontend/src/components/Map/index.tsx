@@ -10,7 +10,7 @@ import { Google3DMap } from './layers/Google3DMap';
 import type { Map3DMode } from './layers/Google3DMap';
 import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import { reverseGeocode } from '../../providers/geoapify';
-import type { CarparkSummary, DestinationPoint } from '../../types';
+import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../types';
 import type { MapEventHandlers } from '../../types/map';
 import type { RouteResult, SpeedInterval } from '../../providers/google/routing';
 
@@ -173,6 +173,7 @@ interface Props {
   walkRoute?: RouteResult | null;
   startCoords?: [number, number] | null;
   sidebarOpen?: boolean;
+  nearbyParking?: NearbyParking[];
 }
 
 function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
@@ -196,6 +197,70 @@ function PositionTracker({ onMove }: { onMove: (center: { lat: number; lng: numb
     return () => { map.off('moveend', handler); map.off('zoomend', handler); };
   }, [map, onMove]);
   return null;
+}
+
+function getParkingSpotIcon(index: number, animate: boolean) {
+  const size = 26;
+  const hit = size + 8;
+  const delay = index * 80;
+  const dropClass = animate ? 'nearby-parking-drop' : '';
+  const delayStyle = animate ? `animation-delay:${delay}ms;` : '';
+  return L.divIcon({
+    className: '',
+    iconSize: [hit, hit],
+    iconAnchor: [hit / 2, hit],
+    popupAnchor: [0, -hit],
+    html: `<div class="${dropClass}" style="width:${hit}px;height:${hit}px;display:flex;align-items:center;justify-content:center;cursor:pointer;${delayStyle}">
+      <div style="width:${size}px;height:${size}px;background:#f97316;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));position:relative;pointer-events:none">
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(45deg)">
+          <span style="color:white;font-weight:900;font-size:12px">P</span>
+        </div>
+      </div>
+    </div>`,
+  });
+}
+
+function NearbyParkingMarkers({ spots }: { spots: NearbyParking[] }) {
+  const animatedRef = useRef(false);
+  const prevLenRef = useRef(0);
+
+  const shouldAnimate = spots.length > 0 && spots.length !== prevLenRef.current;
+  if (shouldAnimate) {
+    animatedRef.current = false;
+  }
+  if (spots.length === 0) {
+    prevLenRef.current = 0;
+    animatedRef.current = false;
+  }
+
+  const animate = !animatedRef.current && spots.length > 0;
+
+  useEffect(() => {
+    if (spots.length > 0 && !animatedRef.current) {
+      const timer = setTimeout(() => { animatedRef.current = true; }, spots.length * 80 + 600);
+      prevLenRef.current = spots.length;
+      return () => clearTimeout(timer);
+    }
+  }, [spots]);
+
+  return (
+    <>
+      {spots.map((p, i) => (
+        <Marker key={`np-${i}`} position={[p.lat, p.lng]} icon={getParkingSpotIcon(i, animate)} zIndexOffset={800}>
+          <Popup>
+            <div style={{ fontFamily: 'system-ui', minWidth: 140 }}>
+              <p style={{ fontWeight: 900, fontSize: 13, margin: '0 0 2px' }}>{p.name || 'Parking'}</p>
+              <p style={{ fontSize: 11, color: '#f97316', fontWeight: 700, margin: '0 0 4px' }}>{p.type}</p>
+              <p style={{ fontSize: 11, color: '#6b7280', margin: 0 }}>
+                {p.access === 'private' ? 'Private access' : p.access === 'permissive' ? 'Restricted access' : p.access === 'yes' ? 'Public access' : 'Access unknown'}
+                {p.capacity ? ` · ${p.capacity} lots` : ''}
+              </p>
+            </div>
+          </Popup>
+        </Marker>
+      ))}
+    </>
+  );
 }
 
 function TrafficPolyline({ points, intervals }: { points: [number, number][]; intervals: SpeedInterval[] }) {
@@ -376,10 +441,17 @@ function DraggableDestination({
       { icon: getDestinationPin(), draggable: true, zIndexOffset: 2000 }
     );
 
+    const shortAddr = destinationPoint.formatted
+      .replace(/, Singapore$/i, '')
+      .replace(/, Singapore \d{6}$/i, '')
+      .split(', ')
+      .slice(0, 2)
+      .join(', ');
+
     marker.bindPopup(
-      `<div style="font-family:system-ui,sans-serif;white-space:nowrap">
-        <div style="font-size:14px;font-weight:900;color:#dc2626;margin-bottom:2px">${destinationPoint.name}</div>
-        <div style="font-size:11px;color:#9ca3af;font-weight:600">${destinationPoint.formatted}</div>
+      `<div style="font-family:system-ui,sans-serif;max-width:220px">
+        <div style="font-size:14px;font-weight:900;color:#dc2626;margin-bottom:2px;line-height:1.3">${destinationPoint.name}</div>
+        <div style="font-size:11px;color:#9ca3af;font-weight:600;line-height:1.3">${shortAddr}</div>
       </div>`,
       { closeButton: false, className: 'route-popup' }
     );
@@ -488,6 +560,7 @@ export function MapView({
   carparks, backgroundCarparks, selectedId, destinationPoint, hasSearched,
   onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
+  nearbyParking,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
@@ -581,6 +654,8 @@ export function MapView({
             </Popup>
           </Marker>
         )}
+
+        {nearbyParking && <NearbyParkingMarkers spots={nearbyParking} />}
 
         <MarkerCluster carparks={carparks} backgroundCarparks={backgroundCarparks} selectedId={selectedId} onSelect={onSelectCarpark} hasSearched={hasSearched} />
 
