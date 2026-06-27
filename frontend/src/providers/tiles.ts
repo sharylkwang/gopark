@@ -15,16 +15,16 @@ export function getTileProvider(id: string): TileProviderConfig | undefined {
   return TILE_PROVIDERS.find((p) => p.id === id);
 }
 
-const PREVIEW_Z = 12;
-const PREVIEW_X = 3228;
-const PREVIEW_Y = 2040;
-
-export function getPreviewUrl(tile: TileProviderConfig): string | null {
+export function getPreviewUrl(tile: TileProviderConfig, lat: number, lng: number, zoom: number): string | null {
   if (!tile.url) return null;
+  const n = Math.pow(2, zoom);
+  const x = Math.floor(((lng + 180) / 360) * n);
+  const latRad = (lat * Math.PI) / 180;
+  const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
   return tile.url
     .replace('{s}', tile.subdomains?.[0] ?? '')
-    .replace('{z}', String(PREVIEW_Z))
-    .replace('{x}', String(PREVIEW_X))
-    .replace('{y}', String(PREVIEW_Y))
+    .replace('{z}', String(zoom))
+    .replace('{x}', String(x))
+    .replace('{y}', String(y))
     .replace('{r}', '');
 }

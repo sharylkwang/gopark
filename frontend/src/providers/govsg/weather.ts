@@ -1,4 +1,3 @@
-import { Sun, CloudRain, CloudLightning, Cloud, CloudSun } from 'lucide-react';
 
 const stripDayNight = (forecast: string) => forecast.replace(/\s*\((day|night)\)/i, '').trim();
 
@@ -19,6 +18,23 @@ async function fetchForecast(): Promise<any> {
   return res.json();
 }
 
+async function fetchTemperature(): Promise<any> {
+  const res = await fetch('https://api.data.gov.sg/v1/environment/air-temperature');
+  return res.json();
+}
+
+function findClosestTemp(data: any, lat: number, lng: number): number | null {
+  if (!data?.metadata?.stations?.length || !data?.items?.[0]?.readings?.length) return null;
+  let minDist = Infinity;
+  let stationId = '';
+  for (const st of data.metadata.stations) {
+    const dist = getDistance(lat, lng, st.location.latitude, st.location.longitude);
+    if (dist < minDist) { minDist = dist; stationId = st.id; }
+  }
+  const reading = data.items[0].readings.find((r: any) => r.station_id === stationId);
+  return reading ? Math.round(reading.value) : null;
+}
+
 function findClosestForecast(data: any, lat: number, lng: number): string {
   let closestArea = data.area_metadata[0].name;
   let minDistance = Infinity;
@@ -34,38 +50,45 @@ function findClosestForecast(data: any, lat: number, lng: number): string {
   return forecastObj ? stripDayNight(forecastObj.forecast) : 'Fair';
 }
 
-export async function getWeatherForCoords(lat: number, lng: number): Promise<string> {
+export async function getWeatherForCoords(lat: number, lng: number): Promise<{ forecast: string; temp: number | null }> {
   try {
-    const data = await fetchForecast();
-    return findClosestForecast(data, lat, lng);
+    const [forecastData, tempData] = await Promise.all([fetchForecast(), fetchTemperature().catch(() => null)]);
+    const forecast = findClosestForecast(forecastData, lat, lng);
+    const temp = tempData ? findClosestTemp(tempData, lat, lng) : null;
+    return { forecast, temp };
   } catch {
-    return 'Fair';
+    return { forecast: 'Fair', temp: null };
   }
 }
 
-export async function getWeatherByIP(): Promise<{ forecast: string; lat: number; lng: number }> {
+export async function getWeatherByIP(): Promise<{ forecast: string; temp: number | null; lat: number; lng: number }> {
   try {
     const ipRes = await fetch('https://ipapi.co/json/');
     const ipData = await ipRes.json();
     const lat = ipData.latitude ?? 1.2838;
     const lng = ipData.longitude ?? 103.8607;
 
-    const data = await fetchForecast();
-    return { forecast: findClosestForecast(data, lat, lng), lat, lng };
+    const [forecastData, tempData] = await Promise.all([fetchForecast(), fetchTemperature().catch(() => null)]);
+    const forecast = findClosestForecast(forecastData, lat, lng);
+    const temp = tempData ? findClosestTemp(tempData, lat, lng) : null;
+    return { forecast, temp, lat, lng };
   } catch {
     const data = await fetchForecast().catch(() => null);
     if (data) {
-      return { forecast: findClosestForecast(data, 1.2838, 103.8607), lat: 1.2838, lng: 103.8607 };
+      return { forecast: findClosestForecast(data, 1.2838, 103.8607), temp: null, lat: 1.2838, lng: 103.8607 };
     }
-    return { forecast: 'Fair', lat: 1.2838, lng: 103.8607 };
+    return { forecast: 'Fair', temp: null, lat: 1.2838, lng: 103.8607 };
   }
 }
 
-export const getIconForWeather = (forecast: string) => {
+export const getEmojiForWeather = (forecast: string): string => {
   const f = forecast.toLowerCase();
-  if (f.includes('rain') || f.includes('shower')) return CloudRain;
-  if (f.includes('thundery')) return CloudLightning;
-  if (f.includes('partly cloudy')) return CloudSun;
-  if (f.includes('cloud')) return Cloud;
-  return Sun;
+  if (f.includes('thundery')) return '⛈️';
+  if (f.includes('heavy rain')) return '🌧️';
+  if (f.includes('rain') || f.includes('shower')) return '🌦️';
+  if (f.includes('partly cloudy')) return '⛅';
+  if (f.includes('cloud') || f.includes('overcast')) return '☁️';
+  if (f.includes('haz') || f.includes('fog')) return '🌫️';
+  if (f.includes('wind')) return '💨';
+  return '☀️';
 };
