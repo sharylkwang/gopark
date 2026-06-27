@@ -114,7 +114,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
 
         {vAvail && dt.total > 0 ? (
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${dm ? 'bg-neutral-800/50 border-neutral-700/50' : 'bg-gray-50 border-gray-200'}`}>
-            <CircularProgress percentage={dt.pct} size={64} stroke={8} />
+            <CircularProgress percentage={dt.pct} size={64} stroke={8} darkMode={dm} />
             <div>
               <p className={`text-xl font-black ${dm ? 'text-gray-100' : 'text-gray-900'}`}>{dt.available} <span className={`text-xs font-bold ${dm ? 'text-gray-500' : 'text-gray-400'}`}>/ {dt.total}</span></p>
               <p className={`text-[9px] font-bold uppercase tracking-wider ${dm ? 'text-gray-400' : 'text-gray-500'}`}>{LOT_LABELS[vehicleType]}</p>
@@ -138,7 +138,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
                   <span className={`text-[11px] font-black ${dm ? 'text-gray-300' : 'text-gray-700'}`}>{LOT_LABELS[lt] ?? lt}</span>
                   {e.updatedAt && <span className={`text-[8px] ml-auto ${dm ? 'text-gray-500' : 'text-gray-400'}`}>{timeAgo(e.updatedAt)}</span>}
                 </div>
-                <AvailabilityBar available={e.available} total={e.total} />
+                <AvailabilityBar available={e.available} total={e.total} darkMode={dm} />
               </div>
             );
           })}

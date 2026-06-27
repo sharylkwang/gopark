@@ -3,6 +3,7 @@ interface Props {
   size?: number;
   stroke?: number;
   label?: string;
+  darkMode?: boolean;
 }
 
 function colorForPct(pct: number) {
@@ -11,7 +12,7 @@ function colorForPct(pct: number) {
   return '#ef4444';
 }
 
-export function CircularProgress({ percentage, size = 80, stroke = 8, label }: Props) {
+export function CircularProgress({ percentage, size = 80, stroke = 8, label, darkMode }: Props) {
   const r = (size - stroke) / 2;
   const circ = 2 * Math.PI * r;
   const offset = circ * (1 - Math.min(percentage, 100) / 100);
@@ -21,7 +22,7 @@ export function CircularProgress({ percentage, size = 80, stroke = 8, label }: P
     <div className="flex flex-col items-center gap-1">
       <div className="relative" style={{ width: size, height: size }}>
         <svg width={size} height={size} className="-rotate-90">
-          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e5e7eb" strokeWidth={stroke} />
+          <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={darkMode ? '#404040' : '#e5e7eb'} strokeWidth={stroke} />
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
             strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
             className="transition-all duration-500" />
@@ -30,7 +31,7 @@ export function CircularProgress({ percentage, size = 80, stroke = 8, label }: P
           <span className="text-lg font-black" style={{ color }}>{Math.round(Math.min(percentage, 100))}%</span>
         </div>
       </div>
-      {label && <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">{label}</span>}
+      {label && <span className={`text-[10px] font-bold uppercase tracking-wider ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{label}</span>}
     </div>
   );
 }

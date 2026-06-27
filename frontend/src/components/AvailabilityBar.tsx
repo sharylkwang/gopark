@@ -2,6 +2,7 @@ interface Props {
   available: number | null;
   total: number | null;
   compact?: boolean;
+  darkMode?: boolean;
 }
 
 function colorForPct(pct: number) {
@@ -10,19 +11,19 @@ function colorForPct(pct: number) {
   return 'bg-red-500';
 }
 
-export function AvailabilityBar({ available, total, compact }: Props) {
+export function AvailabilityBar({ available, total, compact, darkMode }: Props) {
   if (available == null || !total) {
-    return <span className="text-[10px] text-gray-400 font-bold italic">No Live Availability</span>;
+    return <span className={`text-[10px] font-bold italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No Live Availability</span>;
   }
 
   const pct = Math.min((available / total) * 100, 100);
 
   return (
     <div className={`flex items-center gap-2 ${compact ? 'w-full' : ''}`}>
-      <div className={`flex-1 bg-gray-200 rounded-full overflow-hidden ${compact ? 'h-1.5' : 'h-2'}`}>
+      <div className={`flex-1 rounded-full overflow-hidden ${compact ? 'h-1.5' : 'h-2'} ${darkMode ? 'bg-neutral-700' : 'bg-gray-200'}`}>
         <div className={`h-full rounded-full transition-all duration-500 ${colorForPct(pct)}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className={`font-black whitespace-nowrap ${compact ? 'text-[10px]' : 'text-xs'}`}>
+      <span className={`font-black whitespace-nowrap ${compact ? 'text-[10px]' : 'text-xs'} ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
         {Math.min(available, total)}/{total}
       </span>
     </div>
