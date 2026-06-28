@@ -265,7 +265,7 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
           e.preventDefault();
           setLocalError('');
           if (newPassword !== confirmPassword) { setLocalError('Passwords do not match'); return; }
-          if (import.meta.env.DEV) { onReset(e); } else { setShowResetCaptcha(true); }
+          setShowResetCaptcha(true);
         }} className="flex flex-col gap-3">
           <p className="text-sm font-bold text-gray-500">Choose a new password.</p>
           <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
