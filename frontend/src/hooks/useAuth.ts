@@ -137,6 +137,19 @@ export function useAuth() {
     finally { setResetLoading(false); }
   };
 
+  const handleResetCaptchaToken = async (token: string) => {
+    setAuthError('');
+    setResetLoading(true);
+    try {
+      const result = await verifyCaptcha(token);
+      if (!result.success) { setAuthError('Captcha verification failed'); setResetLoading(false); return; }
+      await resetPassword(email, otp, newPassword);
+      alert('Password updated successfully!');
+      setIsResetView(false); setIsLinkSent(false); setIsLoginView(true); setOtp(''); setNewPassword('');
+    } catch (err: any) { setAuthError(err.message); }
+    finally { setResetLoading(false); }
+  };
+
   const enterGuest = () => {
     setAuthError('');
     if (import.meta.env.DEV) {
@@ -183,7 +196,7 @@ export function useAuth() {
     newPassword, setNewPassword, isLinkSent, setIsLinkSent, resetLoading,
     onLogin,
     handleAuth, handleVerify, handleLogout,
-    handleRequestResetCode, handleResetPassword,
+    handleRequestResetCode, handleResetPassword, handleResetCaptchaToken,
     enterGuest,
     showCaptcha, setShowCaptcha, captchaLoading,
     handleCaptchaToken,
