@@ -48,16 +48,31 @@ export function useLocation() {
 
   const shareLocation = (onCoords: (lat: number, lng: number) => void) => {
     if (!navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
-        setUserLocation(coords);
-        setLocationShared(true);
-        setShowTooltip(false);
-        onCoords(coords[0], coords[1]);
-      },
-      () => setShowTooltip(false)
-    );
+
+    const request = () => {
+      navigator.geolocation.getCurrentPosition(
+        pos => {
+          const coords: [number, number] = [pos.coords.latitude, pos.coords.longitude];
+          setUserLocation(coords);
+          setLocationShared(true);
+          setShowTooltip(false);
+          onCoords(coords[0], coords[1]);
+        },
+        () => setShowTooltip(false)
+      );
+    };
+
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'geolocation' }).then(status => {
+        if (status.state === 'denied') {
+          alert('Location access is blocked. Please enable it in your browser settings and try again.');
+        } else {
+          request();
+        }
+      }).catch(() => request());
+    } else {
+      request();
+    }
   };
 
   return {
