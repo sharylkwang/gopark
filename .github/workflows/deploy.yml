@@ -46,6 +46,8 @@ jobs:
     runs-on: [self-hosted, nas]
     steps:
       - uses: actions/checkout@v4
+        with:
+          clean: true
       - name: Write .env
         env:
           DATAGOVSG_KEY: ${{ secrets.DATAGOVSG_KEY }}
@@ -72,4 +74,5 @@ jobs:
       - name: Deploy
         run: |
           docker compose -f docker-compose.prod.yml down --remove-orphans || true
-          docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+          docker compose -f docker-compose.prod.yml build --no-cache
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
