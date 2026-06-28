@@ -55,3 +55,14 @@ export async function fetchPage(url: string): Promise<string> {
     .trim()
     .slice(0, SCRAPER.maxPageContentChars);
 }
+
+export function chunkText(text: string): string[] {
+  if (text.length <= SCRAPER.chunkSize) return [text];
+  const chunks: string[] = [];
+  let offset = 0;
+  while (offset < text.length) {
+    chunks.push(text.slice(offset, offset + SCRAPER.chunkSize));
+    offset += SCRAPER.chunkSize - SCRAPER.chunkOverlap;
+  }
+  return chunks;
+}
