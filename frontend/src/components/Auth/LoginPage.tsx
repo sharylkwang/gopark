@@ -23,6 +23,7 @@ interface Props {
   onVerify: (e: React.FormEvent) => void;
   onRequestReset: (e: React.FormEvent) => void;
   onResetPassword: (e: React.FormEvent) => void;
+  onResetCaptchaToken: (token: string) => void;
   onGuest: () => void;
 }
 
@@ -33,7 +34,7 @@ export function LoginPage({
   otp, setOtp, isResetView, setIsResetView,
   showCaptcha, setShowCaptcha, onCaptchaToken,
   newPassword, setNewPassword, isLinkSent, setIsLinkSent, resetLoading,
-  setAuthError, onAuth, onVerify, onRequestReset, onResetPassword, onGuest,
+  setAuthError, onAuth, onVerify, onRequestReset, onResetPassword, onResetCaptchaToken, onGuest,
 }: Props) {
   return (
     <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 font-sans">
@@ -57,7 +58,7 @@ export function LoginPage({
             newPassword={newPassword} setNewPassword={setNewPassword}
             showPassword={showPassword} setShowPassword={setShowPassword}
             authError={authError} loading={resetLoading} isLinkSent={isLinkSent}
-            onRequestCode={onRequestReset} onReset={onResetPassword}
+            onRequestCode={onRequestReset} onReset={onResetPassword} onCaptchaToken={onResetCaptchaToken}
             onBack={() => { setIsResetView(false); setIsLinkSent(false); setOtp(''); setNewPassword(''); setAuthError(''); }}
           />
         ) : showOtpView ? (
@@ -190,7 +191,7 @@ function OtpView({ email, otp, setOtp, authError, isLoggingIn, onVerify, onBack 
   );
 }
 
-function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, showPassword, setShowPassword, authError, loading, isLinkSent, onRequestCode, onReset, onBack }: {
+function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, showPassword, setShowPassword, authError, loading, isLinkSent, onRequestCode, onReset, onCaptchaToken, onBack }: {
   email: string; setEmail: (v: string) => void;
   otp: string; setOtp: (v: string) => void;
   newPassword: string; setNewPassword: (v: string) => void;
@@ -198,21 +199,23 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
   authError: string; loading: boolean; isLinkSent: boolean;
   onRequestCode: (e: React.FormEvent) => void;
   onReset: (e: React.FormEvent) => void;
+  onCaptchaToken: (token: string) => void;
   onBack: () => void;
 }) {
   const [otpVerified, setOtpVerified] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
   const [localError, setLocalError] = useState('');
+  const [showResetCaptcha, setShowResetCaptcha] = useState(false);
 
-  const step = !isLinkSent ? 'email' : !otpVerified ? 'otp' : 'password';
+  const step = !isLinkSent ? 'email' : !otpVerified ? 'otp' : showResetCaptcha ? 'captcha' : 'password';
   const error = localError || authError;
 
   return (
     <div className="p-6 flex flex-col gap-3">
       <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">Reset Password</h2>
       <div className="flex gap-1 mb-1">
-        {['email', 'otp', 'password'].map((s, i) => {
-          const current = ['email', 'otp', 'password'].indexOf(step);
+        {['email', 'otp', 'password', 'captcha'].map((s, i) => {
+          const current = ['email', 'otp', 'password', 'captcha'].indexOf(step);
           const filled = current > i;
           const active = current === i;
           return (
@@ -258,7 +261,12 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
       )}
 
       {step === 'password' && (
-        <form onSubmit={e => { setLocalError(''); if (newPassword !== confirmPassword) { e.preventDefault(); setLocalError('Passwords do not match'); return; } onReset(e); }} className="flex flex-col gap-3">
+        <form onSubmit={e => {
+          e.preventDefault();
+          setLocalError('');
+          if (newPassword !== confirmPassword) { setLocalError('Passwords do not match'); return; }
+          if (import.meta.env.DEV) { onReset(e); } else { setShowResetCaptcha(true); }
+        }} className="flex flex-col gap-3">
           <p className="text-sm font-bold text-gray-500">Choose a new password.</p>
           <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
             <input type={showPassword ? 'text' : 'password'} placeholder="New Password" value={newPassword}
@@ -282,7 +290,28 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
         </form>
       )}
 
-      <button type="button" onClick={() => { if (step === 'password') { setOtpVerified(false); setLocalError(''); } else if (step === 'otp') { onBack(); } else { onBack(); } }}
+      {step === 'captcha' && (
+        <div className="flex flex-col gap-3">
+          <p className="text-sm font-bold text-gray-500">One last step — verify you're human.</p>
+          <div className="flex justify-center">
+            <Turnstile
+              sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ''}
+              theme="light"
+              onVerify={onCaptchaToken}
+              onError={(e) => console.error('Turnstile error:', e)}
+              onExpire={() => console.warn('Turnstile expired')}
+            />
+          </div>
+        </div>
+      )}
+
+      <button type="button" onClick={() => {
+        setLocalError('');
+        if (step === 'captcha') { setShowResetCaptcha(false); }
+        else if (step === 'password') { setOtpVerified(false); }
+        else if (step === 'otp') { onBack(); }
+        else { onBack(); }
+      }}
         className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">
         {step === 'email' ? 'Back to Login' : 'Go Back'}
       </button>
