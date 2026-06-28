@@ -69,12 +69,8 @@ export function useAuth() {
       return;
     }
     const action = isLoginView ? 'login' : 'signup';
-    if (import.meta.env.DEV) {
-      await executePendingAction(action);
-    } else {
-      setPendingAction(action);
-      setShowCaptcha(true);
-    }
+    setPendingAction(action);
+    setShowCaptcha(true);
   };
 
   const handleCaptchaToken = async (token: string) => {
@@ -152,12 +148,8 @@ export function useAuth() {
 
   const enterGuest = () => {
     setAuthError('');
-    if (import.meta.env.DEV) {
-      setAppState('guest');
-    } else {
-      setPendingAction('guest');
-      setShowCaptcha(true);
-    }
+    setPendingAction('guest');
+    setShowCaptcha(true);
   };
 
   useEffect(() => {
