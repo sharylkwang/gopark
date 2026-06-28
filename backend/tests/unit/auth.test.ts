@@ -20,7 +20,7 @@ jest.unstable_mockModule('@prisma/client', () => ({
 
 const mockHash = jest.fn();
 const mockCompare = jest.fn();
-jest.unstable_mockModule('bcrypt', () => ({ default: { hash: mockHash, compare: mockCompare } }));
+jest.unstable_mockModule('bcryptjs', () => ({ default: { hash: mockHash, compare: mockCompare } }));
 
 const mockSign = jest.fn();
 const mockVerify = jest.fn();
