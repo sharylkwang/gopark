@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  verify:
+  test:
     runs-on: [self-hosted, nas]
     env:
       GEOAPIFY_KEY: ${{ secrets.GEOAPIFY_KEY }}
@@ -17,16 +17,32 @@ jobs:
       GOOGLE_MAPS_KEY: ${{ secrets.GOOGLE_MAPS_KEY }}
       ZHIPUAI_API_KEY: ${{ secrets.ZHIPUAI_API_KEY }}
       ZHIPUAI_MODEL: ${{ secrets.ZHIPUAI_MODEL }}
+      JWT_SECRET: ${{ secrets.JWT_SECRET }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install backend dependencies
+        run: cd backend && npm install --no-bin-links
+
+      - name: Install frontend dependencies
+        run: cd frontend && npm install --no-bin-links
+
+      - name: Run backend unit tests
+        run: cd backend && npm run test:unit
+
+      - name: Run frontend unit tests
+        run: cd frontend && npm test
+
       - name: Verify API keys
-        run: >
-          docker run --rm -i
-          -e GEOAPIFY_KEY -e DATAGOVSG_KEY -e DATAMALL_API -e GOOGLE_MAPS_KEY -e ZHIPUAI_API_KEY -e ZHIPUAI_MODEL
-          node:22-alpine node --input-type=module < scripts/verify-keys.mjs
+        run: cd backend && npm run test:integration
 
   deploy:
-    needs: verify
+    needs: test
     runs-on: [self-hosted, nas]
     steps:
       - uses: actions/checkout@v4

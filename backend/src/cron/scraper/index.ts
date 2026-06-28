@@ -5,7 +5,7 @@ import { SCRAPER } from '../config.js';
 import type { ScrapedCarpark, ScrapedResult } from '../pipeline/types.js';
 import { detect, complete, parseJson } from './llm.js';
 import type { Backend } from './llm.js';
-import { searchWeb, fetchPage, isSearchAvailable } from './search.js';
+import { searchWeb, fetchPage, chunkText, isSearchAvailable } from './search.js';
 
 const log = createLogger('scraper');
 
@@ -18,8 +18,44 @@ function hash(data: unknown) {
 
 async function extract(url: string, prompt: string, backend: Backend): Promise<ScrapedCarpark[]> {
   const content = await fetchPage(url);
-  const raw = await complete(backend, SYSTEM_MSG, `${prompt}\n\n${EXTRACTION_SCHEMA}\n\nPage content:\n${content}`);
-  return (parseJson(raw).carparks as ScrapedCarpark[]) ?? [];
+  const chunks = chunkText(content);
+  if (chunks.length === 1) {
+    const raw = await complete(backend, SYSTEM_MSG, `${prompt}\n\n${EXTRACTION_SCHEMA}\n\nPage content:\n${chunks[0]}`);
+    return (parseJson(raw).carparks as ScrapedCarpark[]) ?? [];
+  }
+
+  log.info(`${url} - splitting into ${chunks.length} chunks`);
+  const all: ScrapedCarpark[] = [];
+  for (const chunk of chunks) {
+    const raw = await complete(backend, SYSTEM_MSG, `${prompt}\n\n${EXTRACTION_SCHEMA}\n\nPage content (chunk):\n${chunk}`);
+    const parsed = (parseJson(raw).carparks as ScrapedCarpark[]) ?? [];
+    all.push(...parsed);
+  }
+
+  const seen = new Set<string>();
+  return all.filter(cp => {
+    const key = (cp.name ?? '').toLowerCase().trim();
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+const VERIFY_PROMPT = 'Does this page contain Singapore parking or carpark rate information? Reply ONLY with JSON: { "relevant": true/false, "reason": "one sentence" }';
+
+async function verifyPage(url: string, backend: Backend): Promise<boolean> {
+  try {
+    const content = await fetchPage(url);
+    const preview = content.slice(0, 3000);
+    const raw = await complete(backend, 'You classify web pages. Output ONLY valid JSON.', `${VERIFY_PROMPT}\n\nPage preview:\n${preview}`);
+    const result = parseJson(raw);
+    const relevant = result.relevant === true;
+    log.info(`verify ${url} - ${relevant ? 'relevant' : 'irrelevant'}: ${result.reason || ''}`);
+    return relevant;
+  } catch (e) {
+    log.debug(`verify failed for ${url}: ${e}`);
+    return false;
+  }
 }
 
 async function cacheResult(url: string, domain: string, source: string, prompt: string, backend: Backend): Promise<ScrapedCarpark[]> {
@@ -116,7 +152,8 @@ export async function smartSearch(): Promise<ScrapedResult[]> {
   if (backend === 'none') { log.warn('smart search skipped - no LLM'); return []; }
 
   const known = new Set((await prisma.scrapedPage.findMany({ select: { url: true } })).map(p => p.url));
-  log.info(`smart search - ${known.size} cached URLs`);
+  const rejected = new Set((await prisma.scrapedPage.findMany({ where: { carparks: 0 } })).map(p => p.url));
+  log.info(`smart search - ${known.size} cached, ${rejected.size} previously rejected`);
 
   const found: string[] = [];
   for (const q of SCRAPER.smartQueries) {
@@ -125,16 +162,40 @@ export async function smartSearch(): Promise<ScrapedResult[]> {
     catch (e) { log.warn(`search failed: ${q}`, e); }
   }
 
-  const fresh = [...new Set(found)].filter(u => !known.has(u));
+  const fresh = [...new Set(found)].filter(u => !known.has(u) && !rejected.has(u));
   if (!fresh.length) { log.info('smart search - nothing new'); return []; }
-  log.info(`smart search - ${fresh.length} new pages`);
+  log.info(`smart search - ${fresh.length} new candidate pages, verifying...`);
 
-  const carparks: ScrapedCarpark[] = [];
+  const verified: string[] = [];
   for (const url of fresh) {
-    try { carparks.push(...await cacheResult(url, new URL(url).hostname, 'smart_search', SCRAPER.defaultPrompt, backend)); }
-    catch (e) { log.warn(`smart search failed: ${url}`, e); }
+    if (!isSearchAvailable()) break;
+    try {
+      if (await verifyPage(url, backend)) verified.push(url);
+    } catch (e) { log.debug(`verify skipped: ${url}`, e); }
   }
 
-  log.info(`smart search - ${carparks.length} carparks from ${fresh.length} pages`);
+  if (!verified.length) {
+    log.info(`smart search - 0/${fresh.length} pages verified as relevant`);
+    for (const url of fresh) {
+      try {
+        await prisma.scrapedPage.upsert({
+          where: { url },
+          create: { url, domain: new URL(url).hostname, source: 'smart_search', dataHash: '', carparks: 0, lastScraped: new Date(), lastChanged: new Date() },
+          update: { lastScraped: new Date() },
+        });
+      } catch {}
+    }
+    return [];
+  }
+
+  log.info(`smart search - ${verified.length}/${fresh.length} pages verified, scraping...`);
+
+  const carparks: ScrapedCarpark[] = [];
+  for (const url of verified) {
+    try { carparks.push(...await cacheResult(url, new URL(url).hostname, 'smart_search', SCRAPER.defaultPrompt, backend)); }
+    catch (e) { log.warn(`smart search scrape failed: ${url}`, e); }
+  }
+
+  log.info(`smart search - ${carparks.length} carparks from ${verified.length} verified pages`);
   return carparks.length ? [{ source: 'smart_search', carparks }] : [];
 }

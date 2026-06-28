@@ -22,6 +22,8 @@ export const SCRAPER = {
   dropAfterMisses: 50,
   maxSearchResults: 10,
   maxPageContentChars: 192000,
+  chunkSize: 28000,
+  chunkOverlap: 500,
   domains: [
     {
       domain: 'onemotoring.lta.gov.sg',
@@ -52,6 +54,14 @@ export const SCRAPER = {
     'Singapore airport parking rates changi',
     'Singapore hospital parking rates',
     'Singapore university campus parking fees',
+    'Singapore condo visitor parking rates',
+    'Singapore industrial estate parking charges',
+    'HDB season parking rates Singapore 2024',
+    'Orchard Road carpark rates hourly',
+    'Sentosa parking rates entrance fee',
+    'Jewel Changi parking rates',
+    'Singapore sports hub parking fees',
+    'Singapore MRT station parking rates',
   ],
   defaultPrompt: 'Extract ALL parking rates. Return name, address, rates with vehicle_type (car/motorcycle/heavy_vehicle), day_type, amount_dollars, per_minutes, time_start, time_end in HH:MM 24h.',
 };
