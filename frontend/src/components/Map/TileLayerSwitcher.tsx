@@ -107,7 +107,7 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
             </div>
           </div>
 
-          {gpuOk ? (
+          {gpuOk && (
             <div className="border-t border-gray-200/40 pt-2">
               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">3D Maps</span>
               <div className="grid grid-cols-4 gap-1.5">
@@ -127,11 +127,6 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
                   </button>
                 ))}
               </div>
-            </div>
-          ) : (
-            <div className="border-t border-gray-200/40 pt-2">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 block">3D Maps</span>
-              <p className="text-[9px] text-gray-400">Requires a dedicated GPU</p>
             </div>
           )}
         </div>

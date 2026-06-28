@@ -53,12 +53,20 @@ export function useAuth() {
       setAppState('guest');
       return;
     }
+
     setIsLoggingIn(true);
     try {
-      if (action === 'login') enterApp(await loginUser(email, password));
-      else if (action === 'signup') { await sendVerificationCode(username, email, password); setShowOtpView(true); }
-    } catch (err: any) { setAuthError(err.message); }
-    finally { setIsLoggingIn(false); }
+      if (action === 'login') {
+        enterApp(await loginUser(email, password));
+      } else if (action === 'signup') {
+        await sendVerificationCode(username, email, password);
+        setShowOtpView(true);
+      }
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -88,16 +96,22 @@ export function useAuth() {
       setPendingAction(null);
     } catch (err: any) {
       setAuthError(err.message || 'Captcha verification failed');
-    } finally { setCaptchaLoading(false); }
+    } finally {
+      setCaptchaLoading(false);
+    }
   };
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
     setIsLoggingIn(true);
-    try { enterApp(await verifyAndRegister(email, otp)); }
-    catch (err: any) { setAuthError(err.message); }
-    finally { setIsLoggingIn(false); }
+    try {
+      enterApp(await verifyAndRegister(email, otp));
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setIsLoggingIn(false);
+    }
   };
 
   const handleLogout = () => {
@@ -115,22 +129,39 @@ export function useAuth() {
     e.preventDefault();
     setResetLoading(true);
     setAuthError('');
-    try { await requestPasswordReset(email); setIsLinkSent(true); }
-    catch (err: any) { setAuthError(err.message || 'Network error'); }
-    finally { setResetLoading(false); }
+    try {
+      await requestPasswordReset(email);
+      setIsLinkSent(true);
+    } catch (err: any) {
+      setAuthError(err.message || 'Network error');
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
-    if (!PASSWORD_REGEX.test(newPassword)) { setAuthError(PASSWORD_ERROR); return; }
+
+    if (!PASSWORD_REGEX.test(newPassword)) {
+      setAuthError(PASSWORD_ERROR);
+      return;
+    }
+
     setResetLoading(true);
     try {
       await resetPassword(email, otp, newPassword);
       alert('Password updated successfully!');
-      setIsResetView(false); setIsLinkSent(false); setIsLoginView(true); setOtp(''); setNewPassword('');
-    } catch (err: any) { setAuthError(err.message); }
-    finally { setResetLoading(false); }
+      setIsResetView(false);
+      setIsLinkSent(false);
+      setIsLoginView(true);
+      setOtp('');
+      setNewPassword('');
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const handleResetCaptchaToken = async (token: string) => {
@@ -138,12 +169,24 @@ export function useAuth() {
     setResetLoading(true);
     try {
       const result = await verifyCaptcha(token);
-      if (!result.success) { setAuthError('Captcha verification failed'); setResetLoading(false); return; }
+      if (!result.success) {
+        setAuthError('Captcha verification failed');
+        setResetLoading(false);
+        return;
+      }
+
       await resetPassword(email, otp, newPassword);
       alert('Password updated successfully!');
-      setIsResetView(false); setIsLinkSent(false); setIsLoginView(true); setOtp(''); setNewPassword('');
-    } catch (err: any) { setAuthError(err.message); }
-    finally { setResetLoading(false); }
+      setIsResetView(false);
+      setIsLinkSent(false);
+      setIsLoginView(true);
+      setOtp('');
+      setNewPassword('');
+    } catch (err: any) {
+      setAuthError(err.message);
+    } finally {
+      setResetLoading(false);
+    }
   };
 
   const enterGuest = () => {
@@ -174,7 +217,8 @@ export function useAuth() {
     }, 45 * 60 * 1000);
 
     return () => {
-      clearTimeout(idleTimer); clearInterval(refreshInterval);
+      clearTimeout(idleTimer);
+      clearInterval(refreshInterval);
       events.forEach(e => window.removeEventListener(e, resetIdle));
     };
   }, [appState]);
