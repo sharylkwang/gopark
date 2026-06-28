@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Zap, Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { Turnstile } from 'react-turnstile';
+import { PASSWORD_REGEX, PASSWORD_ERROR } from '../../utils/constants';
 
 interface Props {
   email: string; setEmail: (v: string) => void;
@@ -22,7 +23,6 @@ interface Props {
   onAuth: (e: React.FormEvent) => void;
   onVerify: (e: React.FormEvent) => void;
   onRequestReset: (e: React.FormEvent) => void;
-  onResetPassword: (e: React.FormEvent) => void;
   onResetCaptchaToken: (token: string) => void;
   onGuest: () => void;
 }
@@ -34,7 +34,7 @@ export function LoginPage({
   otp, setOtp, isResetView, setIsResetView,
   showCaptcha, setShowCaptcha, onCaptchaToken,
   newPassword, setNewPassword, isLinkSent, setIsLinkSent, resetLoading,
-  setAuthError, onAuth, onVerify, onRequestReset, onResetPassword, onResetCaptchaToken, onGuest,
+  setAuthError, onAuth, onVerify, onRequestReset, onResetCaptchaToken, onGuest,
 }: Props) {
   return (
     <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 font-sans">
@@ -58,7 +58,7 @@ export function LoginPage({
             newPassword={newPassword} setNewPassword={setNewPassword}
             showPassword={showPassword} setShowPassword={setShowPassword}
             authError={authError} loading={resetLoading} isLinkSent={isLinkSent}
-            onRequestCode={onRequestReset} onReset={onResetPassword} onCaptchaToken={onResetCaptchaToken}
+            onRequestCode={onRequestReset} onCaptchaToken={onResetCaptchaToken}
             onBack={() => { setIsResetView(false); setIsLinkSent(false); setOtp(''); setNewPassword(''); setAuthError(''); }}
           />
         ) : showOtpView ? (
@@ -191,14 +191,13 @@ function OtpView({ email, otp, setOtp, authError, isLoggingIn, onVerify, onBack 
   );
 }
 
-function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, showPassword, setShowPassword, authError, loading, isLinkSent, onRequestCode, onReset, onCaptchaToken, onBack }: {
+function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, showPassword, setShowPassword, authError, loading, isLinkSent, onRequestCode, onCaptchaToken, onBack }: {
   email: string; setEmail: (v: string) => void;
   otp: string; setOtp: (v: string) => void;
   newPassword: string; setNewPassword: (v: string) => void;
   showPassword: boolean; setShowPassword: (v: boolean) => void;
   authError: string; loading: boolean; isLinkSent: boolean;
   onRequestCode: (e: React.FormEvent) => void;
-  onReset: (e: React.FormEvent) => void;
   onCaptchaToken: (token: string) => void;
   onBack: () => void;
 }) {
@@ -264,6 +263,7 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
         <form onSubmit={e => {
           e.preventDefault();
           setLocalError('');
+          if (!PASSWORD_REGEX.test(newPassword)) { setLocalError(PASSWORD_ERROR); return; }
           if (newPassword !== confirmPassword) { setLocalError('Passwords do not match'); return; }
           setShowResetCaptcha(true);
         }} className="flex flex-col gap-3">
