@@ -17,7 +17,7 @@ import { useLocation } from './hooks/useLocation';
 import { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation, fetchNearbyParking } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './providers/carparks';
 import { estimateCost } from './utils/estimateCost';
-import { totals, parseDurationSecs } from './utils/format';
+import { totals, parseDurationSecs, formatClockTime } from './utils/format';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, PlaceSuggestion, NearbyParking } from './types';
 
 export default function GoParkApp() {
@@ -47,12 +47,10 @@ export default function GoParkApp() {
     return () => clearInterval(id);
   }, []);
 
-  const formatTime = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-
   const [parkUntil, setParkUntil] = useState<string>(() => {
     const d = new Date();
     d.setHours(d.getHours() + 1, 0, 0, 0);
-    return formatTime(d);
+    return formatClockTime(d);
   });
   const [vehicleType, setVehicleType] = useState('C');
   const [startPoint, setStartPoint] = useState('');
@@ -82,7 +80,7 @@ export default function GoParkApp() {
     if (until <= arrivalTime) {
       const bumped = new Date(arrivalTime);
       bumped.setHours(bumped.getHours() + 1, 0, 0, 0);
-      setParkUntil(formatTime(bumped));
+      setParkUntil(formatClockTime(bumped));
     }
   }, [now, travelMins]);
 
@@ -183,6 +181,38 @@ export default function GoParkApp() {
     resetHome();
   };
 
+  const updateDestinationClassification = (dest: DestinationPoint) => {
+    prefetchedParkingRef.current = null;
+    classifyLocation(dest.lat, dest.lng).then(c => {
+      if (c) {
+        const updated = { ...dest, classification: c };
+        setDestinationPoint(updated);
+        destinationRef.current = updated;
+        if (c.hasParking && !/HDB|Residential/i.test(c.type || '')) {
+          fetchNearbyParking(dest.lat, dest.lng).then(spots => { prefetchedParkingRef.current = spots; });
+        }
+      }
+    });
+  };
+
+  const loadNearbyForDestination = async (dest: DestinationPoint) => {
+    const nearby = await fetchNearby(dest.lat, dest.lng, 2000);
+    setNearbyRaw(nearby);
+    const ranked = rankResults(nearby);
+    setSearchResults(ranked);
+    setHasSearched(true);
+    setDetail(null);
+
+    if (ranked.length > 0) {
+      setSelectedId(ranked[0].id);
+      fetchDetail(ranked[0].id).then(setDetail).catch(() => setDetail(null));
+      routes.fetchRoutes(ranked[0], dest);
+    } else {
+      setSelectedId(null);
+      routes.clearRoutes();
+    }
+  };
+
   const executeSearch = async (query: string) => {
     setSuggestions([]);
     setStartSuggestions([]);
@@ -226,33 +256,8 @@ export default function GoParkApp() {
       destinationRef.current = dest;
       setDestination(formatted || placeName);
 
-      prefetchedParkingRef.current = null;
-      classifyLocation(lat, lng).then(c => {
-        if (c) {
-          const updated = { ...dest, classification: c };
-          setDestinationPoint(updated);
-          destinationRef.current = updated;
-          if (c.hasParking && !/HDB|Residential/i.test(c.type || '')) {
-            fetchNearbyParking(lat, lng).then(spots => { prefetchedParkingRef.current = spots; });
-          }
-        }
-      });
-
-      const nearby = await fetchNearby(lat, lng, 2000);
-      setNearbyRaw(nearby);
-      const ranked = rankResults(nearby);
-      setSearchResults(ranked);
-      setHasSearched(true);
-      setDetail(null);
-
-      if (ranked.length > 0) {
-        setSelectedId(ranked[0].id);
-        fetchDetail(ranked[0].id).then(setDetail).catch(() => setDetail(null));
-        routes.fetchRoutes(ranked[0], dest);
-      } else {
-        setSelectedId(null);
-        routes.clearRoutes();
-      }
+      updateDestinationClassification(dest);
+      await loadNearbyForDestination(dest);
     } catch { alert('Could not find destination'); }
     finally { setLoading(false); }
   };
@@ -334,34 +339,10 @@ export default function GoParkApp() {
     destinationRef.current = dest;
     setDestination(placeName);
 
-    prefetchedParkingRef.current = null;
-    classifyLocation(lat, lng).then(c => {
-      if (c) {
-        const updated = { ...dest, classification: c };
-        setDestinationPoint(updated);
-        destinationRef.current = updated;
-        if (c.hasParking && !/HDB|Residential/i.test(c.type || '')) {
-          fetchNearbyParking(lat, lng).then(spots => { prefetchedParkingRef.current = spots; });
-        }
-      }
-    });
+    updateDestinationClassification(dest);
 
     try {
-      const nearby = await fetchNearby(lat, lng, 2000);
-      setNearbyRaw(nearby);
-      const ranked = rankResults(nearby);
-      setSearchResults(ranked);
-      setHasSearched(true);
-      setDetail(null);
-
-      if (ranked.length > 0) {
-        setSelectedId(ranked[0].id);
-        fetchDetail(ranked[0].id).then(setDetail).catch(() => setDetail(null));
-        routes.fetchRoutes(ranked[0], dest);
-      } else {
-        setSelectedId(null);
-        routes.clearRoutes();
-      }
+      await loadNearbyForDestination(dest);
     } catch {} finally { setLoading(false); }
   };
 

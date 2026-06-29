@@ -8,6 +8,8 @@ const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 const classifyCache = new Map<string, { data: PlaceClassification | null; ts: number }>();
 const parkingCache = new Map<string, { data: NearbyParking[]; ts: number }>();
 const CACHE_TTL = 10 * 60 * 1000;
+const CLASSIFY_RADIUS_M = 80;
+const NEARBY_PARKING_RADIUS_M = 500;
 
 interface PlaceClassification {
   type: string;
@@ -103,8 +105,8 @@ export interface NearbyParking {
   capacity: number | null;
 }
 
-export async function findNearbyParking(lat: number, lng: number, radius = 300): Promise<NearbyParking[]> {
-  const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
+export async function findNearbyParking(lat: number, lng: number, radius = NEARBY_PARKING_RADIUS_M): Promise<NearbyParking[]> {
+  const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)},${radius}`;
   const cached = parkingCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
@@ -181,16 +183,14 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
   const query = `
     [out:json][timeout:10];
     (
-      way(around:50,${lat},${lng})["building"];
-      relation(around:50,${lat},${lng})["building"];
-      way(around:50,${lat},${lng})["landuse"];
-      node(around:50,${lat},${lng})["amenity"];
-      way(around:50,${lat},${lng})["amenity"];
-      node(around:50,${lat},${lng})["shop"];
-      way(around:50,${lat},${lng})["leisure"];
-      way(around:50,${lat},${lng})["tourism"];
+      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["building"];
+      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["landuse"];
+      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["amenity"];
+      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["shop"];
+      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["leisure"];
+      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["tourism"];
     );
-    out tags;
+    out tags center;
   `;
 
   try {

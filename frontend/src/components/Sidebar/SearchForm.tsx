@@ -1,22 +1,8 @@
 import { useRef, useState, useCallback } from 'react';
 import { Navigation, Search, Clock, MapPin, X, Crosshair } from 'lucide-react';
 import { VEHICLE_OPTIONS } from '../../utils/constants';
+import { formatClockTime, formatTime12, parseClockTime } from '../../utils/format';
 import type { PlaceSuggestion } from '../../types';
-
-function to12hr(d: Date) {
-  let h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, '0');
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${m} ${ampm}`;
-}
-
-function parseTime(t: string) {
-  const [h, m] = t.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d;
-}
 
 interface Props {
   darkMode: boolean;
@@ -110,11 +96,11 @@ export function SearchForm({
         </div>
 
         <div>
-          <label className={labelClass}>Park from {to12hr(arrivalTime)} → {to12hr(parseTime(parkUntil))}</label>
+          <label className={labelClass}>Park from {formatTime12(arrivalTime)} → {formatTime12(parseClockTime(parkUntil))}</label>
           <div className="flex gap-1.5">
             {[0.5, 1, 2, 3, 4, 6].map(h => {
               const target = new Date(arrivalTime.getTime() + h * 3600000);
-              const val = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+              const val = formatClockTime(target);
               const active = parkUntil === val;
               return (
                 <button key={h} type="button" onClick={() => setParkUntil(val)}

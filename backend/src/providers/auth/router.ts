@@ -11,7 +11,7 @@ import { captchaVerify } from './routing';
 const router = Router();
 const prisma = new PrismaClient();
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET || '';
 if (!JWT_SECRET) {
   throw new Error('JWT_SECRET is not set');
 }
@@ -45,6 +45,47 @@ const transporter = nodemailer.createTransport({
 
 function generateOtp() {
   return crypto.randomInt(100000, 1000000).toString();
+}
+
+const PASSWORD_ERROR = 'Password needs 8+ characters with uppercase, lowercase, number, and special character.';
+
+function isStrongPassword(password: unknown) {
+  return typeof password === 'string'
+    && password.length >= 8
+    && /[a-z]/.test(password)
+    && /[A-Z]/.test(password)
+    && /\d/.test(password)
+    && /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]/.test(password);
+}
+
+function signToken(user: { id: string; email: string }) {
+  return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+}
+
+function setAuthCookie(res: Response, token: string) {
+  res.cookie('gopark_token', token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    path: '/',
+  });
+}
+
+async function sendOtpEmail(email: string, heading: string, intro: string, otp: string) {
+  await transporter.sendMail({
+    from: `"GoPark Team" <${process.env.EMAIL_USER}>`,
+    to: email,
+    subject: 'Your GoPark Verification Code',
+    html: `
+      <div style="font-family: sans-serif; text-align: center; padding: 20px;">
+        <h2>${heading} ⚡</h2>
+        <p>${intro}</p>
+        <h1 style="background: #f3f4f6; padding: 10px; letter-spacing: 5px; color: #dc2626;">${otp}</h1>
+        <p style="color: #6b7280; font-size: 12px;">This code expires in 10 minutes.</p>
+      </div>
+    `,
+  });
 }
 
 
@@ -115,8 +156,8 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
       return res.status(400).json({ error: 'Invalid email address' });
     }
 
-    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password) || !/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]/.test(password)) {
-      return res.status(400).json({ error: 'Password needs 8+ characters with uppercase, lowercase, number, and special character.' });
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ error: PASSWORD_ERROR });
     }
 
     if (username.length > 50 || email.length > 100) {
@@ -140,19 +181,7 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
       expiresAt: Date.now() + 10 * 60 * 1000,
     });
 
-    await transporter.sendMail({
-      from: `"GoPark Team" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: 'Your GoPark Verification Code',
-      html: `
-        <div style="font-family: sans-serif; text-align: center; padding: 20px;">
-          <h2>Welcome to GoPark, ${username}! ⚡</h2>
-          <p>Here is your 6-digit verification code to complete your registration:</p>
-          <h1 style="background: #f3f4f6; padding: 10px; letter-spacing: 5px; color: #dc2626;">${otp}</h1>
-          <p style="color: #6b7280; font-size: 12px;">This code expires in 10 minutes.</p>
-        </div>
-      `,
-    });
+    await sendOtpEmail(email, `Welcome to GoPark, ${username}!`, 'Here is your 6-digit verification code to complete your registration:', otp);
 
     res.status(200).json({ message: 'Verification code sent!' });
   } catch (err) {
@@ -205,14 +234,8 @@ router.post('/auth/register/verify', resetLimiter, async (req: Request, res: Res
     });
 
     otpCache.delete(email);
-    const token = jwt.sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, { expiresIn: '1h' });
-    res.cookie('gopark_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+    const token = signToken(newUser);
+    setAuthCookie(res, token);
 
     res.status(201).json({
       message: 'User verified and created successfully',
@@ -278,14 +301,8 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
       });
     }
 
-    const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
-    res.cookie('gopark_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+    const token = signToken(user);
+    setAuthCookie(res, token);
 
     res.status(200).json({
       message: 'Login successful',
@@ -300,14 +317,8 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
 
 router.post('/auth/refresh', requireAuth, (req: AuthRequest, res: Response) => {
   const user = req.user!;
-  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET!, { expiresIn: '1h' });
-  res.cookie('gopark_token', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-      path: '/',
-    });
+  const token = signToken(user);
+  setAuthCookie(res, token);
   res.json({ token });
 });
 
@@ -330,19 +341,7 @@ router.post('/auth/password/forgot', emailLimiter, async (req: Request, res: Res
         expiresAt: Date.now() + 10 * 60 * 1000,
       });
 
-      await transporter.sendMail({
-        from: `"GoPark Team" <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject: 'Your GoPark Verification Code',
-        html: `
-          <div style="font-family: sans-serif; text-align: center; padding: 20px;">
-            <h2>Password Reset Request ⚡</h2>
-            <p>You requested a password reset. Use this code to continue:</p>
-            <h1 style="background: #f3f4f6; padding: 10px; letter-spacing: 5px; color: #dc2626;">${otp}</h1>
-            <p style="color: #6b7280; font-size: 12px;">This code expires in 10 minutes.</p>
-          </div>
-        `,
-      });
+      await sendOtpEmail(email, 'Password Reset Request', 'You requested a password reset. Use this code to continue:', otp);
     }
 
     res.status(200).json({ message: 'If account exists, code sent.' });
@@ -357,8 +356,8 @@ router.post('/auth/password/reset', resetLimiter, async (req: Request, res: Resp
     const { code, newPassword } = req.body;
     const email = (req.body.email || '').toLowerCase().trim();
 
-    if (!newPassword || newPassword.length < 8 || !/[a-z]/.test(newPassword) || !/[A-Z]/.test(newPassword) || !/\d/.test(newPassword) || !/[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]/.test(newPassword)) {
-      return res.status(400).json({ error: 'Password needs 8+ characters with uppercase, lowercase, number, and special character.' });
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).json({ error: PASSWORD_ERROR });
     }
 
     const cached = otpCache.get(email);

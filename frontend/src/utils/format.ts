@@ -26,6 +26,25 @@ export function formatParkDuration(hours: number) {
   return m > 0 ? `${h}h ${m} mins` : `${h}h`;
 }
 
+export function formatClockTime(d: Date) {
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+export function formatTime12(d: Date) {
+  let h = d.getHours();
+  const m = String(d.getMinutes()).padStart(2, '0');
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+}
+
+export function parseClockTime(t: string) {
+  const [h, m] = t.split(':').map(Number);
+  const d = new Date();
+  d.setHours(h, m, 0, 0);
+  return d;
+}
+
 export function parseDurationSecs(dur: string) {
   return parseInt(dur.replace('s', ''), 10) || 0;
 }

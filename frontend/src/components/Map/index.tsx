@@ -13,6 +13,7 @@ import { reverseGeocode } from '../../providers/geoapify';
 import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../types';
 import type { MapEventHandlers } from '../../types/map';
 import type { RouteResult, SpeedInterval } from '../../providers/google/routing';
+import { formatDistance, formatDuration, parseDurationSecs } from '../../utils/format';
 
 const SPEED_COLORS: Record<string, string> = {
   NORMAL: '#22c55e',
@@ -31,16 +32,6 @@ const TRAFFIC_DOT: Record<string, string> = {
   MODERATE: '#f59e0b',
   HEAVY: '#dc2626',
 };
-
-function parseDuration(dur: string) {
-  const secs = parseInt(dur.replace('s', ''));
-  if (secs < 60) return '<1 min';
-  return `${Math.round(secs / 60)} min`;
-}
-
-function formatDist(m: number) {
-  return m >= 1000 ? `${(m / 1000).toFixed(1)} km` : `${m} m`;
-}
 
 function midpoint(points: [number, number][]): [number, number] {
   const idx = Math.floor(points.length * 0.4);
@@ -315,8 +306,8 @@ function RouteLabel({ position, route, type }: {
   route: RouteResult;
   type: 'drive' | 'walk';
 }) {
-  const time = parseDuration(route.duration);
-  const dist = formatDist(route.distanceMeters);
+  const time = formatDuration(parseDurationSecs(route.duration));
+  const dist = formatDistance(route.distanceMeters);
   const isDrive = type === 'drive';
   const trafficLabel = isDrive ? (TRAFFIC_LABELS[route.trafficCondition] || '') : '';
   const trafficDot = isDrive ? (TRAFFIC_DOT[route.trafficCondition] || '') : '';
@@ -349,10 +340,10 @@ function CombinedRouteLabel({ position, driveRoute, walkRoute }: {
   driveRoute: RouteResult;
   walkRoute: RouteResult;
 }) {
-  const driveTime = parseDuration(driveRoute.duration);
-  const driveDist = formatDist(driveRoute.distanceMeters);
-  const walkTime = parseDuration(walkRoute.duration);
-  const walkDist = formatDist(walkRoute.distanceMeters);
+  const driveTime = formatDuration(parseDurationSecs(driveRoute.duration));
+  const driveDist = formatDistance(driveRoute.distanceMeters);
+  const walkTime = formatDuration(parseDurationSecs(walkRoute.duration));
+  const walkDist = formatDistance(walkRoute.distanceMeters);
   const trafficLabel = TRAFFIC_LABELS[driveRoute.trafficCondition] || '';
   const trafficDot = TRAFFIC_DOT[driveRoute.trafficCondition] || '';
 
@@ -695,8 +686,6 @@ export function MapView({
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
         mode3D={mode3D} onMode3DChange={setMode3D}
         mapCenter={mapCenter} mapZoom={mapZoom} />
-
-      {/* Legend hidden for now */}
     </div>
   );
 }

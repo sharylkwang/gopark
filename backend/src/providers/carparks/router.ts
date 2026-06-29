@@ -40,6 +40,14 @@ function formatCarpark(cp: { id: string; name: string; lat: number; lng: number;
   };
 }
 
+function formatRate(r: { amount: unknown; durationMins: number | null; unit: string; vehicleType: string; periodStart: string | null; periodEnd: string | null; isFirst: boolean; dayType: string; sources: string[] }) {
+  return {
+    amount: Number(r.amount), durationMins: r.durationMins, unit: r.unit,
+    vehicleType: r.vehicleType, periodStart: r.periodStart, periodEnd: r.periodEnd,
+    isFirst: r.isFirst, dayType: r.dayType, sources: r.sources, confirmedBy: r.sources.length,
+  };
+}
+
 router.get('/carparks', async (_req: Request, res: Response) => {
   const rows = await prisma.carpark.findMany({ where: { active: true }, select: LIST_SELECT });
   res.json(rows.map(formatCarpark));
@@ -66,11 +74,7 @@ router.get('/carparks/nearby', async (req: Request, res: Response) => {
     .map(cp => ({
       ...formatCarpark(cp),
       distance: Math.round(haversine(lat, lng, cp.lat, cp.lng)),
-      rates: (cp as any).rates.map((r: any) => ({
-        amount: Number(r.amount), durationMins: r.durationMins, unit: r.unit,
-        vehicleType: r.vehicleType, periodStart: r.periodStart, periodEnd: r.periodEnd,
-        isFirst: r.isFirst, dayType: r.dayType, sources: r.sources, confirmedBy: r.sources.length,
-      })),
+      rates: cp.rates.map(formatRate),
     }))
     .filter(cp => cp.distance <= radius)
     .sort((a, b) => a.distance - b.distance)
@@ -112,11 +116,7 @@ router.get('/carparks/:id', async (req: Request, res: Response) => {
     metadata: cp.metadata,
     detailsUpdatedAt: cp.detailsUpdatedAt,
     availabilityUpdatedAt: cp.availabilityUpdatedAt,
-    rates: cp.rates.map((r: any) => ({
-      amount: Number(r.amount), durationMins: r.durationMins, unit: r.unit, vehicleType: r.vehicleType,
-      periodStart: r.periodStart, periodEnd: r.periodEnd, isFirst: r.isFirst, dayType: r.dayType,
-      sources: r.sources, confirmedBy: r.sources.length,
-    })),
+    rates: cp.rates.map(formatRate),
     availability: Object.fromEntries(
       cp.availability.map(a => [a.lotType, { available: a.available, total: a.total, updatedAt: a.updatedAt }])
     ),

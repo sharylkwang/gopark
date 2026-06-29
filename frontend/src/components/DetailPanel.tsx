@@ -1,25 +1,10 @@
 import { ChevronLeft, Map, Navigation, Clock } from 'lucide-react';
 import { CircularProgress } from './CircularProgress';
 import { AvailabilityBar } from './AvailabilityBar';
-import { timeAgo, totals, formatParkDuration } from '../utils/format';
+import { timeAgo, totals, formatParkDuration, formatClockTime, formatTime12, parseClockTime } from '../utils/format';
 import { estimateCost } from '../utils/estimateCost';
 import { LOT_LABELS, LOT_ICONS, DAY_LABELS } from '../utils/constants';
 import type { CarparkDetail } from '../types';
-
-function to12hr(d: Date) {
-  let h = d.getHours();
-  const m = String(d.getMinutes()).padStart(2, '0');
-  const ampm = h >= 12 ? 'PM' : 'AM';
-  h = h % 12 || 12;
-  return `${h}:${m} ${ampm}`;
-}
-
-function parseTime(t: string) {
-  const [h, m] = t.split(':').map(Number);
-  const d = new Date();
-  d.setHours(h, m, 0, 0);
-  return d;
-}
 
 interface Props {
   detail: CarparkDetail;
@@ -76,14 +61,14 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
               <Clock size={14} className={dm ? 'text-gray-400' : 'text-gray-500'} />
-              <span className={`text-[11px] font-black uppercase tracking-widest ${dm ? 'text-gray-500' : 'text-gray-400'}`}>{to12hr(arrivalTime)} → {to12hr(parseTime(parkUntil))}</span>
+              <span className={`text-[11px] font-black uppercase tracking-widest ${dm ? 'text-gray-500' : 'text-gray-400'}`}>{formatTime12(arrivalTime)} → {formatTime12(parseClockTime(parkUntil))}</span>
             </div>
             <span className={`text-sm font-black ${dm ? 'text-blue-400' : 'text-blue-700'}`}>{formatParkDuration(durationHours)}</span>
           </div>
           <div className="flex gap-1.5">
             {[0.5, 1, 2, 3, 4, 6].map(h => {
               const target = new Date(arrivalTime.getTime() + h * 3600000);
-              const val = `${String(target.getHours()).padStart(2, '0')}:${String(target.getMinutes()).padStart(2, '0')}`;
+              const val = formatClockTime(target);
               const active = parkUntil === val;
               return (
                 <button key={h} type="button" onClick={() => setParkUntil(val)}

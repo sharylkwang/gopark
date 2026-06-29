@@ -117,7 +117,6 @@ export function mergeAll(
     }
   }
   for (const [id, lots] of Object.entries(datamall.availability)) {
-    const target = map[id] || findByProximity(map, 0, 0, 0);
     if (map[id]) mergeAvailability(map[id], lots);
     const a = datamall.agencies[id];
     if (a && map[id]) { map[id].agency = map[id].agency || a.agency; if (a.area) map[id].metadata.area = a.area; }
