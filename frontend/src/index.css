@@ -588,6 +588,36 @@ input:-webkit-autofill:active {
   100% { background-position: -100% 0; }
 }
 
+.top-pick-row {
+  position: relative;
+  background-color: rgba(250, 204, 21, 0.1);
+}
+.top-pick-row::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: #facc15;
+}
+
+@keyframes markerBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+.gp-bob {
+  animation: markerBob 1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gp-bob {
+    animation: none;
+  }
+}
+
 .vAygCK-api-load-alpha-banner {
   display: none !important;
 }

@@ -26,6 +26,8 @@ interface Props {
   onRequestReset: (e: React.FormEvent) => void;
   onResetCaptchaToken: (token: string) => void;
   onGuest: () => void;
+  darkMode: boolean;
+  toggleDarkMode: () => void;
 }
 
 export function LoginPage({
@@ -36,25 +38,33 @@ export function LoginPage({
   showCaptcha, setShowCaptcha, onCaptchaToken,
   newPassword, setNewPassword, isLinkSent, setIsLinkSent, resetLoading,
   setAuthError, onAuth, onVerify, onRequestReset, onResetCaptchaToken, onGuest,
+  darkMode, toggleDarkMode,
 }: Props) {
   return (
-    <div className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center p-4 font-sans">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl sm:text-6xl font-black text-white italic tracking-tight flex items-center justify-center gap-1 uppercase drop-shadow-lg">
-          GoPark <Zap className="text-yellow-400 fill-yellow-400 h-10 w-10" />
+    <div className="relative min-h-[calc(100dvh/var(--zoom))] bg-gray-100 dark:bg-neutral-900 flex flex-col items-center justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))] font-sans">
+      <button onClick={toggleDarkMode} aria-label="Toggle theme"
+        className="absolute top-4 right-4 h-11 w-11 grid place-items-center rounded-xl border bg-white/80 dark:bg-neutral-800/80 border-gray-200 dark:border-neutral-700 text-gray-500 dark:text-gray-400 shadow-sm transition hover:text-gray-900 dark:hover:text-white">
+        {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+      </button>
+
+      <div className="animate-fade-up text-center mb-8">
+        <h1 className="text-4xl sm:text-6xl font-black text-gray-900 dark:text-white italic tracking-tight flex items-center justify-center gap-1 uppercase drop-shadow-lg">
+          GoPark <Zap className="bolt-idle text-yellow-400 fill-yellow-400 h-10 w-10" />
         </h1>
-        <p className="text-yellow-400 font-bold tracking-widest uppercase text-xs mt-2">Smart parking. Fast.</p>
+        <p className="text-yellow-600 dark:text-yellow-400 font-bold tracking-widest uppercase text-xs mt-2">Smart parking. Fast.</p>
       </div>
 
-      <div className="w-full max-w-sm bg-white rounded-xl shadow-2xl overflow-hidden border-t-8 border-red-600">
+      <div className="animate-fade-up w-full max-w-sm bg-white dark:bg-neutral-800 rounded-xl shadow-2xl overflow-hidden border-t-8 border-red-600" style={{ animationDelay: '80ms' }}>
         {showCaptcha ? (
           <CaptchaView
+            darkMode={darkMode}
             authError={authError}
             onToken={onCaptchaToken}
             onBack={() => { setShowCaptcha(false); setAuthError(''); }}
           />
         ) : isResetView ? (
           <ResetView
+            darkMode={darkMode}
             email={email} setEmail={setEmail} otp={otp} setOtp={setOtp}
             newPassword={newPassword} setNewPassword={setNewPassword}
             showPassword={showPassword} setShowPassword={setShowPassword}
