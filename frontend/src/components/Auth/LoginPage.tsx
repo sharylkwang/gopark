@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Zap, Mail, Lock, User, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Zap, Mail, Lock, User, ArrowRight, Eye, EyeOff, Sun, Moon } from 'lucide-react';
 import { Turnstile } from 'react-turnstile';
 import { PASSWORD_REGEX, PASSWORD_ERROR } from '../../utils/constants';
+import { captchaEnabled } from '../../utils/env';
 
 interface Props {
   email: string; setEmail: (v: string) => void;
