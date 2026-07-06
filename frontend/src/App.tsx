@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import { Menu } from 'lucide-react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { Menu, MapPin } from 'lucide-react';
 import { MapView } from './components/Map';
 import { LoginPage } from './components/Auth/LoginPage';
 import { DetailPanel } from './components/DetailPanel';

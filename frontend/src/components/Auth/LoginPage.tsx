@@ -121,7 +121,7 @@ export function LoginPage({
                   {isLoggingIn ? 'Processing...' : (isLoginView ? 'Log In' : 'Sign Up')} <ArrowRight size={18} />
                 </button>
                 <button type="button" onClick={() => { setIsLoginView(!isLoginView); setAuthError(''); }}
-                  className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">
+                  className="text-xs text-gray-500 dark:text-gray-400 font-bold hover:text-red-600 transition text-center py-2">
                   {isLoginView ? "Don't have an account? Sign up" : 'Already have an account? Log in'}
                 </button>
               </div>
@@ -139,33 +139,33 @@ export function LoginPage({
 
 function InputRow({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+    <div className="bg-gray-50 dark:bg-neutral-900/60 flex items-center border border-gray-200 dark:border-neutral-700 rounded p-3">
       {icon}{children}
     </div>
   );
 }
 
-function CaptchaView({ authError, onToken, onBack }: {
+function CaptchaView({ authError, onToken, onBack, darkMode }: {
   authError: string;
-  onToken: (token: string) => void; onBack: () => void;
+  onToken: (token: string) => void; onBack: () => void; darkMode: boolean;
 }) {
   return (
     <div className="p-6 flex flex-col gap-3">
-      <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
+      <h2 className="text-xl font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2 border-b-2 border-gray-100 dark:border-neutral-700 pb-2">
         Verify You're Human
       </h2>
-      {authError && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{authError}</div>}
+      {authError && <div className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2.5 rounded text-sm font-bold border border-red-200 dark:border-red-900/60">{authError}</div>}
       <div className="flex justify-center">
         <Turnstile
           sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ''}
-          theme="light"
+          theme={darkMode ? 'dark' : 'light'}
           onVerify={onToken}
           onError={(e) => console.error('Turnstile error:', e)}
           onExpire={() => console.warn('Turnstile expired')}
         />
       </div>
       <button type="button" onClick={onBack}
-        className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
+        className="text-xs text-gray-500 dark:text-gray-400 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
     </div>
   );
 }
