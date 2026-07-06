@@ -2,104 +2,86 @@ import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster';
+import { totals } from '../../utils/format';
 import type { CarparkSummary } from '../../types';
 
-function distanceColor(cp: CarparkSummary, maxDist: number) {
-  if (cp.distance == null || !maxDist) return '#15803d';
+const AVAILABILITY = {
+  plenty: '#16a34a',
+  filling: '#f59e0b',
+  scarce: '#ef4444',
+  full: '#991b1b',
+  unknown: '#64748b',
+};
 
-  const ratio = Math.min(cp.distance / maxDist, 1);
-  const r = Math.round(5 + ratio * (200 - 5));
-  const g = Math.round(80 + ratio * (240 - 80));
-  const b = Math.round(20 + ratio * (210 - 20));
+function availabilityColor(cp: CarparkSummary, vehicleType: string) {
+  const forVehicle = cp.availability[vehicleType];
+  const t = forVehicle
+    ? { available: forVehicle.available ?? 0, total: forVehicle.total ?? 0 }
+    : totals(cp.availability);
 
-  return `rgb(${r},${g},${b})`;
+  if (t.total <= 0) return AVAILABILITY.unknown;
+  if (t.available <= 0) return AVAILABILITY.full;
+
+  const pct = (t.available / t.total) * 100;
+  if (pct > 30) return AVAILABILITY.plenty;
+  if (pct > 10) return AVAILABILITY.filling;
+  return AVAILABILITY.scarce;
 }
 
-const P_ICON = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='3' width='16' height='18' rx='2'/><path d='M9 17V7h4a3 3 0 0 1 0 6H9'/></svg>`;
+const INK = '#0d1013';
+const BRAND = '#facc15';
 
-function pin(color: string, size: number, selected: boolean, dimOthers: boolean) {
-  const opacity = selected ? '1' : dimOthers ? '0.8' : '1';
-  const border = selected
-    ? '3px solid white'
-    : '2.5px solid white';
-  const hit = size + 12;
-  const iconSz = Math.round(size * 0.5);
+function badge({ body, glyph, ring, size, selected = false, faded = false, dashed = false, bob = false }: {
+  body: string; glyph: string; ring: string; size: number;
+  selected?: boolean; faded?: boolean; dashed?: boolean; bob?: boolean;
+}) {
+  const hit = size + 14;
+  const stem = Math.round(size * 0.34);
+  const outline = selected ? 3 : 2.5;
 
   const shadow = selected
-    ? 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))'
-    : 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))';
+    ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.55))'
+    : 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))';
 
-  const inner = [
-    `width:${size}px`,
-    `height:${size}px`,
-    `background:${color}`,
-    `border-radius:50% 50% 50% 0`,
-    `transform:rotate(-45deg)`,
-    `border:${border}`,
-    `opacity:${opacity}`,
-    `pointer-events:none`,
-    `position:relative`,
+  const wrap = [
+    `width:${hit}px`,
+    `height:${hit}px`,
+    `display:flex`,
+    `flex-direction:column`,
+    `align-items:center`,
+    `justify-content:center`,
+    `cursor:pointer`,
     `filter:${shadow}`,
+    `opacity:${faded ? 0.75 : 1}`,
   ].join(';');
 
-  const iconStyle = [
-    `position:absolute`,
-    `inset:0`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
-    `transform:rotate(45deg)`,
-  ].join(';');
-
-  const outer = [
-    `width:${hit}px`,
-    `height:${hit}px`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
-    `cursor:pointer`,
-  ].join(';');
-
-  return L.divIcon({
-    className: '',
-    iconSize: [hit, hit],
-    iconAnchor: [hit / 2, hit],
-    popupAnchor: [0, -hit],
-    html: `<div style="${outer}"><div style="${inner}"><div style="${iconStyle}"><span style="width:${iconSz}px;height:${iconSz}px;display:flex">${P_ICON}</span></div></div></div>`,
-  });
-}
-
-function bgPin(size: number) {
-  const hit = size + 12;
-  const iconSz = Math.round(size * 0.5);
-
-  const inner = [
+  const box = [
     `width:${size}px`,
     `height:${size}px`,
-    `background:rgba(100,116,139,0.6)`,
-    `border-radius:50% 50% 50% 0`,
-    `transform:rotate(-45deg)`,
-    `border:2px solid rgba(255,255,255,0.6)`,
+    `background:${body}`,
+    `border-radius:${Math.round(size * 0.3)}px`,
+    `border:${outline}px ${dashed ? 'dashed' : 'solid'} ${ring}`,
+    `display:flex`,
+    `align-items:center`,
+    `justify-content:center`,
+    `color:${glyph}`,
+    `font-weight:900`,
+    `font-size:${Math.round(size * 0.55)}px`,
+    `line-height:1`,
+    `font-family:Inter,system-ui,sans-serif`,
     `pointer-events:none`,
-    `position:relative`,
   ].join(';');
 
-  const iconStyle = [
-    `position:absolute`,
-    `inset:0`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
+  const tip = [
+    `width:${stem}px`,
+    `height:${stem}px`,
+    `margin-top:-${Math.round(stem * 0.6)}px`,
+    `background:${body}`,
+    `border-right:${outline}px solid ${ring}`,
+    `border-bottom:${outline}px solid ${ring}`,
+    `border-bottom-right-radius:3px`,
     `transform:rotate(45deg)`,
-  ].join(';');
-
-  const outer = [
-    `width:${hit}px`,
-    `height:${hit}px`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
-    `cursor:pointer`,
+    `pointer-events:none`,
   ].join(';');
 
   return L.divIcon({
