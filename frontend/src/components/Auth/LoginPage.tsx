@@ -81,30 +81,30 @@ export function LoginPage({
           />
         ) : (
           <div className="p-6 flex flex-col gap-3">
-            <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">
+            <h2 className="text-xl font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2 border-b-2 border-gray-100 dark:border-neutral-700 pb-2">
               {isLoginView ? 'Driver Login' : 'Create Account'}
             </h2>
             <form onSubmit={onAuth} className="flex flex-col gap-3">
-              {authError && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{authError}</div>}
+              {authError && <div className="animate-drop-in text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2.5 rounded text-sm font-bold border border-red-200 dark:border-red-900/60">{authError}</div>}
               {!isLoginView && (
                 <InputRow icon={<User className="text-gray-400 mr-3 shrink-0" size={20} />}>
                   <input type="text" placeholder="Username" value={username}
                     onChange={e => setUsername(e.target.value)} required
-                    className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+                    className="bg-transparent w-full outline-none text-base font-bold text-gray-700 dark:text-gray-200" />
                 </InputRow>
               )}
               <InputRow icon={<Mail className="text-gray-400 mr-3 shrink-0" size={20} />}>
                 <input type="email" placeholder="Email Address" value={email}
                   onChange={e => setEmail(e.target.value)} required
-                  className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+                  className="bg-transparent w-full outline-none text-base font-bold text-gray-700 dark:text-gray-200" />
               </InputRow>
               <div>
                 <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
                   <input type={showPassword ? 'text' : 'password'} placeholder="Password" value={password}
                     onChange={e => setPassword(e.target.value)} required
-                    className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+                    className="bg-transparent w-full outline-none text-base font-bold text-gray-700 dark:text-gray-200" />
                   <button type="button" onClick={() => setShowPassword(!showPassword)}
-                    className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition">
+                    className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition p-2 -m-1">
                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                   </button>
                 </InputRow>
