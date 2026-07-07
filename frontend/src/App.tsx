@@ -8,17 +8,53 @@ import { SearchForm } from './components/Sidebar/SearchForm';
 import { RouteInfo } from './components/Sidebar/RouteInfo';
 import { ResultsList } from './components/Sidebar/ResultsList';
 import { FavoritesList } from './components/Sidebar/FavoritesList';
+import { MobileSearchBar } from './components/Mobile/SearchBar';
+import { MobileChips } from './components/Mobile/Chips';
+import { MobileSheet } from './components/Mobile/Sheet';
+import { MobileDetail } from './components/Mobile/Detail';
+import { MobileResults, SheetSummary, LocateButton, ReopenPill } from './components/Mobile/Results';
+import { MapControls } from './components/MapControls';
+import type { FocusPoint } from './components/Map';
+import { latLngBounds } from 'leaflet';
+import type { Map as LeafletMap } from 'leaflet';
+import { cockpit } from './components/Mobile/theme';
 import { useAuth } from './hooks/useAuth';
 import { useWeather } from './hooks/useWeather';
 import { useDarkMode } from './hooks/useDarkMode';
 import { useFavorites } from './hooks/useFavorites';
 import { useRoutes } from './hooks/useRoutes';
 import { useLocation } from './hooks/useLocation';
+import { useLayoutMode } from './hooks/useLayoutMode';
+import { useBottomSheet } from './hooks/useBottomSheet';
+import { useLiveAvailability } from './hooks/useLiveAvailability';
 import { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation, fetchNearbyParking } from './providers/geoapify';
-import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './providers/carparks';
+import { fetchAll, fetchNearby, fetchDetail } from './providers/carparks';
+import type { AvailabilityMap } from './providers/carparks';
 import { estimateCost } from './utils/estimateCost';
-import { totals, parseDurationSecs, formatClockTime } from './utils/format';
+import { hasFreeLots, parseDurationSecs, formatClockTime } from './utils/format';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, PlaceSuggestion, NearbyParking } from './types';
+
+const SHEET_TOP_INSET = 172;
+const PARKING_HINT_H = 44;
+const EMPTY_CARPARKS: CarparkSummary[] = [];
+
+const strippedName = (name: string | null | undefined) =>
+  (name || '')
+    .toLowerCase()
+    .replace(/\b(car\s?parks?|parking|off\s?street|multi[- ]?storey|basement)\b/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+
+const isAlreadyPlotted = (p: NearbyParking, plotted: CarparkSummary[]) =>
+  plotted.some(cp => {
+    const dLat = Math.abs(cp.lat - p.lat);
+    const dLng = Math.abs(cp.lng - p.lng);
+    if (dLat < 0.0008 && dLng < 0.0008) return true;
+    if (dLat > 0.003 || dLng > 0.003) return false;
+    const a = strippedName(cp.name);
+    const b = strippedName(p.name);
+    return a.length > 3 && b.length > 3 && (a.includes(b) || b.includes(a));
+  });
 
 export default function GoParkApp() {
   const auth = useAuth();
@@ -26,6 +62,10 @@ export default function GoParkApp() {
   const { darkMode, toggleDarkMode } = useDarkMode();
   const { favorites, loadFavorites, toggleFav, clearFavorites } = useFavorites(auth.appState);
   const loc = useLocation();
+  const layout = useLayoutMode();
+  const isDesktop = layout === 'desktop';
+  const isSheet = layout === 'sheet';
+  const isRail = layout === 'rail';
 
   const [hasSearched, setHasSearched] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
