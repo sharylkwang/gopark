@@ -1,19 +1,22 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, Polyline, useMap } from 'react-leaflet';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L, { LatLngBounds } from 'leaflet';
 import { CameraFlyer } from './CameraFlyer';
 import { EventHandler } from './EventHandler';
 import { MarkerCluster } from './MarkerCluster';
 import { SingaporeBoundary } from './layers/SingaporeBoundary';
+import { OSMBuildingLayer } from './layers/OSMBuildingLayer';
+import type { BuildingStatus } from './layers/OSMBuildingLayer';
 import { TileLayerSwitcher } from './TileLayerSwitcher';
 import { Google3DMap } from './layers/Google3DMap';
 import type { Map3DMode } from './layers/Google3DMap';
 import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import { reverseGeocode } from '../../providers/geoapify';
 import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../types';
+import type { LayoutMode } from '../../hooks/useLayoutMode';
 import type { MapEventHandlers } from '../../types/map';
 import type { RouteResult, SpeedInterval } from '../../providers/google/routing';
-import { formatDistance, formatDuration, parseDurationSecs } from '../../utils/format';
+import { formatDuration, parseDurationSecs } from '../../utils/format';
 
 const SPEED_COLORS: Record<string, string> = {
   NORMAL: '#22c55e',
