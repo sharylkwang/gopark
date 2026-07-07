@@ -24,12 +24,6 @@ const SPEED_COLORS: Record<string, string> = {
   TRAFFIC_JAM: '#dc2626',
 };
 
-const TRAFFIC_LABELS: Record<string, string> = {
-  NORMAL: 'Light traffic',
-  MODERATE: 'Moderate traffic',
-  HEAVY: 'Heavy traffic',
-};
-
 const TRAFFIC_DOT: Record<string, string> = {
   NORMAL: '#22c55e',
   MODERATE: '#f59e0b',

@@ -57,38 +57,64 @@ function pointInPolygon(point: [number, number], ring: [number, number][]): bool
   return inside;
 }
 
-export function OSMBuildingLayer() {
+export interface BuildingStatus {
+  state: 'loading' | 'ready' | 'error';
+  count: number;
+}
+
+export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }: {
+  darkMode?: boolean;
+  retryToken?: number;
+  onStatus?: (status: BuildingStatus) => void;
+}) {
   const map = useMap();
   const buildingsRef = useRef<any>(null);
   const [ready, setReady] = useState(!!window.OSMBuildings);
-  const featuresRef = useRef<BuildingFeature[]>([]);
-  const loadedTilesRef = useRef(new Set<string>());
+  const tilesRef = useRef<Map<string, Tile>>(new Map());
   const selectedIdRef = useRef<number | null>(null);
+  const palette = darkMode ? PALETTE.dark : PALETTE.light;
+  const paletteRef = useRef(palette);
+  paletteRef.current = palette;
+  const statusRef = useRef<(s: BuildingStatus) => void>(() => {});
+  statusRef.current = onStatus ?? (() => {});
+  const failedTilesRef = useRef<Map<string, number>>(new Map());
+  const circuitOpenRef = useRef(false);
 
   useEffect(() => {
     if (window.OSMBuildings) {
       setReady(true);
       return;
     }
+    statusRef.current({ state: 'loading', count: 0 });
+
     const script = document.createElement('script');
     script.src = CDN_URL;
     script.onload = () => setReady(true);
+    script.onerror = () => statusRef.current({ state: 'error', count: 0 });
     document.head.appendChild(script);
   }, []);
 
   useEffect(() => {
     if (!ready) return;
 
+    const anyMap = map as unknown as { _zoomAnimated: boolean };
+    const prevAnimation = map.options.zoomAnimation;
+    const prevAnimated = anyMap._zoomAnimated;
+    map.options.zoomAnimation = false;
+    anyMap._zoomAnimated = false;
+
     const osm = new window.OSMBuildings(map);
     osm.style({
-      color: DEFAULT_COLOR,
-      roofColor: DEFAULT_ROOF,
+      color: paletteRef.current.wall,
+      roofColor: paletteRef.current.roof,
       shadows: true,
       height: 'height',
     });
     buildingsRef.current = osm;
 
     return () => {
+      map.options.zoomAnimation = prevAnimation;
+      anyMap._zoomAnimated = prevAnimated;
       if (buildingsRef.current) {
         map.removeLayer(buildingsRef.current);
         buildingsRef.current = null;
