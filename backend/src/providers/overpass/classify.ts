@@ -3,12 +3,46 @@ import createLogger from '../../lib/logger.js';
 
 const log = createLogger('overpass');
 
-const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
+const OVERPASS_MIRRORS = [
+  'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
+  'https://overpass.private.coffee/api/interpreter',
+  'https://overpass.osm.jp/api/interpreter',
+  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
+];
+
+const MIRROR_TIMEOUT_MS = 12000;
+
+// The public instances go down or rate-limit regularly, and they answer with an HTML error
+// page rather than a failed request, so a bad body has to count as a failure too.
+async function overpassQuery(query: string): Promise<any> {
+  let lastError: unknown = null;
+
+  for (const mirror of OVERPASS_MIRRORS) {
+    try {
+      const { data } = await axios.post(mirror, `data=${encodeURIComponent(query)}`, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Accept': 'application/json',
+          'User-Agent': 'GoPark/1.0',
+        },
+        timeout: MIRROR_TIMEOUT_MS,
+      });
+
+      if (data && Array.isArray(data.elements)) return data;
+      lastError = new Error(`${mirror} returned a non-JSON response`);
+    } catch (e) {
+      lastError = e;
+    }
+  }
+
+  throw lastError ?? new Error('All Overpass mirrors unreachable');
+}
 
 const classifyCache = new Map<string, { data: PlaceClassification | null; ts: number }>();
 const parkingCache = new Map<string, { data: NearbyParking[]; ts: number }>();
 const CACHE_TTL = 10 * 60 * 1000;
-const CLASSIFY_RADIUS_M = 80;
+const CLASSIFY_RADIUS_M = 150;
 const NEARBY_PARKING_RADIUS_M = 500;
 
 interface PlaceClassification {
@@ -36,13 +70,28 @@ const BUILDING_TYPES: Record<string, [string, boolean, string]> = {
 const AMENITY_TYPES: Record<string, [string, boolean, string]> = {
   hospital: ['Hospital', true, 'Hospital carpark available'],
   clinic: ['Clinic', true, 'Building parking likely'],
+  doctors: ['Clinic', true, 'Building parking likely'],
   school: ['School', true, 'Visitor parking may be limited'],
   university: ['University', true, 'Campus parking available'],
   college: ['Education', true, 'Visitor parking may be limited'],
   place_of_worship: ['Place of Worship', true, 'May have limited parking'],
   marketplace: ['Market / Food Court', false, 'Nearby HDB parking'],
   food_court: ['Market / Food Court', false, 'Nearby HDB parking'],
+  cinema: ['Cinema', true, 'Mall parking available'],
+  theatre: ['Theatre', true, 'Venue parking available'],
+  library: ['Library', true, 'Visitor parking available'],
+  community_centre: ['Community Centre', true, 'Visitor parking available'],
+  townhall: ['Civic Building', true, 'Visitor parking available'],
+  courthouse: ['Civic Building', true, 'Visitor parking available'],
+  police: ['Police Station', true, 'Visitor parking available'],
+  bus_station: ['Bus Interchange', true, 'Interchange parking nearby'],
+  ferry_terminal: ['Ferry Terminal', true, 'Terminal parking available'],
+  exhibition_centre: ['Convention Centre', true, 'Venue parking available'],
+  conference_centre: ['Convention Centre', true, 'Venue parking available'],
 };
+
+// Tags that identify a real venue, as opposed to a plain building outline.
+const VENUE_KEYS = ['amenity', 'shop', 'tourism', 'leisure', 'office', 'healthcare', 'aeroway'];
 
 function toResult(tuple: [string, boolean, string]): PlaceClassification {
   return { type: tuple[0], hasParking: tuple[1], parkingHint: tuple[2] };
@@ -70,13 +119,23 @@ function classifyTags(tags: Record<string, string>): PlaceClassification | null 
 
   if (landuse === 'residential') return { type: 'Residential Area', hasParking: true, parkingHint: 'HDB / street parking nearby' };
 
+  // Big venues carry shop tags too (an airport terminal or a hospital full of retail), so the
+  // specific venue type has to win over the generic shopping one.
+  if (tags['aeroway'] === 'terminal' || building === 'terminal')
+    return { type: 'Airport Terminal', hasParking: true, parkingHint: 'Terminal carpark available' };
+
+  if (tags['healthcare'] === 'hospital' || building === 'hospital')
+    return toResult(AMENITY_TYPES['hospital']);
+
   if (AMENITY_TYPES[amenity]) return toResult(AMENITY_TYPES[amenity]);
 
   if (tags['tourism'] === 'hotel' || building === 'hotel')
     return toResult(BUILDING_TYPES['hotel']);
 
-  if (shop === 'supermarket' || shop === 'mall' || shop === 'department_store')
+  if (shop === 'supermarket' || shop === 'mall' || shop === 'department_store' || building === 'mall')
     return { type: 'Shopping', hasParking: true, parkingHint: 'Store / mall parking available' };
+
+  if (tags['office']) return toResult(BUILDING_TYPES['office']);
 
   if (BUILDING_TYPES[building]) return toResult(BUILDING_TYPES[building]);
   if (landuse === 'commercial') return toResult(BUILDING_TYPES['commercial']);
@@ -96,6 +155,50 @@ function classifyTags(tags: Record<string, string>): PlaceClassification | null 
   return null;
 }
 
+const OVERRIDE_RADIUS_M = 80;
+
+function distanceM(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+
+function elementDistance(el: any, lat: number, lng: number): number {
+  const elLat = el?.lat ?? el?.center?.lat;
+  const elLng = el?.lon ?? el?.center?.lon;
+  if (typeof elLat !== 'number' || typeof elLng !== 'number') return Infinity;
+  return distanceM(lat, lng, elLat, elLng);
+}
+
+// An enclosing venue beats a neighbour, a named venue beats a bare building outline, and among
+// neighbours the closer one wins — otherwise a big landmark down the road hijacks the answer.
+function elementScore(el: any, lat?: number, lng?: number): number {
+  const tags = el?.tags ?? {};
+  let score = 0;
+
+  if (el?.type === 'area') score += 50;
+
+  if (VENUE_KEYS.some(key => tags[key])) score += 30;
+
+  const building = tags['building'];
+  if (building && building !== 'yes') score += 20;
+  else if (building) score += 5;
+
+  if (tags['landuse']) score += 2;
+  if (tags['name']) score += 3;
+
+  if (lat !== undefined && lng !== undefined && el?.type !== 'area') {
+    const d = elementDistance(el, lat, lng);
+    if (Number.isFinite(d)) score -= Math.min(d / 20, 12);
+  }
+
+  return score;
+}
+
 export interface NearbyParking {
   lat: number;
   lng: number;
@@ -110,26 +213,20 @@ export async function findNearbyParking(lat: number, lng: number, radius = NEARB
   const cached = parkingCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
+  // nwr picks up multipolygon carparks that node/way alone miss, and parking entrances are
+  // often the only mapped feature for a hospital or hotel's underground carpark.
   const query = `
-    [out:json][timeout:10];
+    [out:json][timeout:25];
     (
-      node(around:${radius},${lat},${lng})["amenity"="parking"];
-      way(around:${radius},${lat},${lng})["amenity"="parking"];
-      node(around:${radius},${lat},${lng})["parking"];
-      way(around:${radius},${lat},${lng})["parking"];
+      nwr(around:${radius},${lat},${lng})["amenity"="parking"];
+      nwr(around:${radius},${lat},${lng})["parking"];
+      nwr(around:${radius},${lat},${lng})["amenity"="parking_entrance"];
     );
     out center tags;
   `;
 
   try {
-    const { data } = await axios.post(OVERPASS_URL, `data=${encodeURIComponent(query)}`, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'User-Agent': 'GoPark/1.0',
-      },
-      timeout: 8000,
-    });
+    const data = await overpassQuery(query);
 
     const seen = new Set<string>();
     const results: NearbyParking[] = [];
@@ -149,6 +246,7 @@ export async function findNearbyParking(lat: number, lng: number, radius = NEARB
         : parking === 'underground' ? 'Underground'
         : parking === 'surface' ? 'Surface Lot'
         : parking === 'street_side' || parking === 'on_street' || parking === 'lane' ? 'Street Parking'
+        : parking === 'parking_entrance' ? 'Carpark Entrance'
         : 'Carpark';
 
       const nameLC = (tags['name'] || '').toLowerCase();
@@ -180,8 +278,29 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
   const cached = classifyCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-  const query = `
-    [out:json][timeout:10];
+  // `around` measures distance to a way's geometry, so a pin dropped in the middle of a large
+  // hospital or hotel sits further from its walls than the radius and never matches it. `is_in`
+  // returns the areas that enclose the point regardless of their size, so it is tried first;
+  // the radial search is only needed when the point falls outside any mapped area.
+  const containing = `
+    [out:json][timeout:25];
+    is_in(${lat},${lng})->.here;
+    (
+      area.here["building"];
+      area.here["amenity"];
+      area.here["shop"];
+      area.here["tourism"];
+      area.here["leisure"];
+      area.here["office"];
+      area.here["healthcare"];
+      area.here["aeroway"];
+      area.here["landuse"];
+    );
+    out tags;
+  `;
+
+  const nearby = `
+    [out:json][timeout:25];
     (
       nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["building"];
       nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["landuse"];
@@ -193,34 +312,36 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
     out tags center;
   `;
 
-  try {
-    const { data } = await axios.post(OVERPASS_URL, `data=${encodeURIComponent(query)}`, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'Accept': 'application/json',
-        'User-Agent': 'GoPark/1.0',
-      },
-      timeout: 8000,
-    });
-
-    const elements = data?.elements ?? [];
-    if (!elements.length) return null;
-
-    elements.sort((a: any, b: any) => {
-      const score = (e: any) => (e.tags?.name ? 2 : 0) + (e.tags?.building ? 1 : 0);
-      return score(b) - score(a);
-    });
-
+  // A landuse polygon says nothing about the venue standing on it, so a match found only from
+  // landuse is provisional: a named venue from the radial search should still beat it.
+  const pick = (elements: any[]): { result: PlaceClassification; strong: boolean; distance: number } | null => {
+    elements.sort((a, b) => elementScore(b, lat, lng) - elementScore(a, lat, lng));
     for (const el of elements) {
-      const result = classifyTags(el.tags || {});
-      if (result) {
-        classifyCache.set(cacheKey, { data: result, ts: Date.now() });
-        return result;
-      }
+      const tags = el.tags || {};
+      const result = classifyTags(tags);
+      if (!result) continue;
+
+      const isVenue = VENUE_KEYS.some(key => tags[key]) || (tags['building'] && tags['building'] !== 'yes');
+      return { result, strong: !!isVenue, distance: elementDistance(el, lat, lng) };
+    }
+    return null;
+  };
+
+  try {
+    const enclosing = pick((await overpassQuery(containing)).elements ?? []);
+    let best = enclosing;
+
+    // Only let the radial search override an enclosing landuse when the venue it found is close
+    // enough to be the thing the pin is actually on.
+    if (!enclosing?.strong) {
+      const around = pick((await overpassQuery(nearby)).elements ?? []);
+      const closeEnough = around?.strong && around.distance <= OVERRIDE_RADIUS_M;
+      if (closeEnough || !enclosing) best = around ?? enclosing;
     }
 
-    classifyCache.set(cacheKey, { data: null, ts: Date.now() });
-    return null;
+    const result = best?.result ?? null;
+    classifyCache.set(cacheKey, { data: result, ts: Date.now() });
+    return result;
   } catch (e) {
     log.warn(`overpass classify failed: ${e instanceof Error ? e.message : e}`);
     return null;
