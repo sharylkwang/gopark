@@ -89,20 +89,29 @@ function badge({ body, glyph, ring, size, selected = false, faded = false, dashe
     iconSize: [hit, hit],
     iconAnchor: [hit / 2, hit],
     popupAnchor: [0, -hit],
-    html: `<div style="${outer}"><div style="${inner}"><div style="${iconStyle}"><span style="width:${iconSz}px;height:${iconSz}px;display:flex">${P_ICON}</span></div></div></div>`,
+    html: `<div class="${bob ? 'gp-bob' : ''}" style="${wrap}"><div style="${box}">P</div><div style="${tip}"></div></div>`,
   });
 }
 
-function clusterIcon(count: number, zoom: number) {
+function pin(color: string, size: number, selected: boolean, dimOthers: boolean, _darkBasemap: boolean, bob = false) {
+  return selected
+    ? badge({ body: color, glyph: '#ffffff', ring: BRAND, size: size + 4, selected: true, bob })
+    : badge({ body: color, glyph: '#ffffff', ring: '#ffffff', size, faded: dimOthers, bob });
+}
+
+function bgPin(size: number, darkBasemap: boolean) {
+  return darkBasemap
+    ? badge({ body: 'rgba(30,41,59,0.9)', glyph: '#cbd5e1', ring: '#64748b', size: size - 2, faded: true })
+    : badge({ body: '#ffffff', glyph: '#64748b', ring: '#94a3b8', size: size - 2, faded: true });
+}
+
+function clusterIcon(count: number, zoom: number, darkBasemap: boolean) {
   const base = zoom < 13 ? 52 : zoom < 15 ? 46 : zoom < 17 ? 40 : 36;
   const scale = Math.min(1 + Math.log10(count) * 0.15, 1.4);
   const size = Math.round(base * scale);
   const fontSize = size < 40 ? 11 : 13;
 
-  let bg = '#4ade80';
-  if (count > 100) bg = '#15803d';
-  else if (count > 30) bg = '#16a34a';
-  else if (count > 10) bg = '#22c55e';
+  const ring = count > 100 ? '#facc15' : count > 30 ? '#fbbf24' : '#fde047';
 
   const label = count >= 1000
     ? `${(count / 1000).toFixed(1)}k`

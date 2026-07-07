@@ -11,11 +11,38 @@ declare global {
 
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/osmbuildings@0.2.0-b/dist/OSMBuildings-Leaflet.js';
 const MIN_ZOOM = 16;
+const ZOOM_EPSILON = 0.5;
+const FAIL_COOLDOWN_MS = 60000;
+const VIEWPORT_PAD = 0.2;
+const KEEP_TILES = 12;
 
-const DEFAULT_COLOR = '#ececec';
-const DEFAULT_ROOF = '#dedede';
-const HIGHLIGHT_COLOR = '#ef4444';
-const HIGHLIGHT_ROOF = '#b91c1c';
+const PALETTE = {
+  light: { wall: '#ececec', roof: '#dedede' },
+  dark: { wall: '#3a424c', roof: '#2b323a' },
+};
+const HIGHLIGHT_COLOR = '#facc15';
+const HIGHLIGHT_ROOF = '#eab308';
+
+type Bounds = { north: number; south: number; east: number; west: number };
+type Cell = { feature: BuildingFeature; minLng: number; minLat: number; maxLng: number; maxLat: number };
+type Tile = { cells: Cell[]; touched: number };
+
+function cellOf(feature: BuildingFeature): Cell {
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  for (const ring of feature.geometry.coordinates) {
+    for (const [lng, lat] of ring) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  return { feature, minLng, minLat, maxLng, maxLat };
+}
+
+function inView(cell: Cell, b: Bounds): boolean {
+  return cell.minLng <= b.east && cell.maxLng >= b.west && cell.minLat <= b.north && cell.maxLat >= b.south;
+}
 
 function pointInPolygon(point: [number, number], ring: [number, number][]): boolean {
   const [px, py] = point;
