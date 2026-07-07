@@ -162,7 +162,22 @@ interface Props {
   startCoords?: [number, number] | null;
   sidebarOpen?: boolean;
   nearbyParking?: NearbyParking[];
+  layout?: LayoutMode;
+  hideSwitcher?: boolean;
+  darkMode?: boolean;
+  focusPoint?: FocusPoint | null;
+  vehicleType?: string;
+  recommendedId?: string | null;
+  onMapReady?: (map: L.Map) => void;
 }
+
+export interface FocusPoint {
+  lat: number;
+  lng: number;
+  token: number;
+}
+
+const DARK_TILE = 'carto-dark';
 
 function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
   const map = useMap();
