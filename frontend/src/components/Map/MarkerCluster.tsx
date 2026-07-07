@@ -124,11 +124,12 @@ function clusterIcon(count: number, zoom: number, darkBasemap: boolean) {
     `width:${size}px`,
     `height:${size}px`,
     `border-radius:50%`,
-    `background:${bg}`,
-    `color:white`,
+    `background:${darkBasemap ? BRAND : INK}`,
+    `color:${darkBasemap ? INK : '#ffffff'}`,
     `font-weight:900`,
     `font-size:${fontSize}px`,
-    `border:3px solid white`,
+    `border:3px solid ${ring}`,
+    `box-shadow:0 2px 8px rgba(0,0,0,0.45), 0 0 0 1.5px rgba(255,255,255,0.85)`,
     `cursor:pointer`,
   ].join(';');
 

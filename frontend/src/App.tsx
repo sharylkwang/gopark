@@ -74,6 +74,10 @@ export default function GoParkApp() {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
 
+  const showParkingHint = !!destinationPoint?.classification?.parkingHint
+    && !/HDB|Residential/i.test(destinationPoint.classification.type || '');
+  const sheet = useBottomSheet(SHEET_TOP_INSET + (showParkingHint ? PARKING_HINT_H : 0));
+
   useEffect(() => {
     if (destinationPoint) {
       updateForCoords(destinationPoint.lat, destinationPoint.lng);
