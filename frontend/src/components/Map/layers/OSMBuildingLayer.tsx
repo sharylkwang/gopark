@@ -4,28 +4,17 @@ import { fetchBuildingTile, getTilesForBounds } from '../../../providers/osm';
 import type { BuildingFeature } from '../../../providers/osm';
 
 declare global {
-  interface Window {
-    OSMBuildings: any;
-  }
+  interface Window { OSMBuildings: any }
 }
 
-const CDN_URL = 'https://cdn.jsdelivr.net/npm/osmbuildings@0.2.0-b/dist/OSMBuildings-Leaflet.js';
-const MIN_ZOOM = 16;
-
-const DEFAULT_COLOR = '#ececec';
-const DEFAULT_ROOF = '#dedede';
-const HIGHLIGHT_COLOR = '#ef4444';
-const HIGHLIGHT_ROOF = '#b91c1c';
+const minZoom = 16;
 
 function pointInPolygon(point: [number, number], ring: [number, number][]): boolean {
   const [px, py] = point;
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
 }
@@ -39,12 +28,9 @@ export function OSMBuildingLayer() {
   const selectedIdRef = useRef<number | null>(null);
 
   useEffect(() => {
-    if (window.OSMBuildings) {
-      setReady(true);
-      return;
-    }
+    if (window.OSMBuildings) { setReady(true); return; }
     const script = document.createElement('script');
-    script.src = CDN_URL;
+    script.src = 'https://cdn.jsdelivr.net/npm/osmbuildings@0.2.0-b/dist/OSMBuildings-Leaflet.js';
     script.onload = () => setReady(true);
     document.head.appendChild(script);
   }, []);
@@ -53,19 +39,11 @@ export function OSMBuildingLayer() {
     if (!ready) return;
 
     const osm = new window.OSMBuildings(map);
-    osm.style({
-      color: DEFAULT_COLOR,
-      roofColor: DEFAULT_ROOF,
-      shadows: true,
-      height: 'height',
-    });
+    osm.style({ color: '#ececec', roofColor: '#dedede', shadows: true, height: 'height' });
     buildingsRef.current = osm;
 
     return () => {
-      if (buildingsRef.current) {
-        map.removeLayer(buildingsRef.current);
-        buildingsRef.current = null;
-      }
+      if (buildingsRef.current) { map.removeLayer(buildingsRef.current); buildingsRef.current = null; }
     };
   }, [ready, map]);
 
@@ -76,30 +54,18 @@ export function OSMBuildingLayer() {
       const isSelected = selectedId !== null && f.properties.id === selectedId;
       return {
         ...f,
-        properties: {
-          ...f.properties,
-          color: isSelected ? HIGHLIGHT_COLOR : DEFAULT_COLOR,
-          roofColor: isSelected ? HIGHLIGHT_ROOF : DEFAULT_ROOF,
-        },
+        properties: { ...f.properties, color: isSelected ? '#ef4444' : '#ececec', roofColor: isSelected ? '#b91c1c' : '#dedede' },
       };
     });
 
-    buildingsRef.current.set({
-      type: 'FeatureCollection',
-      features: colored,
-    });
+    buildingsRef.current.set({ type: 'FeatureCollection', features: colored });
   }, []);
 
   const loadVisibleBuildings = useCallback(async () => {
-    if (!buildingsRef.current || Math.floor(map.getZoom()) < MIN_ZOOM) return;
+    if (!buildingsRef.current || Math.floor(map.getZoom()) < minZoom) return;
 
     const bounds = map.getBounds();
-    const { z, tiles } = getTilesForBounds({
-      north: bounds.getNorth(),
-      south: bounds.getSouth(),
-      east: bounds.getEast(),
-      west: bounds.getWest(),
-    });
+    const { z, tiles } = getTilesForBounds({ north: bounds.getNorth(), south: bounds.getSouth(), east: bounds.getEast(), west: bounds.getWest() });
 
     let hasNew = false;
 
@@ -113,9 +79,7 @@ export function OSMBuildingLayer() {
         if (features.length > 0) {
           const existingIds = new Set(featuresRef.current.map((f: BuildingFeature) => f.properties.id));
           for (const f of features) {
-            if (!existingIds.has(f.properties.id)) {
-              featuresRef.current.push(f);
-            }
+            if (!existingIds.has(f.properties.id)) featuresRef.current.push(f);
           }
           hasNew = true;
         }
@@ -128,23 +92,19 @@ export function OSMBuildingLayer() {
   }, [map, renderBuildings]);
 
   useEffect(() => {
-    if (ready && buildingsRef.current) {
-      loadVisibleBuildings();
-    }
+    if (ready && buildingsRef.current) loadVisibleBuildings();
   }, [ready, loadVisibleBuildings]);
 
   useMapEvents({
     zoomend: () => {
       if (!buildingsRef.current) return;
-      if (Math.floor(map.getZoom()) > MIN_ZOOM) {
-        loadVisibleBuildings();
-      }
+      if (Math.floor(map.getZoom()) > minZoom) loadVisibleBuildings();
     },
     moveend: () => {
-      if (Math.floor(map.getZoom()) > MIN_ZOOM) loadVisibleBuildings();
+      if (Math.floor(map.getZoom()) > minZoom) loadVisibleBuildings();
     },
     click: (e) => {
-      if (Math.floor(map.getZoom()) < MIN_ZOOM) return;
+      if (Math.floor(map.getZoom()) < minZoom) return;
 
       const clicked: [number, number] = [e.latlng.lng, e.latlng.lat];
       const found = featuresRef.current.find((feature: BuildingFeature) => {

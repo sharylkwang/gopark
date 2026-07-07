@@ -4,18 +4,14 @@ import createLogger from '../../lib/logger.js';
 
 const log = createLogger('search');
 
-let searchDown = false;
-let searchDownSince = 0;
-const COOLDOWN = 6 * 60 * 60 * 1000;
+let downUntil = 0;
 
 export function isSearchAvailable(): boolean {
-  if (!searchDown) return true;
-  if (Date.now() - searchDownSince > COOLDOWN) {
-    searchDown = false;
-    log.info('search cooldown expired, retrying');
-    return true;
-  }
-  return false;
+  if (!downUntil) return true;
+  if (Date.now() < downUntil) return false;
+  downUntil = 0;
+  log.info('search cooldown over, trying again');
+  return true;
 }
 
 export async function searchWeb(query: string): Promise<string[]> {
@@ -32,14 +28,13 @@ export async function searchWeb(query: string): Promise<string[]> {
       const url = m[1];
       if (!url.includes('duckduckgo') && !url.includes('google.com/url')) urls.push(url);
     }
-    searchDown = false;
+    downUntil = 0;
     return [...new Set(urls)].slice(0, SCRAPER.maxSearchResults);
   } catch (e) {
     const code = (e as { code?: string }).code;
     if (code === 'ECONNREFUSED' || code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
-      searchDown = true;
-      searchDownSince = Date.now();
-      log.warn(`search unreachable (${code}), backing off for 6 hours`);
+      downUntil = Date.now() + 6 * 60 * 60 * 1000;
+      log.warn(`search unreachable (${code}), backing off 6h`);
     }
     throw e;
   }

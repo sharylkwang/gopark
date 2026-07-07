@@ -6,41 +6,37 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
 
-const mockUserFindUnique = jest.fn();
-const mockUserCreate = jest.fn();
-const mockUserUpdate = jest.fn();
+const findUser = jest.fn(), createUser = jest.fn(), updateUser = jest.fn();
 
 jest.unstable_mockModule('@prisma/client', () => ({
   PrismaClient: jest.fn().mockImplementation(() => ({
-    user: { findUnique: mockUserFindUnique, create: mockUserCreate, update: mockUserUpdate },
+    user: { findUnique: findUser, create: createUser, update: updateUser },
     passwordHistory: { findMany: jest.fn(), create: jest.fn() },
     $transaction: jest.fn(),
   })),
 }));
 
-const mockHash = jest.fn();
-const mockCompare = jest.fn();
-jest.unstable_mockModule('bcryptjs', () => ({ default: { hash: mockHash, compare: mockCompare } }));
+const hash = jest.fn(), compare = jest.fn();
+jest.unstable_mockModule('bcryptjs', () => ({ default: { hash, compare } }));
 
-const mockSign = jest.fn();
-const mockVerify = jest.fn();
-jest.unstable_mockModule('jsonwebtoken', () => ({ default: { sign: mockSign, verify: mockVerify } }));
+const sign = jest.fn(), verify = jest.fn();
+jest.unstable_mockModule('jsonwebtoken', () => ({ default: { sign, verify } }));
 
-const mockSendMail = jest.fn();
+const sendMail = jest.fn();
 jest.unstable_mockModule('nodemailer', () => ({
-  default: { createTransport: jest.fn().mockReturnValue({ sendMail: mockSendMail }) },
+  default: { createTransport: jest.fn().mockReturnValue({ sendMail }) },
 }));
 
 jest.unstable_mockModule('express-rate-limit', () => ({
   default: jest.fn().mockImplementation(() => (_req: any, _res: any, next: any) => next()),
 }));
 
-const mockCaptchaVerify = jest.fn();
-jest.unstable_mockModule('../../src/providers/auth/routing', () => ({ captchaVerify: mockCaptchaVerify }));
+const captchaOk = jest.fn();
+jest.unstable_mockModule('../../src/providers/auth/routing', () => ({ captchaVerify: captchaOk }));
 
-const mockRequireAuthImpl = jest.fn();
+const authImpl = jest.fn();
 jest.unstable_mockModule('../../src/middleware/auth', () => ({
-  requireAuth: (req: any, res: any, next: any) => mockRequireAuthImpl(req, res, next),
+  requireAuth: (req: any, res: any, next: any) => authImpl(req, res, next),
   AuthRequest: {},
 }));
 
@@ -53,136 +49,137 @@ function createApp() {
   return app;
 }
 
-describe('Auth Router', () => {
+describe('auth router', () => {
   let app: ReturnType<typeof express>;
 
   beforeEach(() => {
     app = createApp();
     jest.clearAllMocks();
-    mockRequireAuthImpl.mockImplementation((req: any, _res: any, next: any) => {
+    authImpl.mockImplementation((req: any, _res: any, next: any) => {
       req.user = { id: 'user-1', email: 'test@test.com' };
       next();
     });
   });
 
   describe('POST /auth/login', () => {
-    it('returns 400 when email is missing', async () => {
+    it('400 if email missing', async () => {
       const res = await request(app).post('/auth/login').send({ password: 'Pass1234!' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Email and password are required');
     });
 
-    it('returns 400 when password is missing', async () => {
+    it('400 if password missing', async () => {
       const res = await request(app).post('/auth/login').send({ email: 'test@test.com' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Email and password are required');
     });
 
-    it('returns 401 for non-existent user', async () => {
-      mockUserFindUnique.mockResolvedValue(null);
+    it('unknown user gets 401', async () => {
+      findUser.mockResolvedValue(null);
       const res = await request(app).post('/auth/login').send({ email: 'nobody@test.com', password: 'Pass1234!' });
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('Invalid email or password');
     });
 
-    it('returns 401 for wrong password', async () => {
-      mockUserFindUnique.mockResolvedValue({
+    it('wrong password is also a 401', async () => {
+      findUser.mockResolvedValue({
         id: '1', email: 'test@test.com', password: 'hashed-pw',
         username: 'testuser', failedAttempts: 0, lockedUntil: null,
       });
-      mockCompare.mockResolvedValue(false);
-      mockUserUpdate.mockResolvedValue({});
-
+      compare.mockResolvedValue(false);
+      updateUser.mockResolvedValue({});
       const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'WrongPass1!' });
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('Invalid email or password');
     });
 
-    it('returns 200 with token for correct credentials', async () => {
-      mockUserFindUnique.mockResolvedValue({
+    it('good credentials return a token', async () => {
+      findUser.mockResolvedValue({
         id: '1', email: 'test@test.com', password: 'hashed-pw',
         username: 'testuser', failedAttempts: 0, lockedUntil: null,
       });
-      mockCompare.mockResolvedValue(true);
-      mockSign.mockReturnValue('mock-jwt-token');
+      compare.mockResolvedValue(true);
+      sign.mockReturnValue('mock-jwt-token');
 
       const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'Correct1!' });
+
       expect(res.status).toBe(200);
       expect(res.body.token).toBe('mock-jwt-token');
       expect(res.body.user).toEqual({ id: '1', username: 'testuser', email: 'test@test.com' });
     });
 
-    it('returns 423 for locked account', async () => {
-      mockUserFindUnique.mockResolvedValue({
+    it('locked account gets 423', async () => {
+      findUser.mockResolvedValue({
         id: '1', email: 'test@test.com', password: 'hashed-pw',
         username: 'testuser', failedAttempts: 5,
         lockedUntil: new Date(Date.now() + 15 * 60 * 1000),
       });
-
       const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'Any1!' });
       expect(res.status).toBe(423);
       expect(res.body.error).toContain('Account locked');
     });
+
   });
 
   describe('POST /auth/register/send-code', () => {
-    it('returns 400 for missing fields', async () => {
+    it('rejects empty body', async () => {
       const res = await request(app).post('/auth/register/send-code').send({});
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Missing required fields');
     });
 
-    it('returns 400 for invalid email', async () => {
+    it('rejects a malformed email', async () => {
       const res = await request(app).post('/auth/register/send-code')
         .send({ username: 'test', email: 'bad-email', password: 'StrongPass1!' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Invalid email address');
     });
 
-    it('returns 400 for weak password', async () => {
+    it('weak password gets the requirements message', async () => {
       const res = await request(app).post('/auth/register/send-code')
         .send({ username: 'test', email: 'test@test.com', password: 'weak' });
       expect(res.status).toBe(400);
       expect(res.body.error).toContain('Password needs');
     });
 
-    it('returns 400 for existing email', async () => {
-      mockUserFindUnique.mockResolvedValue({ id: '1', email: 'taken@test.com' });
+    it('400 when email already taken', async () => {
+      findUser.mockResolvedValue({ id: '1', email: 'taken@test.com' });
       const res = await request(app).post('/auth/register/send-code')
         .send({ username: 'test', email: 'taken@test.com', password: 'StrongPass1!' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Email already in use');
     });
 
-    it('returns 200 for valid registration data', async () => {
-      mockUserFindUnique.mockResolvedValue(null);
-      mockHash.mockResolvedValue('hashed-password');
-      mockSendMail.mockResolvedValue({});
+    it('sends the verification mail on valid data', async () => {
+      findUser.mockResolvedValue(null);
+      hash.mockResolvedValue('hashed-password');
+      sendMail.mockResolvedValue({});
 
       const res = await request(app).post('/auth/register/send-code')
         .send({ username: 'newuser', email: 'new@test.com', password: 'StrongPass1!' });
+
       expect(res.status).toBe(200);
       expect(res.body.message).toBe('Verification code sent!');
-      expect(mockSendMail).toHaveBeenCalled();
+      expect(sendMail).toHaveBeenCalled();
     });
   });
 
   describe('POST /auth/verify/captcha', () => {
-    it('returns 400 when token is missing', async () => {
+    it('400 without a token', async () => {
       const res = await request(app).post('/auth/verify/captcha').send({});
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Captcha token is required');
     });
 
-    it('returns 400 for invalid captcha', async () => {
-      mockCaptchaVerify.mockResolvedValue({ success: false, message: 'Captcha verification failed' });
+    it('failed captcha bubbles up the message', async () => {
+      captchaOk.mockResolvedValue({ success: false, message: 'Captcha verification failed' });
       const res = await request(app).post('/auth/verify/captcha').send({ token: 'invalid-token' });
       expect(res.status).toBe(400);
       expect(res.body.error).toBe('Captcha verification failed');
     });
 
-    it('returns 200 for valid captcha', async () => {
-      mockCaptchaVerify.mockResolvedValue({ success: true, message: 'Captcha verification successful' });
+    it('passes a valid captcha through', async () => {
+      captchaOk.mockResolvedValue({ success: true, message: 'Captcha verification successful' });
       const res = await request(app).post('/auth/verify/captcha').send({ token: 'valid-token' });
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
@@ -190,7 +187,7 @@ describe('Auth Router', () => {
   });
 
   describe('POST /auth/logout', () => {
-    it('returns 200 with logged out message', async () => {
+    it('always 200', async () => {
       const res = await request(app).post('/auth/logout');
       expect(res.status).toBe(200);
       expect(res.body.message).toBe('Logged out');
@@ -198,13 +195,13 @@ describe('Auth Router', () => {
   });
 
   describe('GET /auth/me', () => {
-    it('returns 401 when not authenticated', async () => {
-      mockRequireAuthImpl.mockImplementation((_req: any, res: any) => res.status(401).json({ error: 'Not authenticated' }));
+    it('401 when middleware rejects', async () => {
+      authImpl.mockImplementation((_req: any, res: any) => res.status(401).json({ error: 'Not authenticated' }));
       const res = await request(app).get('/auth/me');
       expect(res.status).toBe(401);
     });
 
-    it('returns 200 with user object when authenticated', async () => {
+    it('echoes the authed user', async () => {
       const res = await request(app).get('/auth/me');
       expect(res.status).toBe(200);
       expect(res.body.user).toEqual({ id: 'user-1', email: 'test@test.com' });

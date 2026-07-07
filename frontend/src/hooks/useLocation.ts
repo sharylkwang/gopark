@@ -65,7 +65,7 @@ export function useLocation() {
     if (navigator.permissions) {
       navigator.permissions.query({ name: 'geolocation' }).then(status => {
         if (status.state === 'denied') {
-          alert('Location access is blocked. Please enable it in your browser settings and try again.');
+          alert('Location is blocked, enable it in your browser settings');
         } else {
           request();
         }
