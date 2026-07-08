@@ -3,6 +3,7 @@ import createLogger from '../lib/logger.js';
 import { CRON } from './config.js';
 import type { MergedCarpark } from './pipeline/types.js';
 import { mergeAll } from './pipeline/merge.js';
+import { buildSourceIdIndex, resolveCarparkIds } from './pipeline/idResolution.js';
 import { fetchMapping, fetchAvailability } from './providers/govsg.js';
 import { fetchDatamall } from './providers/datamall.js';
 import { fetchLocations, fetchDump, fetchRates } from './providers/parkaholic.js';
@@ -93,32 +94,30 @@ async function refreshAvailability() {
     const now = new Date();
     const touched = new Set<string>();
 
-    async function updateAvail(carparkId: string, lotType: string, available: number | null, total: number | null) {
-      const existing = await prisma.availability.findUnique({ where: { carparkId_lotType: { carparkId, lotType } } });
-      if (!existing) return;
-      const newTotal = total ?? (available != null && (existing.total == null || available > existing.total) ? available : existing.total);
-      await prisma.availability.update({ where: { carparkId_lotType: { carparkId, lotType } }, data: { available, total: newTotal, updatedAt: now } });
-      touched.add(carparkId);
+    const carparkIds = await prisma.carpark.findMany({ select: { id: true, sourceIds: true } });
+    const sourceIdIndex = buildSourceIdIndex(carparkIds.map(cp => ({ id: cp.id, sourceIds: cp.sourceIds as Record<string, string> })));
+
+    async function updateAvail(source: string, providerId: string, lotType: string, available: number | null, total: number | null) {
+      for (const carparkId of resolveCarparkIds(sourceIdIndex, source, providerId)) {
+        const existing = await prisma.availability.findUnique({ where: { carparkId_lotType: { carparkId, lotType } } });
+        if (!existing) continue;
+        const newTotal = total ?? (available != null && (existing.total == null || available > existing.total) ? available : existing.total);
+        await prisma.availability.update({ where: { carparkId_lotType: { carparkId, lotType } }, data: { available, total: newTotal, updatedAt: now } });
+        touched.add(carparkId);
+      }
     }
 
     for (const [id, lots] of Object.entries(gov)) {
-      for (const [lt, e] of Object.entries(lots)) await updateAvail(id, lt, e.available, e.total);
+      for (const [lt, e] of Object.entries(lots)) await updateAvail('gov', id, lt, e.available, e.total);
     }
     for (const [id, lots] of Object.entries(dm.availability)) {
-      for (const [lt, e] of Object.entries(lots)) await updateAvail(id, lt, e.available, null);
+      for (const [lt, e] of Object.entries(lots)) await updateAvail('datamall', id, lt, e.available, null);
     }
     for (const [id, d] of Object.entries(pk)) {
-      for (const [lt, e] of Object.entries(d.availability)) await updateAvail(id, lt, e.available, null);
-    }
-    const jpCarparks = await prisma.carpark.findMany({ where: { sources: { has: 'justpark' } }, select: { id: true, sourceIds: true } });
-    const jpIdMap: Record<string, string> = {};
-    for (const cp of jpCarparks) {
-      const ids = cp.sourceIds as Record<string, string>;
-      if (ids.justpark) jpIdMap[ids.justpark] = cp.id;
+      for (const [lt, e] of Object.entries(d.availability)) await updateAvail('parkaholic', id, lt, e.available, null);
     }
     for (const [jpId, lots] of Object.entries(jp)) {
-      const carparkId = jpIdMap[jpId] ?? jpId;
-      for (const [lt, e] of Object.entries(lots)) await updateAvail(carparkId, lt, e.available, e.total);
+      for (const [lt, e] of Object.entries(lots)) await updateAvail('justpark', jpId, lt, e.available, e.total);
     }
 
     if (touched.size) await prisma.carpark.updateMany({ where: { id: { in: [...touched] } }, data: { availabilityUpdatedAt: now } });
