@@ -27,13 +27,26 @@ interface Props {
   onTileChange: (id: string) => void;
   mode3D: Map3DMode | null;
   onMode3DChange: (mode: Map3DMode | null) => void;
+  buildings3D: boolean;
+  onBuildings3DChange: (on: boolean) => void;
+  buildingStatus: BuildingStatus;
+  onRetryBuildings: () => void;
+  mapZoomLive?: number;
   mapCenter?: { lat: number; lng: number };
   mapZoom?: number;
+  layout?: LayoutMode;
+  darkMode?: boolean;
 }
 
-function TileCard({ tile, active, disabled, onClick, lat, lng, zoom }: {
+const SWITCHER_POSITION: Record<LayoutMode, string> = {
+  desktop: 'bottom-3 left-[356px]',
+  sheet: 'left-3 bottom-0 translate-y-[calc(-1*(var(--sheet-visible,7rem)+0.75rem))] will-change-transform',
+  rail: 'bottom-3 right-16',
+};
+
+function TileCard({ tile, active, disabled, onClick, lat, lng, zoom, darkMode }: {
   tile: TileProviderConfig; active: boolean; disabled: boolean; onClick: () => void;
-  lat: number; lng: number; zoom: number;
+  lat: number; lng: number; zoom: number; darkMode: boolean;
 }) {
   const previewUrl = getPreviewUrl(tile, lat, lng, Math.min(zoom, tile.maxZoom));
   const [loaded, setLoaded] = useState(false);
