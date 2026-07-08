@@ -1,8 +1,13 @@
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { Layers, Globe } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Layers, Globe, Building2, ZoomIn, AlertTriangle, RotateCw, Check } from 'lucide-react';
 import { TILE_PROVIDERS, getPreviewUrl } from '../../providers/tiles';
 import type { TileProviderConfig } from '../../types/map';
 import type { Map3DMode } from './layers/Google3DMap';
+import type { LayoutMode } from '../../hooks/useLayoutMode';
+import type { BuildingStatus } from './layers/OSMBuildingLayer';
+
+const BUILDINGS_MIN_ZOOM = 16;
 
 function hasGpu(): boolean {
   try {

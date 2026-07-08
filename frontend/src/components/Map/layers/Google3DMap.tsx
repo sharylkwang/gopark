@@ -181,9 +181,25 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
   useEffect(() => { if (mapRef.current) mapRef.current.mode = mode; }, [mode]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
-    mapRef.current.center = { lat: center.lat, lng: center.lng, altitude: 0 };
-    mapRef.current.range = zoomToRange(zoom);
+    const map = mapRef.current;
+    if (!map) return;
+
+    const endCamera = {
+      center: { lat: center.lat, lng: center.lng, altitude: 0 },
+      range: zoomToRange(zoom),
+      tilt: 55,
+      heading: 0,
+    };
+
+    if (typeof map.flyCameraTo === 'function') {
+      try {
+        map.flyCameraTo({ endCamera, durationMillis: 1200 });
+        return;
+      } catch { }
+    }
+
+    map.center = endCamera.center;
+    map.range = endCamera.range;
   }, [center.lat, center.lng, zoom]);
 
   const clearOverlays = useCallback(() => {

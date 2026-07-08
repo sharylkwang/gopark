@@ -140,7 +140,7 @@ function clusterIcon(count: number, zoom: number, darkBasemap: boolean) {
   });
 }
 
-function bgClusterIcon(count: number, zoom: number) {
+function bgClusterIcon(count: number, zoom: number, darkBasemap: boolean) {
   const base = zoom < 13 ? 40 : zoom < 15 ? 36 : zoom < 17 ? 32 : 28;
   const scale = Math.min(1 + Math.log10(count) * 0.12, 1.3);
   const size = Math.round(base * scale);
