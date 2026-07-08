@@ -177,17 +177,17 @@ function OtpView({ email, otp, setOtp, authError, isLoggingIn, onVerify, onBack 
 }) {
   return (
     <div className="p-6 flex flex-col gap-3">
-      <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">Verify Email</h2>
-      <p className="text-sm font-bold text-gray-500 mb-2">
-        We sent a 6-digit code to <span className="text-gray-900">{email}</span>.
+      <h2 className="text-xl font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2 border-b-2 border-gray-100 dark:border-neutral-700 pb-2">Verify Email</h2>
+      <p className="text-sm font-bold text-gray-500 dark:text-gray-400 mb-2">
+        We sent a 6-digit code to <span className="text-gray-900 dark:text-gray-100">{email}</span>.
       </p>
       <form onSubmit={onVerify} className="flex flex-col gap-3">
-        {authError && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{authError}</div>}
-        <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+        {authError && <div className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2.5 rounded text-sm font-bold border border-red-200 dark:border-red-900/60">{authError}</div>}
+        <div className="bg-gray-50 dark:bg-neutral-900/60 flex items-center border border-gray-200 dark:border-neutral-700 rounded p-3">
           <input type="text" placeholder="000000" value={otp}
             onChange={e => setOtp(e.target.value.replace(/\D/g, ''))}
             maxLength={6} required
-            className="bg-transparent w-full outline-none text-center text-3xl font-black text-gray-800 tracking-[0.5em]" />
+            className="bg-transparent w-full outline-none text-center text-3xl font-black text-gray-800 dark:text-gray-100 tracking-[0.5em]" />
         </div>
         <div className="flex flex-col gap-1.5 mt-2">
           <button type="submit" disabled={isLoggingIn}
