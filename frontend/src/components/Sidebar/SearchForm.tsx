@@ -53,7 +53,7 @@ export function SearchForm({
 
   return (
     <div className={`px-3 py-3 border-b shrink-0 ${dm ? 'bg-neutral-900 border-neutral-700/40' : 'bg-white border-gray-200/30'}`}>
-      <form onSubmit={e => { e.preventDefault(); submitted.current = true; setIsDropdownOpen(false); setStartDropdownOpen(false); (document.activeElement as HTMLElement)?.blur(); if (suggestions.length > 0) { onSelectSuggestion(suggestions[0]); } else { onSubmit(destination); } setTimeout(() => { submitted.current = false; }, 500); }} className="space-y-2.5">
+      <form onSubmit={e => { e.preventDefault(); submitted.current = true; setIsDropdownOpen(false); setStartDropdownOpen(false); (document.activeElement as HTMLElement)?.blur(); if (isDropdownOpen && suggestions.length > 0) { onSelectSuggestion(suggestions[0]); } else { onSubmit(destination); } setTimeout(() => { submitted.current = false; }, 500); }} className="space-y-2.5">
         <div className="relative">
           <label className={labelClass}>Start</label>
           <div className={`flex items-center rounded-xl px-2.5 py-2 transition ${inputBg} ${startCoords ? 'border-green-500/50' : 'focus-within:border-blue-500/50'}`}>
