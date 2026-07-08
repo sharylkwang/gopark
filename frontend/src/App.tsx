@@ -93,6 +93,8 @@ export default function GoParkApp() {
   })();
 
   const destinationRef = useRef<DestinationPoint | null>(null);
+  const destQuerySeq = useRef(0);
+  const startQuerySeq = useRef(0);
 
   auth.onLogin.current = (ids: string[]) => loadFavorites(ids);
 
@@ -214,6 +216,8 @@ export default function GoParkApp() {
   };
 
   const executeSearch = async (query: string) => {
+    destQuerySeq.current++;
+    startQuerySeq.current++;
     setSuggestions([]);
     setStartSuggestions([]);
     setIsDropdownOpen(false);
@@ -265,10 +269,16 @@ export default function GoParkApp() {
   const handleDestinationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setDestination(val);
+    const seq = ++destQuerySeq.current;
     if (val.length > 2) {
-      setSuggestions(await autocompleteLocation(val));
+      const results = await autocompleteLocation(val);
+      if (seq !== destQuerySeq.current) return;
+      setSuggestions(results);
       setIsDropdownOpen(true);
-    } else setIsDropdownOpen(false);
+    } else {
+      setSuggestions([]);
+      setIsDropdownOpen(false);
+    }
   };
 
   const selectSuggestion = (s: PlaceSuggestion) => {
@@ -280,16 +290,21 @@ export default function GoParkApp() {
 
   const handleStartChange = async (val: string) => {
     setStartPoint(val);
+    const seq = ++startQuerySeq.current;
     if (!val) { setStartCoords(null); setStartSuggestions([]); setStartDropdownOpen(false); return; }
     if (val.length > 2) {
-      setStartSuggestions(await autocompleteLocation(val));
+      const results = await autocompleteLocation(val);
+      if (seq !== startQuerySeq.current) return;
+      setStartSuggestions(results);
       setStartDropdownOpen(true);
     }
   };
 
   const selectStart = (s: PlaceSuggestion) => {
+    startQuerySeq.current++;
     setStartPoint(s.formatted || s.name || '');
     setStartCoords([s.lat, s.lon]);
+    setStartSuggestions([]);
     setStartDropdownOpen(false);
   };
 
@@ -476,7 +491,7 @@ export default function GoParkApp() {
           hasSearched={hasSearched} onSelectCarpark={selectAndClose} onDestinationDrag={handleDestinationDrag}
           eventHandlers={pickMode ? { onMapClick: handleMapPick } : undefined}
           userLocation={loc.userLocation} drivePolyline={routes.drivePolyline} driveRoute={routes.driveRoute}
-          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} nearbyParking={nearbyParking} />
+          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} nearbyParking={nearbyParking} darkMode={darkMode} />
       </div>
 
       <div className="absolute top-3 z-40 -translate-x-1/2 max-md:left-1/2 flex flex-col items-center gap-2" style={{ left: sidebarOpen ? 'calc(358px + (100% - 358px) / 2)' : '50%' }}>
