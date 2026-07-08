@@ -110,6 +110,8 @@ export default function GoParkApp() {
   const [loading, setLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pickMode, setPickMode] = useState<'start' | 'destination' | null>(null);
+  const [chipsPanelOpen, setChipsPanelOpen] = useState(false);
+  const [focusPoint, setFocusPoint] = useState<FocusPoint | null>(null);
   const [nearbyParking, setNearbyParking] = useState<NearbyParking[]>([]);
   const prefetchedParkingRef = useRef<NearbyParking[] | null>(null);
 

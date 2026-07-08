@@ -188,6 +188,25 @@ function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
   return null;
 }
 
+function FocusFlyer({ point }: { point: FocusPoint | null }) {
+  const map = useMap();
+  const lastToken = useRef<number>(0);
+
+  useEffect(() => {
+    if (!point || point.token === lastToken.current) return;
+    lastToken.current = point.token;
+    map.flyTo([point.lat, point.lng], Math.max(map.getZoom(), 16), { duration: 1 });
+  }, [point, map]);
+
+  return null;
+}
+
+function MapHandle({ onReady }: { onReady?: (map: L.Map) => void }) {
+  const map = useMap();
+  useEffect(() => { onReady?.(map); }, [map, onReady]);
+  return null;
+}
+
 function PositionTracker({ onMove }: { onMove: (center: { lat: number; lng: number }, zoom: number) => void }) {
   const map = useMap();
   useEffect(() => {
