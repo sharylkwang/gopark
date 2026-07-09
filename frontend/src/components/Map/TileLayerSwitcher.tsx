@@ -24,12 +24,13 @@ interface Props {
   onMode3DChange: (mode: Map3DMode | null) => void;
   mapCenter?: { lat: number; lng: number };
   mapZoom?: number;
+  darkMode?: boolean;
   sidebarOpen?: boolean;
 }
 
-function TileCard({ tile, active, disabled, onClick, lat, lng, zoom }: {
+function TileCard({ tile, active, disabled, onClick, lat, lng, zoom, darkMode }: {
   tile: TileProviderConfig; active: boolean; disabled: boolean; onClick: () => void;
-  lat: number; lng: number; zoom: number;
+  lat: number; lng: number; zoom: number; darkMode?: boolean;
 }) {
   const previewUrl = getPreviewUrl(tile, lat, lng, Math.min(zoom, tile.maxZoom));
   const [loaded, setLoaded] = useState(false);
@@ -44,7 +45,7 @@ function TileCard({ tile, active, disabled, onClick, lat, lng, zoom }: {
         disabled ? 'opacity-40 cursor-not-allowed' : active ? 'scale-105' : 'opacity-70 hover:opacity-100'
       }`}>
       <div className={`relative w-12 h-12 rounded-xl border-2 shadow-sm transition-all overflow-hidden ${
-        active ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-400'
+        active ? 'border-red-500 ring-2 ring-red-200' : darkMode ? 'border-neutral-600 hover:border-neutral-400' : 'border-gray-200 hover:border-gray-400'
       }`} style={{ backgroundColor: tile.preview || '#ccc' }}>
         {previewUrl && (
           <img src={previewUrl} alt={tile.name}
@@ -55,7 +56,7 @@ function TileCard({ tile, active, disabled, onClick, lat, lng, zoom }: {
         )}
       </div>
       <span className={`text-[9px] leading-tight text-center max-w-14 ${
-        active ? 'font-black text-red-600' : 'font-semibold text-gray-500'
+        active ? 'font-black text-red-500' : darkMode ? 'font-semibold text-gray-400' : 'font-semibold text-gray-500'
       }`}>{tile.name}</span>
     </button>
   );
@@ -66,7 +67,7 @@ const MAP_3D_MODES: { id: Map3DMode; label: string; preview: string }[] = [
   { id: 'HYBRID', label: 'Hybrid', preview: '#1a3a2a' },
 ];
 
-export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, mapCenter, mapZoom, sidebarOpen }: Props) {
+export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, mapCenter, mapZoom, darkMode, sidebarOpen }: Props) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const gpuOk = useMemo(() => hasGpu(), []);
@@ -98,10 +99,10 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
   return (
     <div ref={panelRef} className={`absolute bottom-3 z-[15] max-md:bottom-20 max-md:left-auto max-md:right-2.5 ${sidebarOpen ? 'left-[356px]' : 'left-3'}`}>
       {open ? (
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 p-3 w-[260px]">
+        <div className={`backdrop-blur-xl rounded-2xl shadow-xl border p-3 w-[260px] ${darkMode ? 'bg-neutral-800/90 border-neutral-600/50' : 'bg-white/80 border-gray-200/50'}`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Layers</span>
-            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm font-bold">✕</button>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Layers</span>
+            <button onClick={() => setOpen(false)} className={`text-sm font-bold ${darkMode ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}>✕</button>
           </div>
 
           <div className="mb-2">
@@ -112,13 +113,13 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
                   active={!mode3D && currentTile === tile.id}
                   disabled={!tile.url}
                   onClick={() => tile.url && selectTile(tile.id)}
-                  lat={lat} lng={lng} zoom={zoom} />
+                  lat={lat} lng={lng} zoom={zoom} darkMode={darkMode} />
               ))}
             </div>
           </div>
 
           {gpuOk ? (
-            <div className="border-t border-gray-200/40 pt-2">
+            <div className={`border-t pt-2 ${darkMode ? 'border-neutral-600/40' : 'border-gray-200/40'}`}>
               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">3D Maps</span>
               <div className="grid grid-cols-4 gap-1.5">
                 {MAP_3D_MODES.map((m) => (
@@ -127,19 +128,19 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
                       mode3D === m.id ? 'scale-105' : 'opacity-70 hover:opacity-100'
                     }`}>
                     <div className={`relative w-12 h-12 rounded-xl border-2 shadow-sm transition-all overflow-hidden flex items-center justify-center ${
-                      mode3D === m.id ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-400'
+                      mode3D === m.id ? 'border-red-500 ring-2 ring-red-200' : darkMode ? 'border-neutral-600 hover:border-neutral-400' : 'border-gray-200 hover:border-gray-400'
                     }`} style={{ background: `linear-gradient(135deg, ${m.preview}, ${m.preview}dd)` }}>
                       <Globe size={16} className="text-white/80" />
                     </div>
                     <span className={`text-[9px] leading-tight text-center max-w-14 ${
-                      mode3D === m.id ? 'font-black text-red-600' : 'font-semibold text-gray-500'
+                      mode3D === m.id ? 'font-black text-red-500' : darkMode ? 'font-semibold text-gray-400' : 'font-semibold text-gray-500'
                     }`}>{m.label}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="border-t border-gray-200/40 pt-2">
+            <div className={`border-t pt-2 ${darkMode ? 'border-neutral-600/40' : 'border-gray-200/40'}`}>
               <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 block">3D Maps</span>
               <p className="text-[9px] text-gray-400">Requires a dedicated GPU</p>
             </div>
@@ -147,9 +148,9 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
         </div>
       ) : (
         <button onClick={() => setOpen(true)}
-          className="bg-white/70 backdrop-blur-lg shadow-lg border border-gray-200/50 rounded-xl p-2 hover:bg-white/90 transition flex items-center gap-1.5">
-          <Layers size={14} className="text-gray-600" />
-          <span className="text-[10px] font-bold text-gray-600">Layers</span>
+          className={`backdrop-blur-lg shadow-lg border rounded-xl p-2 transition flex items-center gap-1.5 ${darkMode ? 'bg-neutral-800/80 border-neutral-600/50 hover:bg-neutral-800' : 'bg-white/70 border-gray-200/50 hover:bg-white/90'}`}>
+          <Layers size={14} className={darkMode ? 'text-gray-300' : 'text-gray-600'} />
+          <span className={`text-[10px] font-bold ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Layers</span>
         </button>
       )}
     </div>

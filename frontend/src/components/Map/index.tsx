@@ -165,6 +165,7 @@ interface Props {
   startCoords?: [number, number] | null;
   sidebarOpen?: boolean;
   nearbyParking?: NearbyParking[];
+  darkMode?: boolean;
 }
 
 function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
@@ -551,7 +552,7 @@ export function MapView({
   carparks, backgroundCarparks, selectedId, destinationPoint, hasSearched,
   onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
-  nearbyParking,
+  nearbyParking, darkMode,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
@@ -686,7 +687,7 @@ export function MapView({
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
         mode3D={mode3D} onMode3DChange={setMode3D}
         mapCenter={mapCenter} mapZoom={mapZoom}
-        sidebarOpen={sidebarOpen} />
+        darkMode={darkMode} sidebarOpen={sidebarOpen} />
     </div>
   );
 }
