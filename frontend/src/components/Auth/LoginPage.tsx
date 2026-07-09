@@ -195,14 +195,14 @@ function OtpView({ email, otp, setOtp, authError, isLoggingIn, onVerify, onBack 
             {isLoggingIn ? 'Verifying...' : 'Verify & Enter'} <ArrowRight size={18} />
           </button>
           <button type="button" onClick={onBack}
-            className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
+            className="text-xs text-gray-500 dark:text-gray-400 font-bold hover:text-red-600 transition text-center py-2">Go back</button>
         </div>
       </form>
     </div>
   );
 }
 
-function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, showPassword, setShowPassword, authError, loading, isLinkSent, onRequestCode, onCaptchaToken, onBack }: {
+function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, showPassword, setShowPassword, authError, loading, isLinkSent, onRequestCode, onCaptchaToken, onBack, darkMode }: {
   email: string; setEmail: (v: string) => void;
   otp: string; setOtp: (v: string) => void;
   newPassword: string; setNewPassword: (v: string) => void;

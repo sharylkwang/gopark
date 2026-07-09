@@ -130,6 +130,27 @@ export default function GoParkApp() {
     }
   }, [now, travelMins]);
 
+  const recommendedId = useMemo(
+    () => (searchResults[0] && hasFreeLots(searchResults[0].availability, vehicleType)
+      ? searchResults[0].id
+      : null),
+    [searchResults, vehicleType],
+  );
+
+  const mapCarparks = useMemo(() => (hasSearched ? searchResults : EMPTY_CARPARKS), [hasSearched, searchResults]);
+  const mapBackgroundCarparks = useMemo(() => (hasSearched ? nearbyRaw : EMPTY_CARPARKS), [hasSearched, nearbyRaw]);
+
+  const mapHandlers = useRef({
+    select: (_id: string) => {},
+    drag: (_lat: number, _lng: number) => {},
+    pick: (_pos: { lat: number; lng: number }) => {},
+  });
+
+  const onMapSelect = useCallback((id: string) => mapHandlers.current.select(id), []);
+  const onMapDestinationDrag = useCallback((lat: number, lng: number) => mapHandlers.current.drag(lat, lng), []);
+  const onMapClick = useCallback((pos: { lat: number; lng: number }) => mapHandlers.current.pick(pos), []);
+  const mapEventHandlers = useMemo(() => (pickMode ? { onMapClick } : undefined), [pickMode, onMapClick]);
+
   const durationHours = (() => {
     const [h, m] = parkUntil.split(':').map(Number);
     const until = new Date(arrivalTime);
