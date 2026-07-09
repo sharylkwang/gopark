@@ -157,11 +157,12 @@ function bgClusterIcon(count: number, zoom: number, darkBasemap: boolean) {
     `width:${size}px`,
     `height:${size}px`,
     `border-radius:50%`,
-    `background:rgba(100,116,139,0.65)`,
-    `color:white`,
+    `background:${darkBasemap ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)'}`,
+    `color:${darkBasemap ? '#cbd5e1' : '#475569'}`,
     `font-weight:800`,
     `font-size:${fontSize}px`,
-    `border:2px solid rgba(255,255,255,0.5)`,
+    `border:2px solid #94a3b8`,
+    `box-shadow:0 1px 4px rgba(0,0,0,0.3)`,
     `cursor:pointer`,
   ].join(';');
 
