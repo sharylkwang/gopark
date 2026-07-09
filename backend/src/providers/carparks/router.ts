@@ -89,11 +89,11 @@ router.get('/carparks/availability', async (_req: Request, res: Response) => {
     select: { carparkId: true, lotType: true, available: true, total: true, updatedAt: true },
   });
 
-  const grouped: Record<string, Record<string, { available: number | null; total: number | null }>> = {};
+  const grouped: Record<string, Record<string, { available: number | null; total: number | null; updatedAt: Date }>> = {};
   let latest: Date | null = null;
   for (const row of rows) {
     if (!grouped[row.carparkId]) grouped[row.carparkId] = {};
-    grouped[row.carparkId][row.lotType] = { available: row.available, total: row.total };
+    grouped[row.carparkId][row.lotType] = { available: row.available, total: row.total, updatedAt: row.updatedAt };
     if (!latest || row.updatedAt > latest) latest = row.updatedAt;
   }
 
