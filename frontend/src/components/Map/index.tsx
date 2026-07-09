@@ -222,53 +222,32 @@ function PositionTracker({ onMove }: { onMove: (center: { lat: number; lng: numb
 }
 
 function getParkingSpotIcon(index: number, animate: boolean) {
-  const size = 26;
-  const hit = size + 8;
+  const size = 24;
+  const hit = size + 14;
+  const stem = 8;
   const delay = index * 80;
   const dropClass = animate ? 'nearby-parking-drop' : '';
   const delayStyle = animate ? `animation-delay:${delay}ms;` : '';
+
   return L.divIcon({
     className: '',
     iconSize: [hit, hit],
     iconAnchor: [hit / 2, hit],
     popupAnchor: [0, -hit],
-    html: `<div class="${dropClass}" style="width:${hit}px;height:${hit}px;display:flex;align-items:center;justify-content:center;cursor:pointer;${delayStyle}">
-      <div style="width:${size}px;height:${size}px;background:#f97316;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));position:relative;pointer-events:none">
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(45deg)">
-          <span style="color:white;font-weight:900;font-size:12px">P</span>
-        </div>
-      </div>
+    html: `<div class="${dropClass}" style="width:${hit}px;height:${hit}px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.35));${delayStyle}">
+      <div style="width:${size}px;height:${size}px;background:#ffffff;border:2.5px dashed #475569;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#0d1013;font-weight:900;font-size:13px;font-family:Inter,system-ui,sans-serif;pointer-events:none">P</div>
+      <div style="width:${stem}px;height:${stem}px;margin-top:-5px;background:#ffffff;border-right:2.5px solid #475569;border-bottom:2.5px solid #475569;border-bottom-right-radius:2px;transform:rotate(45deg);pointer-events:none"></div>
     </div>`,
   });
 }
 
 function NearbyParkingMarkers({ spots }: { spots: NearbyParking[] }) {
-  const animatedRef = useRef(false);
-  const prevLenRef = useRef(0);
-
-  const shouldAnimate = spots.length > 0 && spots.length !== prevLenRef.current;
-  if (shouldAnimate) {
-    animatedRef.current = false;
-  }
-  if (spots.length === 0) {
-    prevLenRef.current = 0;
-    animatedRef.current = false;
-  }
-
-  const animate = !animatedRef.current && spots.length > 0;
-
-  useEffect(() => {
-    if (spots.length > 0 && !animatedRef.current) {
-      const timer = setTimeout(() => { animatedRef.current = true; }, spots.length * 80 + 600);
-      prevLenRef.current = spots.length;
-      return () => clearTimeout(timer);
-    }
-  }, [spots]);
+  const icons = useMemo(() => spots.map((_, i) => getParkingSpotIcon(i, true)), [spots]);
 
   return (
     <>
       {spots.map((p, i) => (
-        <Marker key={`np-${i}`} position={[p.lat, p.lng]} icon={getParkingSpotIcon(i, animate)} zIndexOffset={800}>
+        <Marker key={`np-${i}`} position={[p.lat, p.lng]} icon={icons[i]} zIndexOffset={800}>
           <Popup>
             <div style={{ fontFamily: 'system-ui', minWidth: 140 }}>
               <p style={{ fontWeight: 900, fontSize: 13, margin: '0 0 2px' }}>{p.name || 'Parking'}</p>
