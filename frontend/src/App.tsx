@@ -160,10 +160,20 @@ export default function GoParkApp() {
   })();
 
   const destinationRef = useRef<DestinationPoint | null>(null);
+  const destinationSeq = useRef(0);
+  const startSeq = useRef(0);
+  const focusSeq = useRef(0);
 
   auth.onLogin.current = (ids: string[]) => loadFavorites(ids);
 
   useEffect(() => { fetchAll().then(setAllCarparks).catch(() => {}); }, []);
+
+  useEffect(() => {
+    if (sheet.snap === 'closed' && detail) {
+      setDetail(null);
+      setSelectedId(null);
+    }
+  }, [sheet.snap, detail]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
