@@ -685,7 +685,8 @@ export function MapView({
 
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
         mode3D={mode3D} onMode3DChange={setMode3D}
-        mapCenter={mapCenter} mapZoom={mapZoom} />
+        mapCenter={mapCenter} mapZoom={mapZoom}
+        sidebarOpen={sidebarOpen} />
     </div>
   );
 }

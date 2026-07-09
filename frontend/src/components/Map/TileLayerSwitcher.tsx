@@ -24,6 +24,7 @@ interface Props {
   onMode3DChange: (mode: Map3DMode | null) => void;
   mapCenter?: { lat: number; lng: number };
   mapZoom?: number;
+  sidebarOpen?: boolean;
 }
 
 function TileCard({ tile, active, disabled, onClick, lat, lng, zoom }: {
@@ -65,10 +66,19 @@ const MAP_3D_MODES: { id: Map3DMode; label: string; preview: string }[] = [
   { id: 'HYBRID', label: 'Hybrid', preview: '#1a3a2a' },
 ];
 
-export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, mapCenter, mapZoom }: Props) {
+export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, mapCenter, mapZoom, sidebarOpen }: Props) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const gpuOk = useMemo(() => hasGpu(), []);
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (panelRef.current && !panelRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [open]);
 
   const lat = mapCenter?.lat ?? 1.2834;
   const lng = mapCenter?.lng ?? 103.8607;
@@ -86,7 +96,7 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
   };
 
   return (
-    <div ref={panelRef} className="absolute bottom-3 left-[356px] z-[1001] max-md:bottom-20 max-md:left-auto max-md:right-2.5">
+    <div ref={panelRef} className={`absolute bottom-3 z-[15] max-md:bottom-20 max-md:left-auto max-md:right-2.5 ${sidebarOpen ? 'left-[356px]' : 'left-3'}`}>
       {open ? (
         <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 p-3 w-[260px]">
           <div className="flex items-center justify-between mb-2">
