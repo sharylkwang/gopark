@@ -498,7 +498,7 @@ export default function GoParkApp() {
           hasSearched={hasSearched} onSelectCarpark={selectAndClose} onDestinationDrag={handleDestinationDrag}
           eventHandlers={pickMode ? { onMapClick: handleMapPick } : undefined}
           userLocation={loc.userLocation} drivePolyline={routes.drivePolyline} driveRoute={routes.driveRoute}
-          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} nearbyParking={nearbyParking}
+          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} nearbyParking={nearbyParking} darkMode={darkMode}
           incident={activeIncident} />
       </div>
 
