@@ -12,8 +12,16 @@ function colorForPct(pct: number) {
 }
 
 export function AvailabilityBar({ available, total, compact, darkMode }: Props) {
-  if (available == null || !total) {
+  if (available == null) {
     return <span className={`text-[10px] font-bold italic ${darkMode ? 'text-gray-500' : 'text-gray-400'}`}>No Live Availability</span>;
+  }
+
+  if (!total) {
+    return (
+      <span className={`font-black whitespace-nowrap ${compact ? 'text-[10px]' : 'text-xs'} ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+        {available} lots
+      </span>
+    );
   }
 
   const pct = Math.min((available / total) * 100, 100);

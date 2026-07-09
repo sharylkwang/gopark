@@ -20,7 +20,7 @@ export async function fetchDetail(id: string): Promise<CarparkDetail> {
 
 export async function fetchAvailability(): Promise<{
   updatedAt: string;
-  carparks: Record<string, Record<string, { available: number | null; total: number | null }>>;
+  carparks: Record<string, Record<string, { available: number | null; total: number | null; updatedAt: string }>>;
 }> {
   const res = await fetch('/api/carparks/availability');
   if (!res.ok) throw new Error('Failed to fetch availability');
