@@ -174,14 +174,17 @@ function bgClusterIcon(count: number, zoom: number, darkBasemap: boolean) {
 }
 
 interface Props {
+  darkBasemap?: boolean;
+  vehicleType?: string;
   carparks: CarparkSummary[];
   backgroundCarparks?: CarparkSummary[];
   selectedId: string | null;
+  recommendedId?: string | null;
   onSelect: (id: string) => void;
   hasSearched?: boolean;
 }
 
-export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSelect, hasSearched }: Props) {
+export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recommendedId = null, onSelect, hasSearched, darkBasemap = false, vehicleType = 'C' }: Props) {
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const bgClusterRef = useRef<L.MarkerClusterGroup | null>(null);

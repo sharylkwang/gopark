@@ -291,7 +291,7 @@ export default function GoParkApp() {
 
     if (ranked.length > 0) {
       setSelectedId(ranked[0].id);
-      fetchDetail(ranked[0].id).then(setDetail).catch(() => setDetail(null));
+      if (isDesktop) fetchDetail(ranked[0].id).then(setDetail).catch(() => setDetail(null));
       routes.fetchRoutes(ranked[0], dest);
     } else {
       setSelectedId(null);
