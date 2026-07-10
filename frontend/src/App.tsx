@@ -427,18 +427,33 @@ export default function GoParkApp() {
 
   const handleMapPick = async (pos: { lat: number; lng: number }) => {
     if (!pickMode) return;
+    const mode = pickMode;
+    setPickMode(null);
+
     const place = await reverseGeocode(pos.lat, pos.lng);
     const name = place.name || `${pos.lat.toFixed(4)}, ${pos.lng.toFixed(4)}`;
-    if (pickMode === 'start') {
+
+    if (mode === 'start') {
       setStartPoint(name);
       setStartCoords([pos.lat, pos.lng]);
-    } else {
-      setDestination(name);
-      setDestinationPoint({ name, formatted: place.formatted || name, lat: pos.lat, lng: pos.lng });
-      setNearbyParking([]);
-      destinationRef.current = { name, formatted: place.formatted || name, lat: pos.lat, lng: pos.lng };
+      if (isSheet) sheet.setSnap('half');
+      return;
     }
-    setPickMode(null);
+
+    const dest: DestinationPoint = { name, formatted: place.formatted || name, lat: pos.lat, lng: pos.lng };
+    setDestination(name);
+    setDestinationPoint(dest);
+    setNearbyParking([]);
+    destinationRef.current = dest;
+
+    setLoading(true);
+    updateDestinationClassification(dest);
+    try {
+      await loadNearbyForDestination(dest);
+    } catch {} finally {
+      setLoading(false);
+      if (isSheet) sheet.setSnap('half');
+    }
   };
 
   const handleDestinationDrag = async (lat: number, lng: number) => {
