@@ -210,24 +210,30 @@ export default function GoParkApp() {
     const maxDist = Math.max(...results.map(r => r.distance ?? 0), 1);
     const maxCost = Math.max(...results.map(r => r.estimatedCost ?? 0), 1);
 
+    const bookableNow = (cp: typeof results[0]) => hasFreeLots(cp.availability, vehicleType);
+
     const score = (cp: typeof results[0]) => {
       const vAvail = cp.availability[vehicleType];
-      const t = totals(cp.availability);
-      const avail = vAvail ? (vAvail.available ?? 0) : t.available;
-      const full = vAvail ? (vAvail.total ?? 0) > 0 && avail === 0 : t.total > 0 && avail === 0;
-      if (full) return Infinity;
-
       const hasVehicleData = vAvail ? 0 : 0.5;
-      const hasData = (t.total > 0 ? 0 : 1) + (cp.estimatedCost != null ? 0 : 1);
+      const missingCost = cp.estimatedCost != null ? 0 : 1;
       const distNorm = (cp.distance ?? maxDist) / maxDist;
       const costNorm = (cp.estimatedCost ?? maxCost) / maxCost;
-      const availBonus = avail > 0 ? 0 : 0.3;
 
-      return hasVehicleData + hasData + distNorm * 0.35 + costNorm * 0.45 + availBonus;
+      return hasVehicleData + missingCost + distNorm * 0.35 + costNorm * 0.45;
     };
 
-    results.sort((a, b) => score(a) - score(b));
-    return results.slice(0, 20);
+    const byDistance = (a: typeof results[0], b: typeof results[0]) =>
+      (a.distance ?? Infinity) - (b.distance ?? Infinity);
+
+    const topPick = results
+      .filter(bookableNow)
+      .sort((a, b) => score(a) - score(b))[0];
+
+    const rest = results
+      .filter(cp => cp.id !== topPick?.id)
+      .sort(byDistance);
+
+    return (topPick ? [topPick, ...rest] : rest).slice(0, 20);
   };
 
   const costRange = useMemo(() => {

@@ -10,7 +10,7 @@ interface Props {
   onDestinationChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   suggestions: PlaceSuggestion[];
   isDropdownOpen: boolean;
-  setIsDropdownOpen: (v: boolean) => void;
+  closeDropdown: () => void;
   onSelectSuggestion: (s: PlaceSuggestion) => void;
   startPoint: string;
   onStartChange: (val: string) => void;
