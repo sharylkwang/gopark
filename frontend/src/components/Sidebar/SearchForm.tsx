@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback } from 'react';
-import { Navigation, Search, Clock, MapPin, X, Crosshair } from 'lucide-react';
+import { Navigation, Search, Clock, X, Crosshair } from 'lucide-react';
+import { SuggestionList, useSuggestionKeys } from '../SuggestionList';
 import { VEHICLE_OPTIONS } from '../../utils/constants';
 import { formatClockTime, formatTime12, parseClockTime } from '../../utils/format';
 import type { PlaceSuggestion } from '../../types';

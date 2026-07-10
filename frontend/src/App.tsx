@@ -183,17 +183,20 @@ export default function GoParkApp() {
     return () => window.removeEventListener('keydown', handler);
   }, [detail]);
 
-  useEffect(() => {
-    if (auth.appState === 'login') return;
-    const interval = setInterval(() => {
-      fetchAvailability().then(({ carparks: avMap }) => {
-        setAllCarparks(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
-        setSearchResults(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
-        setDetail(prev => prev && avMap[prev.id] ? { ...prev, availability: { ...prev.availability, ...avMap[prev.id] } } : prev);
-      }).catch(() => {});
-    }, 60000);
-    return () => clearInterval(interval);
-  }, [auth.appState]);
+  const watchedIds = useMemo(() => {
+    const ids = new Set(searchResults.map(cp => cp.id));
+    if (detail) ids.add(detail.id);
+    if (selectedId) ids.add(selectedId);
+    return [...ids];
+  }, [searchResults, detail?.id, selectedId]);
+
+  const applyAvailability = useCallback((avMap: AvailabilityMap) => {
+    setAllCarparks(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
+    setSearchResults(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
+    setDetail(prev => prev && avMap[prev.id] ? { ...prev, availability: { ...prev.availability, ...avMap[prev.id] } } : prev);
+  }, []);
+
+  const live = useLiveAvailability(auth.appState === 'login' ? [] : watchedIds, applyAvailability);
 
   const rankResults = (nearby: CarparkSummary[]) => {
     let results = nearby.map(cp => ({

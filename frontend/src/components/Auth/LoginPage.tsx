@@ -211,6 +211,7 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
   onRequestCode: (e: React.FormEvent) => void;
   onCaptchaToken: (token: string) => void;
   onBack: () => void;
+  darkMode: boolean;
 }) {
   const [otpVerified, setOtpVerified] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
