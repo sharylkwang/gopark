@@ -351,32 +351,60 @@ export default function GoParkApp() {
   const handleDestinationChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setDestination(val);
-    if (val.length > 2) {
-      setSuggestions(await autocompleteLocation(val));
-      setIsDropdownOpen(true);
-    } else setIsDropdownOpen(false);
+
+    const seq = ++destinationSeq.current;
+    if (val.trim().length <= 2) {
+      setSuggestions([]);
+      setIsDropdownOpen(false);
+      return;
+    }
+
+    const results = await autocompleteLocation(val);
+    if (seq !== destinationSeq.current) return;
+    setSuggestions(results);
+    setIsDropdownOpen(results.length > 0);
+  };
+
+  const closeDestinationDropdown = () => {
+    destinationSeq.current++;
+    setSuggestions([]);
+    setIsDropdownOpen(false);
   };
 
   const selectSuggestion = (s: PlaceSuggestion) => {
     const name = s.formatted || s.name || destination;
     setDestination(name);
-    setIsDropdownOpen(false);
+    closeDestinationDropdown();
     searchAndClose(name);
   };
 
   const handleStartChange = async (val: string) => {
     setStartPoint(val);
-    if (!val) { setStartCoords(null); setStartSuggestions([]); setStartDropdownOpen(false); return; }
-    if (val.length > 2) {
-      setStartSuggestions(await autocompleteLocation(val));
-      setStartDropdownOpen(true);
+
+    const seq = ++startSeq.current;
+    if (val.trim().length <= 2) {
+      if (!val) setStartCoords(null);
+      setStartSuggestions([]);
+      setStartDropdownOpen(false);
+      return;
     }
+
+    const results = await autocompleteLocation(val);
+    if (seq !== startSeq.current) return;
+    setStartSuggestions(results);
+    setStartDropdownOpen(results.length > 0);
+  };
+
+  const closeStartDropdown = () => {
+    startSeq.current++;
+    setStartSuggestions([]);
+    setStartDropdownOpen(false);
   };
 
   const selectStart = (s: PlaceSuggestion) => {
     setStartPoint(s.formatted || s.name || '');
     setStartCoords([s.lat, s.lon]);
-    setStartDropdownOpen(false);
+    closeStartDropdown();
   };
 
   const selectCarpark = async (id: string) => {
