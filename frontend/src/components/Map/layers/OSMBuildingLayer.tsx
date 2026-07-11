@@ -122,29 +122,46 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
     };
   }, [ready, map]);
 
-  const renderBuildings = useCallback(() => {
-    if (!buildingsRef.current || featuresRef.current.length === 0) return;
+  const renderViewport = useCallback(() => {
+    if (!buildingsRef.current) return;
+
+    const raw = map.getBounds().pad(VIEWPORT_PAD);
+    const view: Bounds = { north: raw.getNorth(), south: raw.getSouth(), east: raw.getEast(), west: raw.getWest() };
     const selectedId = selectedIdRef.current;
-    const colored = featuresRef.current.map((f: BuildingFeature) => {
-      const isSelected = selectedId !== null && f.properties.id === selectedId;
-      return {
-        ...f,
-        properties: {
-          ...f.properties,
-          color: isSelected ? HIGHLIGHT_COLOR : DEFAULT_COLOR,
-          roofColor: isSelected ? HIGHLIGHT_ROOF : DEFAULT_ROOF,
-        },
-      };
-    });
+    const { wall, roof } = paletteRef.current;
 
-    buildingsRef.current.set({
-      type: 'FeatureCollection',
-      features: colored,
-    });
-  }, []);
+    const seen = new Set<number>();
+    const features: BuildingFeature[] = [];
+    for (const tile of tilesRef.current.values()) {
+      for (const cell of tile.cells) {
+        if (!inView(cell, view)) continue;
+        const id = cell.feature.properties.id;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const isSelected = selectedId !== null && id === selectedId;
+        features.push({
+          ...cell.feature,
+          properties: {
+            ...cell.feature.properties,
+            color: isSelected ? HIGHLIGHT_COLOR : wall,
+            roofColor: isSelected ? HIGHLIGHT_ROOF : roof,
+          },
+        });
+      }
+    }
 
-  const loadVisibleBuildings = useCallback(async () => {
-    if (!buildingsRef.current || Math.floor(map.getZoom()) < MIN_ZOOM) return;
+    buildingsRef.current.set({ type: 'FeatureCollection', features });
+    return features.length;
+  }, [map]);
+
+  useEffect(() => {
+    if (!buildingsRef.current) return;
+    buildingsRef.current.style({ color: palette.wall, roofColor: palette.roof, shadows: true, height: 'height' });
+    renderViewport();
+  }, [palette.wall, palette.roof, renderViewport]);
+
+  const loadViewport = useCallback(async () => {
+    if (!buildingsRef.current || circuitOpenRef.current || map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) return;
 
     const bounds = map.getBounds();
     const { z, tiles } = getTilesForBounds({
