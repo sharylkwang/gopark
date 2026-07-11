@@ -18,7 +18,7 @@ interface Props {
   clearStart: () => void;
   startSuggestions: PlaceSuggestion[];
   startDropdownOpen: boolean;
-  setStartDropdownOpen: (v: boolean) => void;
+  closeStartDropdown: () => void;
   onSelectStart: (s: PlaceSuggestion) => void;
   locationShared: boolean;
   arrivalTime: Date;

@@ -223,29 +223,29 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
 
   return (
     <div className="p-6 flex flex-col gap-3">
-      <h2 className="text-xl font-black text-gray-900 uppercase tracking-wider mb-2 border-b-2 border-gray-100 pb-2">Reset Password</h2>
+      <h2 className="text-xl font-black text-gray-900 dark:text-gray-100 uppercase tracking-wider mb-2 border-b-2 border-gray-100 dark:border-neutral-700 pb-2">Reset Password</h2>
       <div className="flex gap-1 mb-1">
         {['email', 'otp', 'password', 'captcha'].map((s, i) => {
           const current = ['email', 'otp', 'password', 'captcha'].indexOf(step);
           const filled = current > i;
           const active = current === i;
           return (
-            <div key={s} className="flex-1 h-1 rounded-full bg-gray-200 overflow-hidden">
+            <div key={s} className="flex-1 h-1 rounded-full bg-gray-200 dark:bg-neutral-700 overflow-hidden">
               <div className={`h-full rounded-full ${filled ? 'bg-red-600 w-full' : active ? 'bg-red-600 animate-progress-fill' : 'w-0'}`}
                 style={filled ? undefined : active ? { animation: 'progressFill 0.5s ease-out forwards' } : undefined} />
             </div>
           );
         })}
       </div>
-      {error && <div className="text-red-600 bg-red-50 p-2.5 rounded text-sm font-bold border border-red-200">{error}</div>}
+      {error && <div className="text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/40 p-2.5 rounded text-sm font-bold border border-red-200 dark:border-red-900/60">{error}</div>}
 
       {step === 'email' && (
         <form onSubmit={onRequestCode} className="flex flex-col gap-3">
-          <p className="text-sm font-bold text-gray-500">Enter your email and we'll send you a 6-digit reset code.</p>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Enter your email and we'll send you a 6-digit reset code.</p>
           <InputRow icon={<Mail className="text-gray-400 mr-3 shrink-0" size={20} />}>
             <input type="email" placeholder="Email Address" value={email}
               onChange={e => setEmail(e.target.value)} required
-              className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+              className="bg-transparent w-full outline-none text-base font-bold text-gray-700 dark:text-gray-200" />
           </InputRow>
           <button type="submit" disabled={loading}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">
