@@ -27,7 +27,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
   return (
     <div className="animate-slide-in">
       <div className={`sticky top-0 z-10 px-3 py-2 flex items-center ${dm ? 'bg-neutral-900 border-b border-neutral-700/50' : 'bg-white border-b border-gray-200/60'}`}>
-        <button onClick={onClose} className={`flex items-center gap-1 text-[11px] font-black uppercase tracking-wider transition ${dm ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'}`}>
+        <button onClick={onClose} className={`flex items-center gap-1 p-1.5 -m-1.5 text-[11px] font-black uppercase tracking-wider transition ${dm ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-600'}`}>
           <ChevronLeft size={14} /> Back
         </button>
       </div>

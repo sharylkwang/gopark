@@ -18,11 +18,14 @@ export async function fetchDetail(id: string): Promise<CarparkDetail> {
   return res.json();
 }
 
-export async function fetchAvailability(): Promise<{
+export type AvailabilityMap = Record<string, Record<string, { available: number | null; total: number | null; updatedAt?: string }>>;
+
+export async function fetchAvailability(ids?: string[]): Promise<{
   updatedAt: string;
-  carparks: Record<string, Record<string, { available: number | null; total: number | null; updatedAt: string }>>;
+  carparks: AvailabilityMap;
 }> {
-  const res = await fetch('/api/carparks/availability');
+  const query = ids?.length ? `?ids=${encodeURIComponent(ids.join(','))}` : '';
+  const res = await fetch(`/api/carparks/availability${query}`);
   if (!res.ok) throw new Error('Failed to fetch availability');
   return res.json();
 }
