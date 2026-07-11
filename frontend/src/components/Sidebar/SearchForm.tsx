@@ -37,9 +37,9 @@ interface Props {
 
 export function SearchForm({
   darkMode, destination, onDestinationChange,
-  suggestions, isDropdownOpen, setIsDropdownOpen, onSelectSuggestion,
+  suggestions, isDropdownOpen, closeDropdown, onSelectSuggestion,
   startPoint, onStartChange, startCoords, clearStart,
-  startSuggestions, startDropdownOpen, setStartDropdownOpen, onSelectStart,
+  startSuggestions, startDropdownOpen, closeStartDropdown, onSelectStart,
   locationShared, arrivalTime, parkUntil, setParkUntil,
   vehicleType, setVehicleType, maxPrice, setMaxPrice, costRange,
   loading, onSubmit, onPickStart, onPickDestination,
