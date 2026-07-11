@@ -256,13 +256,13 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
 
       {step === 'otp' && (
         <form onSubmit={e => { e.preventDefault(); setLocalError(''); if (otp.length !== 6) { setLocalError('Please enter the 6-digit code'); return; } setOtpVerified(true); }} className="flex flex-col gap-3">
-          <p className="text-sm font-bold text-gray-500">
-            Enter the 6-digit code sent to <span className="text-gray-900">{email}</span>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">
+            Enter the 6-digit code sent to <span className="text-gray-900 dark:text-gray-100">{email}</span>
           </p>
-          <div className="bg-gray-50 flex items-center border border-gray-200 rounded p-3">
+          <div className="bg-gray-50 dark:bg-neutral-900/60 flex items-center border border-gray-200 dark:border-neutral-700 rounded p-3">
             <input type="text" inputMode="numeric" placeholder="000000" value={otp}
               onChange={e => { setOtp(e.target.value.replace(/\D/g, '')); setLocalError(''); }} maxLength={6} required autoFocus
-              className="bg-transparent w-full outline-none text-center text-2xl font-black text-gray-800 tracking-[0.4em]" />
+              className="bg-transparent w-full outline-none text-center text-2xl font-black text-gray-800 dark:text-gray-100 tracking-[0.4em]" />
           </div>
           <button type="submit"
             className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">

@@ -317,32 +317,13 @@ function RouteLabel({ position, route, type }: {
   type: 'drive' | 'walk';
 }) {
   const time = formatDuration(parseDurationSecs(route.duration));
-  const dist = formatDistance(route.distanceMeters);
   const isDrive = type === 'drive';
-  const trafficLabel = isDrive ? (TRAFFIC_LABELS[route.trafficCondition] || '') : '';
   const trafficDot = isDrive ? (TRAFFIC_DOT[route.trafficCondition] || '') : '';
-  const label = isDrive ? 'Drive' : 'Walk';
   const svg = isDrive ? CAR_SVG : WALK_SVG;
 
   const icon = makePill(time, svg, 'white', isDrive ? '#d1d5db' : '#93c5fd', isDrive ? '#111827' : '#1e40af', isDrive ? trafficDot : undefined);
 
-  return (
-    <Marker position={position} icon={icon} zIndexOffset={1000}>
-      <Popup closeButton={false} className="route-popup" offset={[0, -5]}>
-        <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</span>
-          <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>{time}</span>
-          <span style={{ fontSize: 12, color: '#9ca3af' }}>{dist}</span>
-          {trafficLabel && trafficDot && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: trafficDot, background: `${trafficDot}15`, padding: '2px 8px', borderRadius: 10 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: trafficDot }} />
-              {trafficLabel}
-            </span>
-          )}
-        </div>
-      </Popup>
-    </Marker>
-  );
+  return <Marker position={position} icon={icon} zIndexOffset={1000} />;
 }
 
 function CombinedRouteLabel({ position, driveRoute, walkRoute }: {
