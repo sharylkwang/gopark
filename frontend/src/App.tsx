@@ -499,41 +499,182 @@ export default function GoParkApp() {
         onAuth={auth.handleAuth} onVerify={auth.handleVerify}
         onRequestReset={auth.handleRequestResetCode} onResetCaptchaToken={auth.handleResetCaptchaToken}
         onGuest={auth.enterGuest}
+        darkMode={darkMode} toggleDarkMode={toggleDarkMode}
       />
     );
   }
 
-  const closeSidebarOnMobile = () => {
-    if (window.matchMedia('(max-width: 767px)').matches) setSidebarOpen(false);
-  };
-
   const searchAndClose = async (query: string) => {
-    setSuggestions([]);
-    setStartSuggestions([]);
-    setIsDropdownOpen(false);
-    setStartDropdownOpen(false);
+    closeDestinationDropdown();
+    closeStartDropdown();
     await executeSearch(query);
-    closeSidebarOnMobile();
+    if (isSheet) sheet.setSnap('half');
   };
 
   const selectAndClose = async (id: string) => {
     await selectCarpark(id);
-    closeSidebarOnMobile();
+    if (isSheet) sheet.setSnap('half');
   };
 
+  const flyToPoint = (lat: number, lng: number) => {
+    const m = mapApiRef.current;
+    if (m) m.flyTo([lat, lng], Math.max(m.getZoom(), 15), { duration: 0.8 });
+  };
+  const fitRoute = () => {
+    const m = mapApiRef.current;
+    const pts: [number, number][] = [...(routes.drivePolyline ?? []), ...(routes.walkPolyline ?? [])];
+    if (startCoords) pts.push(startCoords);
+    else if (loc.userLocation) pts.push(loc.userLocation);
+    if (destinationPoint) pts.push([destinationPoint.lat, destinationPoint.lng]);
+    if (!m || pts.length < 2) return;
+    const leftPad = isDesktop && sidebarOpen ? 390 : isRail ? Math.min(window.innerWidth * 0.42, 400) + 30 : 40;
+    const bottomPad = isSheet ? Math.max(60, sheet.height - sheet.translateY + 30) : 60;
+    m.fitBounds(latLngBounds(pts), {
+      paddingTopLeft: [leftPad, isSheet ? 180 : 60],
+      paddingBottomRight: [70, bottomPad],
+    });
+  };
+
+  const hasRoute = !!(routes.drivePolyline?.length || routes.walkPolyline?.length);
+  const mapControlProps = {
+    darkMode,
+    onZoomIn: () => mapApiRef.current?.zoomIn(),
+    onZoomOut: () => mapApiRef.current?.zoomOut(),
+    onFocusPlace: destinationPoint
+      ? () => flyToPoint(destinationPoint.lat, destinationPoint.lng)
+      : startCoords
+        ? () => flyToPoint(startCoords[0], startCoords[1])
+        : undefined,
+    placeIsDest: !!destinationPoint,
+    onFitRoute: hasRoute ? fitRoute : undefined,
+  };
+
+  const flyToUser = () => {
+    const focus = (lat: number, lng: number) => setFocusPoint({ lat, lng, token: ++focusSeq.current });
+
+    if (loc.userLocation) {
+      focus(loc.userLocation[0], loc.userLocation[1]);
+      return;
+    }
+    loc.shareLocation((lat, lng) => {
+      updateForCoords(lat, lng);
+      focus(lat, lng);
+    });
+  };
+
+  const sheetVisible = sheet.height - sheet.translateY;
+  const sheetLift = sheetVisible + 12;
+  const mapRoom = window.innerHeight - sheetVisible;
+
+  const topStack = SHEET_TOP_INSET + (showParkingHint ? PARKING_HINT_H : 0);
+  const floatingVisible = mapRoom > topStack + 56;
+
+  mapHandlers.current = { select: selectAndClose, drag: handleDestinationDrag, pick: handleMapPick };
+
+  const startPick = (target: 'start' | 'destination') => {
+    setPickMode(target);
+    if (isSheet) sheet.setSnap('peek');
+  };
+
+  const cancelPick = () => {
+    setPickMode(null);
+    if (isSheet) sheet.setSnap('half');
+  };
+
+  const mobileContent = detail ? (
+    <MobileDetail detail={detail} darkMode={darkMode}
+      onClose={() => { setDetail(null); setSelectedId(null); }}
+      arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil}
+      durationHours={durationHours} vehicleType={vehicleType}
+      driveRoute={routes.driveRoute} walkRoute={routes.walkRoute} />
+  ) : (
+    <MobileResults
+      darkMode={darkMode} hasSearched={hasSearched} loading={loading}
+      results={sidebarTab === 'favorites' && auth.appState === 'user'
+        ? allCarparks.filter(cp => favorites.has(cp.id))
+        : searchResults}
+      isFavoritesTab={sidebarTab === 'favorites' && auth.appState === 'user'}
+      canFavorite={auth.appState === 'user'}
+      dense={isRail}
+      favoritesCount={favorites.size}
+      onTabChange={setSidebarTab}
+      selectedId={selectedId} favorites={favorites} vehicleType={vehicleType}
+      recommendedId={recommendedId}
+      onSelectCarpark={selectAndClose} onToggleFav={toggleFav} />
+  );
+
+  const mobileSearchBar = (
+    <MobileSearchBar
+      dense={isRail}
+      darkMode={darkMode} toggleDarkMode={toggleDarkMode}
+      destination={destination} onDestinationChange={handleDestinationChange}
+      suggestions={suggestions} isDropdownOpen={isDropdownOpen}
+      closeDropdown={closeDestinationDropdown} onSelectSuggestion={selectSuggestion}
+      onSubmit={searchAndClose} onPickDestination={() => startPick('destination')}
+      onClear={() => { setDestination(''); closeDestinationDropdown(); }}
+      startPoint={startPoint} onStartChange={handleStartChange}
+      startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
+      startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
+      closeStartDropdown={closeStartDropdown} onSelectStart={selectStart}
+      onPickStart={() => startPick('start')}
+      onLogout={handleLogout} onReset={resetHome}
+      locationShared={loc.locationShared}
+      onShareLocation={flyToUser}
+      className={isRail
+        ? 'relative z-40 px-2.5 pt-[calc(0.625rem+env(safe-area-inset-top))] pb-2'
+        : 'relative z-40 px-3 pt-[calc(0.75rem+env(safe-area-inset-top))]'}
+    />
+  );
+
+  const toggleNearbyParking = async () => {
+    if (!destinationPoint) return;
+    if (nearbyParking.length) { setNearbyParking([]); return; }
+
+    const spots = prefetchedParkingRef.current ?? await fetchNearbyParking(destinationPoint.lat, destinationPoint.lng);
+    const plotted = hasSearched ? [...searchResults, ...nearbyRaw] : allCarparks;
+    setNearbyParking(spots.filter(p => !isAlreadyPlotted(p, plotted)));
+  };
+
+  const parkingHintPill = showParkingHint && destinationPoint?.classification && (
+    <button onClick={toggleNearbyParking}
+      className={`press flex items-center gap-1.5 w-full h-9 px-3 rounded-full shadow-lg text-white ${
+        nearbyParking.length ? 'bg-green-600/90' : 'bg-blue-600/90'
+      }`}>
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span className="flex-1 min-w-0 truncate text-left text-[11px] font-bold">
+        {destinationPoint.classification.type} — {nearbyParking.length ? `${nearbyParking.length} parking nearby` : destinationPoint.classification.parkingHint}
+      </span>
+      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 opacity-70"><path d={nearbyParking.length ? 'M18 6L6 18M6 6l12 12' : 'M9 18l6-6-6-6'}/></svg>
+    </button>
+  );
+
+  const mobileChips = (
+    <MobileChips
+      darkMode={darkMode}
+      vehicleType={vehicleType} setVehicleType={setVehicleType}
+      arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil}
+      durationHours={durationHours}
+      maxPrice={maxPrice} setMaxPrice={setMaxPrice} costRange={costRange}
+      onPanelToggle={setChipsPanelOpen}
+      className={isRail ? 'px-2.5 pb-2.5' : 'px-3 pt-2'}
+    />
+  );
+
   return (
-    <div className={`relative h-[100dvh] font-sans overflow-hidden ${darkMode ? 'dark' : ''}`}>
-      {sidebarOpen && (
-        <div className={`fixed inset-0 md:absolute md:inset-auto md:top-3 md:left-3 md:bottom-3 w-full md:w-[340px] md:rounded-2xl flex flex-col z-20 shadow-2xl ${darkMode ? 'bg-neutral-900 border border-neutral-700/50' : 'bg-white border border-gray-200/60'}`}>
+    <div className={`relative h-[calc(100dvh/var(--zoom))] font-sans overflow-hidden ${darkMode ? 'dark' : ''}`}
+      style={{ '--sheet-visible': `${sheet.height - sheet.translateY}px` } as React.CSSProperties}>
+      {isDesktop && sidebarOpen && (
+        <div
+          className={`absolute top-3 left-3 bottom-3 w-[340px] rounded-2xl flex flex-col z-20 shadow-2xl ${darkMode ? 'bg-neutral-900 border border-neutral-700/50' : 'bg-white border border-gray-200/60'}`}>
           <SidebarHeader
             darkMode={darkMode} toggleDarkMode={toggleDarkMode}
             onLogout={handleLogout} onClose={() => setSidebarOpen(false)} onReset={resetHome}
             locationShared={loc.locationShared}
-            onShareLocation={() => loc.shareLocation((lat, lng) => updateForCoords(lat, lng))}
+            onShareLocation={flyToUser}
           />
 
           {detail ? (
-            <div className={`flex-1 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-900' : 'bg-white'}`}>
+            <div className={`flex-1 overflow-y-auto overscroll-contain sidebar-scroll ${darkMode ? 'bg-neutral-900' : 'bg-white'}`}>
               <DetailPanel detail={detail} darkMode={darkMode} onClose={() => { setDetail(null); setSelectedId(null); }}
                 arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil} durationHours={durationHours} vehicleType={vehicleType} />
             </div>
