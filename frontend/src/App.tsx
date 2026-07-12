@@ -475,6 +475,9 @@ export default function GoParkApp() {
     } catch {} finally { setLoading(false); }
   };
 
+  const mapApiRef = useRef<LeafletMap | null>(null);
+  const captureMap = useCallback((m: LeafletMap) => { mapApiRef.current = m; }, []);
+
   if (auth.appState === 'login') {
     return (
       <LoginPage

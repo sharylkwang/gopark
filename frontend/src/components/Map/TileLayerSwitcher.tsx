@@ -74,7 +74,9 @@ function TileCard({ tile, active, disabled, onClick, lat, lng, zoom, darkMode }:
         )}
       </div>
       <span className={`text-[9px] leading-tight text-center max-w-14 ${
-        active ? 'font-black text-red-600' : 'font-semibold text-gray-500'
+        active
+          ? 'font-black text-yellow-500'
+          : darkMode ? 'font-semibold text-[#8b95a3]' : 'font-semibold text-gray-500'
       }`}>{tile.name}</span>
     </button>
   );
@@ -82,17 +84,28 @@ function TileCard({ tile, active, disabled, onClick, lat, lng, zoom, darkMode }:
 
 const MAP_3D_MODES: { id: Map3DMode; label: string; preview: string }[] = [
   { id: 'ROADMAP', label: 'Roadmap', preview: '#c8d8e8' },
-  { id: 'HYBRID', label: 'Hybrid', preview: '#1a3a2a' },
+  { id: 'HYBRID', label: 'Satellite', preview: '#1a3a2a' },
 ];
 
-export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, mapCenter, mapZoom }: Props) {
+export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, buildings3D, onBuildings3DChange, buildingStatus, onRetryBuildings, mapZoomLive, mapCenter, mapZoom, layout = 'desktop', darkMode = false }: Props) {
+  const belowMinZoom = (mapZoomLive ?? 20) < BUILDINGS_MIN_ZOOM;
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const gpuOk = useMemo(() => hasGpu(), []);
 
+  const surface = darkMode
+    ? 'bg-[#161b21]/90 border-white/10'
+    : 'bg-white/80 border-gray-200/50';
+  const heading = darkMode ? 'text-[#8b95a3]' : 'text-gray-500';
+  const subtle = darkMode ? 'text-[#8b95a3]' : 'text-gray-400';
+  const divider = darkMode ? 'border-white/10' : 'border-gray-200/40';
+
   const lat = mapCenter?.lat ?? 1.2834;
   const lng = mapCenter?.lng ?? 103.8607;
   const zoom = Math.min(mapZoom ?? 15, 15);
+  const themedTiles = TILE_PROVIDERS.filter(
+    (t) => !t.theme || t.theme === 'any' || t.theme === (darkMode ? 'dark' : 'light'),
+  );
 
   const selectTile = (id: string) => {
     onMode3DChange(null);
