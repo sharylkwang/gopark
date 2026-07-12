@@ -684,17 +684,18 @@ export default function GoParkApp() {
                 darkMode={darkMode}
                 destination={destination} onDestinationChange={handleDestinationChange}
                 suggestions={suggestions} isDropdownOpen={isDropdownOpen}
-                setIsDropdownOpen={setIsDropdownOpen} onSelectSuggestion={selectSuggestion}
+                closeDropdown={closeDestinationDropdown} onSelectSuggestion={selectSuggestion}
                 startPoint={startPoint} onStartChange={handleStartChange}
                 startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
                 startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
-                setStartDropdownOpen={setStartDropdownOpen} onSelectStart={selectStart}
+                closeStartDropdown={closeStartDropdown} onSelectStart={selectStart}
                 locationShared={loc.locationShared}
                 arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil}
                 vehicleType={vehicleType} setVehicleType={setVehicleType}
                 maxPrice={maxPrice} setMaxPrice={setMaxPrice} costRange={costRange}
                 loading={loading} onSubmit={searchAndClose}
-                onPickStart={() => setPickMode('start')} onPickDestination={() => setPickMode('destination')}
+                onPickStart={() => startPick('start')}
+                onPickDestination={() => startPick('destination')}
               />
 
               <RouteInfo darkMode={darkMode} driveRoute={routes.driveRoute} walkRoute={routes.walkRoute}

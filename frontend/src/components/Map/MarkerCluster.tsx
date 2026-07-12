@@ -223,10 +223,10 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
       chunkedLoading: true,
       animate: false,
       animateAddingMarkers: false,
-      iconCreateFunction: (c) => bgClusterIcon(c.getChildCount(), map.getZoom()),
+      iconCreateFunction: (c) => bgClusterIcon(c.getChildCount(), map.getZoom(), darkBasemap),
     });
 
-    const icon = bgPin(28);
+    const icon = bgPin(28, darkBasemap);
     for (const cp of bgCarparks) {
       const marker = L.marker([cp.lat, cp.lng], { icon, zIndexOffset: -100 });
       marker.on('click', () => onSelectRef.current(cp.id));
