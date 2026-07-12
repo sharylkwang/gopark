@@ -356,31 +356,30 @@ function RouteLabels({ drivePolyline, driveRoute, walkPolyline, walkRoute }: {
   walkRoute: RouteResult | null;
 }) {
   const map = useMap();
-  const [zoomed, setZoomed] = useState(map.getZoom() >= 15);
-
-  useEffect(() => {
-    const onZoom = () => setZoomed(map.getZoom() >= 15);
-    map.on('zoomend', onZoom);
-    return () => { map.off('zoomend', onZoom); };
-  }, [map]);
-
   const hasDrive = drivePolyline && driveRoute && drivePolyline.length > 1;
   const hasWalk = walkPolyline && walkRoute && walkPolyline.length > 1;
 
-  if (!zoomed && hasDrive && hasWalk) {
-    return (
-      <CombinedRouteLabel
-        position={midpoint(drivePolyline)}
-        driveRoute={driveRoute}
-        walkRoute={walkRoute}
-      />
-    );
+  const driveMid = hasDrive ? midpoint(drivePolyline) : null;
+  const walkMid = hasWalk ? midpoint(walkPolyline) : null;
+
+  const [overlap, setOverlap] = useState(false);
+
+  useEffect(() => {
+    const update = () => setOverlap(!!driveMid && !!walkMid && pillsOverlap(map, driveMid, walkMid));
+    update();
+    map.on('zoomend', update);
+    map.on('moveend', update);
+    return () => { map.off('zoomend', update); map.off('moveend', update); };
+  }, [map, drivePolyline, walkPolyline]);
+
+  if (overlap && driveMid && driveRoute && walkRoute) {
+    return <CombinedRouteLabel position={driveMid} driveRoute={driveRoute} walkRoute={walkRoute} />;
   }
 
   return (
     <>
-      {hasDrive && <RouteLabel position={midpoint(drivePolyline)} route={driveRoute} type="drive" />}
-      {hasWalk && <RouteLabel position={midpoint(walkPolyline)} route={walkRoute} type="walk" />}
+      {hasDrive && driveMid && <RouteLabel position={driveMid} route={driveRoute} type="drive" />}
+      {hasWalk && walkMid && <RouteLabel position={walkMid} route={walkRoute} type="walk" />}
     </>
   );
 }
