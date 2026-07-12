@@ -61,7 +61,9 @@ function TileCard({ tile, active, disabled, onClick, lat, lng, zoom, darkMode }:
         disabled ? 'opacity-40 cursor-not-allowed' : active ? 'scale-105' : 'opacity-70 hover:opacity-100'
       }`}>
       <div className={`relative w-12 h-12 rounded-xl border-2 shadow-sm transition-all overflow-hidden ${
-        active ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-400'
+        active
+          ? 'border-yellow-400 ring-2 ring-yellow-400/30'
+          : darkMode ? 'border-white/15 hover:border-white/40' : 'border-gray-200 hover:border-gray-400'
       }`} style={{ backgroundColor: tile.preview || '#ccc' }}>
         {previewUrl && (
           <img src={previewUrl} alt={tile.name}

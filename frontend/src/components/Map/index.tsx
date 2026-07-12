@@ -332,38 +332,21 @@ function CombinedRouteLabel({ position, driveRoute, walkRoute }: {
   walkRoute: RouteResult;
 }) {
   const driveTime = formatDuration(parseDurationSecs(driveRoute.duration));
-  const driveDist = formatDistance(driveRoute.distanceMeters);
   const walkTime = formatDuration(parseDurationSecs(walkRoute.duration));
-  const walkDist = formatDistance(walkRoute.distanceMeters);
-  const trafficLabel = TRAFFIC_LABELS[driveRoute.trafficCondition] || '';
-  const trafficDot = TRAFFIC_DOT[driveRoute.trafficCondition] || '';
 
   const icon = makeCombinedPill(driveTime, walkTime);
 
-  return (
-    <Marker position={position} icon={icon} zIndexOffset={1000}>
-      <Popup closeButton={false} className="route-popup" offset={[0, -5]}>
-        <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', flexDirection: 'column', gap: 6, whiteSpace: 'nowrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Drive</span>
-            <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>{driveTime}</span>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>{driveDist}</span>
-            {trafficLabel && trafficDot && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: trafficDot, background: `${trafficDot}15`, padding: '2px 8px', borderRadius: 10 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: trafficDot }} />
-                {trafficLabel}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Walk</span>
-            <span style={{ fontSize: 16, fontWeight: 900, color: '#1e40af' }}>{walkTime}</span>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>{walkDist}</span>
-          </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
+  return <Marker position={position} icon={icon} zIndexOffset={1000} />;
+}
+
+const PILL_HALF_W = 52;
+const PILL_HALF_H = 16;
+
+function pillsOverlap(map: L.Map, a: [number, number], b: [number, number]) {
+  const pa = map.latLngToContainerPoint(a);
+  const pb = map.latLngToContainerPoint(b);
+  return Math.abs(pa.x - pb.x) < PILL_HALF_W * 2 + 4
+    && Math.abs(pa.y - pb.y) < PILL_HALF_H * 2 + 4;
 }
 
 function RouteLabels({ drivePolyline, driveRoute, walkPolyline, walkRoute }: {
