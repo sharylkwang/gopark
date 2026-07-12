@@ -171,60 +171,114 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
       west: bounds.getWest(),
     });
 
-    let hasNew = false;
+    const now = Date.now();
+    const visibleKeys = new Set(tiles.map(({ x, y }) => `${z}/${x}/${y}`));
 
-    for (const { x, y } of tiles) {
+    for (const key of visibleKeys) {
+      const tile = tilesRef.current.get(key);
+      if (tile) tile.touched = now;
+    }
+
+    const pending = tiles.filter(({ x, y }) => {
       const key = `${z}/${x}/${y}`;
-      if (loadedTilesRef.current.has(key)) continue;
-      loadedTilesRef.current.add(key);
+      if (tilesRef.current.has(key)) return false;
+      const failedAt = failedTilesRef.current.get(key);
+      return !(failedAt && now - failedAt < FAIL_COOLDOWN_MS);
+    });
+
+    renderViewport();
+
+    if (!pending.length) {
+      statusRef.current({ state: 'ready', count: tilesRef.current.size });
+      return;
+    }
+
+    statusRef.current({ state: 'loading', count: tilesRef.current.size });
+
+    let hasNew = false;
+    let failed = 0;
+
+    for (const { x, y } of pending) {
+      const key = `${z}/${x}/${y}`;
+      tilesRef.current.set(key, { cells: [], touched: Date.now() });
 
       try {
         const features = await fetchBuildingTile(z, x, y);
-        if (features.length > 0) {
-          const existingIds = new Set(featuresRef.current.map((f: BuildingFeature) => f.properties.id));
-          for (const f of features) {
-            if (!existingIds.has(f.properties.id)) {
-              featuresRef.current.push(f);
-            }
-          }
-          hasNew = true;
-        }
+        failedTilesRef.current.delete(key);
+        tilesRef.current.set(key, { cells: features.map(cellOf), touched: Date.now() });
+        if (features.length > 0) hasNew = true;
       } catch {
-        loadedTilesRef.current.delete(key);
+        tilesRef.current.delete(key);
+        failedTilesRef.current.set(key, Date.now());
+        failed++;
+        if (failed >= 2 && !hasNew) break;
       }
     }
 
-    if (hasNew) renderBuildings();
-  }, [map, renderBuildings]);
+    if (tilesRef.current.size > KEEP_TILES) {
+      const evictable = [...tilesRef.current.entries()]
+        .filter(([key]) => !visibleKeys.has(key))
+        .sort((a, b) => a[1].touched - b[1].touched);
+      let excess = tilesRef.current.size - KEEP_TILES;
+      for (const [key] of evictable) {
+        if (excess-- <= 0) break;
+        tilesRef.current.delete(key);
+      }
+    }
+
+    const shown = renderViewport() ?? 0;
+
+    if (failed > 0 && shown === 0 && tilesRef.current.size === 0) {
+      circuitOpenRef.current = true;
+      statusRef.current({ state: 'error', count: 0 });
+    } else {
+      statusRef.current({ state: 'ready', count: shown });
+    }
+  }, [map, renderViewport]);
 
   useEffect(() => {
-    if (ready && buildingsRef.current) {
-      loadVisibleBuildings();
+    if (!ready || !buildingsRef.current) return;
+    if (map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) {
+      map.flyTo(map.getCenter(), MIN_ZOOM, { duration: 0.8 });
+      return;
     }
-  }, [ready, loadVisibleBuildings]);
+    loadViewport();
+  }, [ready, map, loadViewport]);
+
+  useEffect(() => {
+    if (!retryToken || !ready) return;
+    failedTilesRef.current.clear();
+    circuitOpenRef.current = false;
+    loadViewport();
+  }, [retryToken, ready, loadViewport]);
 
   useMapEvents({
     zoomend: () => {
       if (!buildingsRef.current) return;
-      if (Math.floor(map.getZoom()) > MIN_ZOOM) {
-        loadVisibleBuildings();
-      }
+      if (map.getZoom() >= MIN_ZOOM - ZOOM_EPSILON) loadViewport();
     },
     moveend: () => {
-      if (Math.floor(map.getZoom()) > MIN_ZOOM) loadVisibleBuildings();
+      if (map.getZoom() >= MIN_ZOOM - ZOOM_EPSILON) loadViewport();
     },
     click: (e) => {
-      if (Math.floor(map.getZoom()) < MIN_ZOOM) return;
+      if (map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) return;
 
       const clicked: [number, number] = [e.latlng.lng, e.latlng.lat];
-      const found = featuresRef.current.find((feature: BuildingFeature) => {
-        const rings = feature.geometry?.coordinates;
-        if (!rings?.[0]) return false;
-        return pointInPolygon(clicked, rings[0] as [number, number][]);
-      });
+      let hit: number | null = null;
+      outer:
+      for (const tile of tilesRef.current.values()) {
+        for (const cell of tile.cells) {
+          if (clicked[0] < cell.minLng || clicked[0] > cell.maxLng || clicked[1] < cell.minLat || clicked[1] > cell.maxLat) continue;
+          const ring = cell.feature.geometry?.coordinates?.[0];
+          if (ring && pointInPolygon(clicked, ring as [number, number][])) {
+            hit = cell.feature.properties.id;
+            break outer;
+          }
+        }
+      }
 
-      selectedIdRef.current = found ? found.properties.id : null;
-      renderBuildings();
+      selectedIdRef.current = hit;
+      renderViewport();
     },
   });
 
