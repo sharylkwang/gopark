@@ -4,6 +4,7 @@ import { CRON } from './config.js';
 import type { MergedCarpark } from './pipeline/types.js';
 import { mergeAll } from './pipeline/merge.js';
 import { buildSourceIdIndex, resolveCarparkIds } from './pipeline/idResolution.js';
+import { planAvailabilityWrite } from './pipeline/refresh.js';
 import { fetchMapping, fetchAvailability } from './providers/govsg.js';
 import { fetchDatamall } from './providers/datamall.js';
 import { fetchLocations, fetchDump, fetchRates } from './providers/parkaholic.js';
@@ -100,9 +101,13 @@ async function refreshAvailability() {
     async function updateAvail(source: string, providerId: string, lotType: string, available: number | null, total: number | null) {
       for (const carparkId of resolveCarparkIds(sourceIdIndex, source, providerId)) {
         const existing = await prisma.availability.findUnique({ where: { carparkId_lotType: { carparkId, lotType } } });
-        if (!existing) continue;
-        const newTotal = total ?? (available != null && (existing.total == null || available > existing.total) ? available : existing.total);
-        await prisma.availability.update({ where: { carparkId_lotType: { carparkId, lotType } }, data: { available, total: newTotal, updatedAt: now } });
+        const write = planAvailabilityWrite(existing, { available, total });
+        if (!write) continue;
+        await prisma.availability.upsert({
+          where: { carparkId_lotType: { carparkId, lotType } },
+          update: { available: write.available, total: write.total, updatedAt: now },
+          create: { carparkId, lotType, available: write.available, total: write.total },
+        });
         touched.add(carparkId);
       }
     }
@@ -114,7 +119,7 @@ async function refreshAvailability() {
       for (const [lt, e] of Object.entries(lots)) await updateAvail('datamall', id, lt, e.available, null);
     }
     for (const [id, d] of Object.entries(pk)) {
-      for (const [lt, e] of Object.entries(d.availability)) await updateAvail('parkaholic', id, lt, e.available, null);
+      for (const [lt, e] of Object.entries(d.availability)) await updateAvail('parkaholic', id, lt, e.available, e.total);
     }
     for (const [jpId, lots] of Object.entries(jp)) {
       for (const [lt, e] of Object.entries(lots)) await updateAvail('justpark', jpId, lt, e.available, e.total);
