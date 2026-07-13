@@ -215,31 +215,50 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
                       mode3D === m.id ? 'scale-105' : 'opacity-70 hover:opacity-100'
                     }`}>
                     <div className={`relative w-12 h-12 rounded-xl border-2 shadow-sm transition-all overflow-hidden flex items-center justify-center ${
-                      mode3D === m.id ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-400'
+                      mode3D === m.id
+                        ? 'border-yellow-400 ring-2 ring-yellow-400/30'
+                        : darkMode ? 'border-white/15 hover:border-white/40' : 'border-gray-200 hover:border-gray-400'
                     }`} style={{ background: `linear-gradient(135deg, ${m.preview}, ${m.preview}dd)` }}>
                       <Globe size={16} className="text-white/80" />
                     </div>
                     <span className={`text-[9px] leading-tight text-center max-w-14 ${
-                      mode3D === m.id ? 'font-black text-red-600' : 'font-semibold text-gray-500'
+                      mode3D === m.id ? 'font-black text-yellow-500' : `font-semibold ${subtle}`
                     }`}>{m.label}</span>
                   </button>
                 ))}
               </div>
             </div>
           ) : (
-            <div className="border-t border-gray-200/40 pt-2">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 block">3D Maps</span>
-              <p className="text-[9px] text-gray-400">Requires a dedicated GPU</p>
+            <div className={`border-t pt-2 ${divider}`}>
+              <span className={`text-[9px] font-black uppercase tracking-widest mb-1 block ${subtle}`}>3D Maps</span>
+              <p className={`text-[9px] ${subtle}`}>Requires a dedicated GPU</p>
             </div>
           )}
         </div>
-      ) : (
-        <button onClick={() => setOpen(true)}
-          className="bg-white/70 backdrop-blur-lg shadow-lg border border-gray-200/50 rounded-xl p-2 hover:bg-white/90 transition flex items-center gap-1.5">
-          <Layers size={14} className="text-gray-600" />
-          <span className="text-[10px] font-bold text-gray-600">Layers</span>
-        </button>
-      )}
-    </div>
+  );
+
+  const overlay = open && isCompact
+    ? createPortal(
+        <div className="fixed inset-0 z-[3000] flex flex-col justify-end p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setOpen(false)} />
+          <div className="relative">{panel}</div>
+        </div>,
+        document.body,
+      )
+    : null;
+
+  return (
+    <>
+      <div ref={panelRef} className={`absolute z-[1001] ${SWITCHER_POSITION[layout]}`}>
+        {open && !isCompact ? panel : (
+          <button onClick={() => setOpen(true)}
+            className={`backdrop-blur-lg shadow-lg border rounded-xl p-2 transition flex items-center gap-1.5 ${surface}`}>
+            <Layers size={14} className={heading} />
+            <span className={`text-[10px] font-bold ${heading}`}>Layers</span>
+          </button>
+        )}
+      </div>
+      {overlay}
+    </>
   );
 }
