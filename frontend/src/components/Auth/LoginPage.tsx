@@ -277,24 +277,25 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
           setLocalError('');
           if (!PASSWORD_REGEX.test(newPassword)) { setLocalError(PASSWORD_ERROR); return; }
           if (newPassword !== confirmPassword) { setLocalError('Passwords do not match'); return; }
+          if (!captchaEnabled) { onCaptchaToken(''); return; }
           setShowResetCaptcha(true);
         }} className="flex flex-col gap-3">
-          <p className="text-sm font-bold text-gray-500">Choose a new password.</p>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">Choose a new password.</p>
           <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
             <input type={showPassword ? 'text' : 'password'} placeholder="New Password" value={newPassword}
               onChange={e => { setNewPassword(e.target.value); setLocalError(''); }} required
-              className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+              className="bg-transparent w-full outline-none text-base font-bold text-gray-700 dark:text-gray-200" />
             <button type="button" onClick={() => setShowPassword(!showPassword)}
-              className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition">
+              className="text-gray-400 hover:text-gray-600 focus:outline-none ml-2 shrink-0 transition p-2 -m-1">
               {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
             </button>
           </InputRow>
           <InputRow icon={<Lock className="text-gray-400 mr-3 shrink-0" size={20} />}>
             <input type={showPassword ? 'text' : 'password'} placeholder="Confirm Password" value={confirmPassword}
               onChange={e => { setConfirmPassword(e.target.value); setLocalError(''); }} required
-              className="bg-transparent w-full outline-none text-base font-bold text-gray-700" />
+              className="bg-transparent w-full outline-none text-base font-bold text-gray-700 dark:text-gray-200" />
           </InputRow>
-          <p className="text-xs text-gray-400 font-bold">8+ characters with uppercase, lowercase, number, and special character.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 font-bold">8+ characters with uppercase, lowercase, number, and special character.</p>
           <button type="submit" disabled={loading}
             className="w-full bg-red-600 hover:bg-red-700 text-white font-black uppercase tracking-widest py-3 rounded shadow-md transition disabled:opacity-50">
             {loading ? 'Updating...' : 'Update Password'}
