@@ -114,35 +114,100 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
   };
 
   const select3D = (m: Map3DMode) => {
+    if (mode3D !== m) onBuildings3DChange(false);
     onMode3DChange(mode3D === m ? null : m);
     setOpen(false);
   };
 
-  return (
-    <div ref={panelRef} className="absolute bottom-3 left-[356px] z-[1001] max-md:bottom-20 max-md:left-auto max-md:right-2.5">
-      {open ? (
-        <div className="bg-white/80 backdrop-blur-xl rounded-2xl shadow-xl border border-gray-200/50 p-3 w-[260px]">
+  const isCompact = layout !== 'desktop';
+
+  const panel = (
+        <div className={`backdrop-blur-xl rounded-2xl shadow-xl border p-3 ${surface} ${
+          isCompact
+            ? 'animate-drop-in w-full max-h-[70vh] overflow-y-auto overscroll-contain sidebar-scroll'
+            : 'w-[260px] max-w-[calc(100vw-24px)]'
+        }`}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Layers</span>
-            <button onClick={() => setOpen(false)} className="text-gray-400 hover:text-gray-600 text-sm font-bold">✕</button>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${heading}`}>Layers</span>
+            <button onClick={() => setOpen(false)} aria-label="Close layers"
+              className={`h-8 w-8 -m-1.5 grid place-items-center rounded-lg text-sm font-bold ${subtle}`}>✕</button>
           </div>
 
           <div className="mb-2">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Map Type</span>
-            <div className="grid grid-cols-4 gap-1.5">
-              {TILE_PROVIDERS.map((tile) => (
+            <span className={`text-[9px] font-black uppercase tracking-widest mb-1.5 block ${subtle}`}>Map Type</span>
+            <div className="grid gap-1.5"
+              style={{ gridTemplateColumns: `repeat(${Math.min(themedTiles.length, 4)}, minmax(0, 1fr))` }}>
+              {themedTiles.map((tile) => (
                 <TileCard key={tile.id} tile={tile}
                   active={!mode3D && currentTile === tile.id}
                   disabled={!tile.url}
                   onClick={() => tile.url && selectTile(tile.id)}
-                  lat={lat} lng={lng} zoom={zoom} />
+                  lat={lat} lng={lng} zoom={zoom} darkMode={darkMode} />
               ))}
             </div>
           </div>
 
+          <div className={`border-t pt-2 mb-2 ${divider}`}>
+            <div className={`rounded-xl border p-2.5 transition-colors ${
+              buildings3D
+                ? 'border-yellow-400/50 bg-yellow-400/8'
+                : darkMode ? 'border-white/10 bg-white/4' : 'border-gray-200 bg-gray-50'
+            }`}>
+              <button onClick={() => { onMode3DChange(null); onBuildings3DChange(!buildings3D); }}
+                className="flex items-center gap-2.5 w-full">
+                <span className={`shrink-0 h-8 w-8 grid place-items-center rounded-lg ${
+                  buildings3D ? 'bg-yellow-400 text-[#0d1013]' : darkMode ? 'bg-white/8 text-[#8b95a3]' : 'bg-white text-gray-500'
+                }`}>
+                  <Building2 size={15} />
+                </span>
+
+                <span className="flex-1 min-w-0 text-left">
+                  <span className={`block text-[12px] font-bold ${heading}`}>3D Buildings</span>
+                  <span className={`block text-[9px] ${subtle}`}>OpenStreetMap footprints</span>
+                </span>
+
+                <span className={`shrink-0 relative h-5 w-9 rounded-full transition-colors ${
+                  buildings3D ? 'bg-yellow-400' : darkMode ? 'bg-white/15' : 'bg-gray-300'
+                }`}>
+                  <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${buildings3D ? 'left-[18px]' : 'left-0.5'}`} />
+                </span>
+              </button>
+
+              {buildings3D && (
+                <div className={`animate-fade-up mt-2 pt-2 border-t ${divider}`}>
+                  {belowMinZoom ? (
+                    <p className="flex items-center gap-1.5 text-[10px] font-semibold text-yellow-600 dark:text-yellow-500">
+                      <ZoomIn size={12} /> Zooming in to level {BUILDINGS_MIN_ZOOM}…
+                    </p>
+                  ) : buildingStatus.state === 'loading' ? (
+                    <p className={`flex items-center gap-1.5 text-[10px] font-semibold ${subtle}`}>
+                      <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
+                      Loading buildings…
+                    </p>
+                  ) : buildingStatus.state === 'error' ? (
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="flex items-center gap-1.5 text-[10px] font-semibold text-red-500">
+                        <AlertTriangle size={12} /> OpenStreetMap didn't respond
+                      </p>
+                      <button onClick={onRetryBuildings}
+                        className="press shrink-0 flex items-center gap-1 h-6 px-2 rounded-md bg-yellow-400 text-[#0d1013] text-[10px] font-black">
+                        <RotateCw size={11} /> Retry
+                      </button>
+                    </div>
+                  ) : (
+                    <p className={`flex items-center gap-1.5 text-[10px] font-semibold ${subtle}`}>
+                      <Check size={12} className="text-[#22c55e]" />
+                      {buildingStatus.count.toLocaleString()} buildings in view
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
           {gpuOk ? (
-            <div className="border-t border-gray-200/40 pt-2">
-              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">3D Maps</span>
+            <div className={`border-t pt-2 ${divider}`}>
+              <span className={`text-[9px] font-black uppercase tracking-widest mb-1.5 block ${subtle}`}>3D Maps</span>
               <div className="grid grid-cols-4 gap-1.5">
                 {MAP_3D_MODES.map((m) => (
                   <button key={m.id} onClick={() => select3D(m.id)}
