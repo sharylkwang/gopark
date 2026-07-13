@@ -48,22 +48,30 @@ export function SearchForm({
   const inputBg = dm ? 'bg-neutral-800/60 border border-neutral-600/50' : 'bg-white/60 border border-gray-300';
   const inputText = dm ? 'text-gray-100' : 'text-gray-800';
   const labelClass = `text-[11px] font-black uppercase tracking-widest mb-1 block ${dm ? 'text-gray-500' : 'text-gray-400'}`;
-  const pickBtn = `shrink-0 p-1.5 rounded-lg transition ${dm ? 'text-gray-400 hover:text-blue-400 hover:bg-neutral-700/50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50/60'}`;
-  const submitted = useRef(false);
+  const pickBtn = `shrink-0 p-2 -my-1 rounded-lg transition ${dm ? 'text-gray-400 hover:text-blue-400 hover:bg-neutral-700/50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50/60'}`;
+
+  const submitTyped = () => {
+    closeDropdown();
+    closeStartDropdown();
+    onSubmit(destination);
+  };
+
+  const destKeys = useSuggestionKeys(suggestions, isDropdownOpen, onSelectSuggestion, submitTyped, closeDropdown);
+  const startKeys = useSuggestionKeys(startSuggestions, startDropdownOpen, onSelectStart, () => closeStartDropdown(), closeStartDropdown);
 
   return (
     <div className={`px-3 py-3 border-b shrink-0 ${dm ? 'bg-neutral-900 border-neutral-700/40' : 'bg-white border-gray-200/30'}`}>
-      <form onSubmit={e => { e.preventDefault(); submitted.current = true; setIsDropdownOpen(false); setStartDropdownOpen(false); (document.activeElement as HTMLElement)?.blur(); if (suggestions.length > 0) { onSelectSuggestion(suggestions[0]); } else { onSubmit(destination); } setTimeout(() => { submitted.current = false; }, 500); }} className="space-y-2.5">
+      <form onSubmit={e => { e.preventDefault(); submitTyped(); }} className="space-y-2.5">
         <div className="relative">
           <label className={labelClass}>Start</label>
           <div className={`flex items-center rounded-xl px-2.5 py-2 transition ${inputBg} ${startCoords ? 'border-green-500/50' : 'focus-within:border-blue-500/50'}`}>
             <Navigation className={`mr-2 shrink-0 ${startCoords ? 'text-green-500' : 'text-blue-500'}`} size={15} />
             <input type="text" value={startPoint}
               onChange={e => onStartChange(e.target.value)}
-              onFocus={() => !submitted.current && startPoint.length > 2 && setStartDropdownOpen(true)}
-              onBlur={() => setTimeout(() => setStartDropdownOpen(false), 200)}
+              onKeyDown={startKeys.onKeyDown}
+              onBlur={() => setTimeout(closeStartDropdown, 150)}
               placeholder={locationShared ? 'Current location' : 'Current location (allow GPS)'}
-              className={`bg-transparent w-full outline-none text-sm font-bold placeholder-gray-400 ${inputText}`} />
+              className={`bg-transparent w-full outline-none text-base md:text-sm font-bold placeholder-gray-400 ${inputText}`} />
             <button type="button" onClick={onPickStart} className={pickBtn} title="Pick from map">
               <Crosshair size={14} />
             </button>
