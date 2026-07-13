@@ -242,7 +242,7 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
         bgClusterRef.current = null;
       }
     };
-  }, [bgKey]);
+  }, [bgKey, darkBasemap]);
 
   useEffect(() => {
     if (clusterRef.current) {

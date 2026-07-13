@@ -716,14 +716,14 @@ export default function GoParkApp() {
                 </div>
               )}
 
-              <div className={`flex-1 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-800/30' : 'bg-white'}`}>
+              <div className={`flex-1 overflow-y-auto overscroll-contain sidebar-scroll ${darkMode ? 'bg-neutral-800/30' : 'bg-white'}`}>
                 {sidebarTab === 'favorites' && auth.appState === 'user' ? (
                   <FavoritesList darkMode={darkMode} allCarparks={allCarparks} favorites={favorites}
                     selectedId={selectedId} onSelectCarpark={selectAndClose} onToggleFav={toggleFav} />
                 ) : (
                   <ResultsList darkMode={darkMode} hasSearched={hasSearched} searchResults={searchResults}
                     selectedId={selectedId} favorites={favorites} vehicleType={vehicleType}
-                    durationHours={durationHours}
+                    durationHours={durationHours} recommendedId={recommendedId} canFavorite={auth.appState === 'user'}
                     onSelectCarpark={selectAndClose} onToggleFav={toggleFav} />
                 )}
               </div>
