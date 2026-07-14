@@ -15,7 +15,6 @@ interface Props {
   onToggleFav: (e: React.MouseEvent) => void;
 }
 
-<<<<<<< HEAD
 export function CarparkCard({ cp, selected, isFav, canFavorite = true, darkMode, vehicleType, recommended, onSelect, onToggleFav }: Props) {
   const t = vehicleTotals(cp.availability, vehicleType);
 

@@ -13,6 +13,7 @@ export interface TileProviderConfig {
   tileSize?: number;
   zoomOffset?: number;
   preview?: string;
+  theme?: 'light' | 'dark' | 'any';
 }
 
 export interface MapEventHandlers {
