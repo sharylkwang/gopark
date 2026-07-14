@@ -268,16 +268,15 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
       chunkedLoading: true,
       animate: false,
       animateAddingMarkers: false,
-      iconCreateFunction: (c) => clusterIcon(c.getChildCount(), map.getZoom()),
+      iconCreateFunction: (c) => clusterIcon(c.getChildCount(), map.getZoom(), darkBasemap),
     });
 
     for (const cp of cps) {
-      const color = hasSearched
-        ? distanceColor(cp, maxDist)
-        : '#3b82f6';
+      const color = availabilityColor(cp, vehicleType);
+      const bob = cp.id === recommendedId;
 
       const marker = L.marker([cp.lat, cp.lng], {
-        icon: pin(color, 26, false, false),
+        icon: pin(color, 26, false, false, darkBasemap, bob),
       });
 
       marker.on('click', () => onSelectRef.current(cp.id));
