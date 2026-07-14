@@ -110,8 +110,11 @@ export default function GoParkApp() {
     if (auth.appState === 'login') return;
     const interval = setInterval(() => {
       fetchAvailability().then(({ carparks: avMap }) => {
-        setAllCarparks(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
-        setSearchResults(prev => prev.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp));
+        const applyAvailability = <T extends CarparkSummary>(list: T[]) =>
+          list.map(cp => avMap[cp.id] ? { ...cp, availability: avMap[cp.id] } : cp);
+        setAllCarparks(applyAvailability);
+        setNearbyRaw(applyAvailability);
+        setSearchResults(applyAvailability);
         setDetail(prev => prev && avMap[prev.id] ? { ...prev, availability: { ...prev.availability, ...avMap[prev.id] } } : prev);
       }).catch(() => {});
     }, 60000);
@@ -133,7 +136,7 @@ export default function GoParkApp() {
     const score = (cp: typeof results[0]) => {
       const vAvail = cp.availability[vehicleType];
       const t = totals(cp.availability);
-      const avail = vAvail ? (vAvail.available ?? 0) : t.available;
+      const avail = vAvail ? vAvail.available : t.available;
       const full = vAvail ? (vAvail.total ?? 0) > 0 && avail === 0 : t.total > 0 && avail === 0;
       if (full) return Infinity;
 
@@ -141,7 +144,7 @@ export default function GoParkApp() {
       const hasData = (t.total > 0 ? 0 : 1) + (cp.estimatedCost != null ? 0 : 1);
       const distNorm = (cp.distance ?? maxDist) / maxDist;
       const costNorm = (cp.estimatedCost ?? maxCost) / maxCost;
-      const availBonus = avail > 0 ? 0 : 0.3;
+      const availBonus = avail == null || avail > 0 ? 0 : 0.3;
 
       return hasVehicleData + hasData + distNorm * 0.35 + costNorm * 0.45 + availBonus;
     };

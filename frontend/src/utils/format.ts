@@ -48,9 +48,10 @@ export function parseDurationSecs(dur: string) {
 
 export function totals(avail: Record<string, { available: number | null; total: number | null }>) {
   const entries = Object.values(avail);
-  const available = entries.reduce((sum, e) => sum + (e.available ?? 0), 0);
   const total = entries.reduce((sum, e) => sum + (e.total ?? 0), 0);
-  const capped = Math.min(available, total);
+  if (!entries.some(e => e.available != null)) return { available: null, total, pct: 0 };
+  const available = entries.reduce((sum, e) => sum + (e.available ?? 0), 0);
+  const capped = total > 0 ? Math.min(available, total) : available;
   const pct = total > 0 ? Math.min((capped / total) * 100, 100) : 0;
   return { available: capped, total, pct };
 }

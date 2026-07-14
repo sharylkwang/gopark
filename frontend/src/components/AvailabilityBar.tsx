@@ -19,7 +19,7 @@ export function AvailabilityBar({ available, total, compact, darkMode }: Props) 
   if (!total) {
     return (
       <span className={`font-black whitespace-nowrap ${compact ? 'text-[10px]' : 'text-xs'} ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-        {available} lots
+        {available} lots free
       </span>
     );
   }
