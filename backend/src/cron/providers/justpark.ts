@@ -1,7 +1,26 @@
 import { fetchSites, fetchAllRates, type JustParkSite } from '../../lib/justparkClient.js';
 import type { CarparkRecord, AvailabilityEntry, RateEntry, JustParkResult } from '../pipeline/types.js';
+import { geocode } from '../scraper/geocode.js';
+import createLogger from '../../lib/logger.js';
 
 export type { JustParkResult };
+
+const log = createLogger('justpark');
+const coordCache = new Map<string, { lat: number; lng: number } | null>();
+
+type GeocodeFn = (query: string) => Promise<{ lat: number; lng: number } | null>;
+
+export async function resolveJustparkCoords(records: CarparkRecord[], geocodeFn: GeocodeFn = geocode): Promise<number> {
+  let resolved = 0;
+  for (const r of records) {
+    if (r.lat !== 0 || r.lng !== 0) continue;
+    const key = r.name.toLowerCase().trim();
+    if (!coordCache.has(key)) coordCache.set(key, await geocodeFn(`${r.name}, Singapore`));
+    const geo = coordCache.get(key);
+    if (geo) { r.lat = geo.lat; r.lng = geo.lng; resolved++; }
+  }
+  return resolved;
+}
 
 function parseSiteCode(site: JustParkSite): string {
   return `CLND-${site.SiteCode}`;
@@ -110,6 +129,9 @@ export async function fetchJustpark(): Promise<JustParkResult> {
       },
     });
   }
+
+  const resolved = await resolveJustparkCoords(records);
+  if (resolved) log.info(`geocoded ${resolved} JustPark sites that shipped without coords`);
 
   return { records, availability };
 }
