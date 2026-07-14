@@ -195,32 +195,43 @@ describe('totals', () => {
     expect(result.pct).toBeCloseTo(33.33, 1);
   });
 
-  test('treats null available as 0', () => {
+  test('reports unknown availability as null instead of 0 when only totals exist', () => {
     const result = totals({ C: { available: null, total: 100 } });
-    expect(result.available).toBe(0);
+    expect(result.available).toBeNull();
     expect(result.total).toBe(100);
     expect(result.pct).toBe(0);
   });
 
-  test('treats null total as 0', () => {
+  test('keeps live available count when total is unknown', () => {
     const result = totals({ C: { available: 50, total: null } });
-    expect(result.available).toBe(0);
+    expect(result.available).toBe(50);
     expect(result.total).toBe(0);
     expect(result.pct).toBe(0);
   });
 
   test('handles both null values', () => {
     const result = totals({ C: { available: null, total: null } });
-    expect(result.available).toBe(0);
+    expect(result.available).toBeNull();
     expect(result.total).toBe(0);
     expect(result.pct).toBe(0);
   });
 
-  test('returns zeros for empty object', () => {
+  test('returns null available and zero totals for empty object', () => {
     const result = totals({});
-    expect(result.available).toBe(0);
+    expect(result.available).toBeNull();
     expect(result.total).toBe(0);
     expect(result.pct).toBe(0);
+  });
+
+  test('sums live counts across lot types while ignoring null entries', () => {
+    const result = totals({
+      C: { available: 15, total: 83 },
+      Y: { available: null, total: 50 },
+      H: { available: null, total: 1 },
+    });
+    expect(result.available).toBe(15);
+    expect(result.total).toBe(134);
+    expect(result.pct).toBeCloseTo(11.19, 1);
   });
 
   test('caps available at total when available exceeds total', () => {
