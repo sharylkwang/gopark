@@ -8,20 +8,27 @@ interface Props {
   hasSearched: boolean;
   destinationPoint: DestinationPoint | null;
   userLocation?: [number, number] | null;
+  compact?: boolean;
 }
 
-export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation }: Props) {
+const ZOOM = {
+  desktop: { user: 16, carpark: 16, destination: 15, threshold: 15 },
+  compact: { user: 17, carpark: 17, destination: 16, threshold: 16 },
+};
+
+export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation, compact = false }: Props) {
   const map = useMap();
   const hasFlownToUser = useRef(false);
+  const zoom = compact ? ZOOM.compact : ZOOM.desktop;
 
   useEffect(() => {
     if (hasFlownToUser.current || !userLocation) return;
     hasFlownToUser.current = true;
-    map.flyTo(userLocation, 16, {
+    map.flyTo(userLocation, zoom.user, {
       duration: 1.5,
       easeLinearity: 0.25,
     });
-  }, [userLocation, map]);
+  }, [userLocation, map, zoom.user]);
 
   useEffect(() => {
     if (!hasSearched) return;
