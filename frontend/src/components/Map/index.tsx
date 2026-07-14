@@ -520,13 +520,32 @@ function DraggableDestination({
   return null;
 }
 
-export function MapView({
+export const MapView = memo(function MapView({
   carparks, backgroundCarparks, selectedId, destinationPoint, hasSearched,
   onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
-  nearbyParking,
+  nearbyParking, layout = 'desktop', hideSwitcher, darkMode, focusPoint, vehicleType, recommendedId, onMapReady,
 }: Props) {
-  const [tileId, setTileId] = useState(DEFAULT_TILE);
+  const [tileId, setTileId] = useState(darkMode ? DARK_TILE : DEFAULT_TILE);
+  const [buildings3D, setBuildings3D] = useState(false);
+  const [buildingStatus, setBuildingStatus] = useState<BuildingStatus>({ state: 'ready', count: 0 });
+  const [buildingRetry, setBuildingRetry] = useState(0);
+
+  const toggleBuildings = useCallback((on: boolean) => {
+    setBuildings3D(on);
+    if (on) setBuildingStatus({ state: 'loading', count: 0 });
+  }, []);
+  const tilePickedByUser = useRef(false);
+
+  useEffect(() => {
+    if (tilePickedByUser.current) return;
+    setTileId(darkMode ? DARK_TILE : DEFAULT_TILE);
+  }, [darkMode]);
+
+  const chooseTile = useCallback((id: string) => {
+    tilePickedByUser.current = true;
+    setTileId(id);
+  }, []);
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 1.3521, lng: 103.8198 });
   const [mapZoom, setMapZoom] = useState(12);
