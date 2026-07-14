@@ -251,8 +251,6 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
     markersRef.current.clear();
 
     const cps = carparksRef.current;
-    const distances = cps.map(c => c.distance ?? 0);
-    const maxDist = hasSearched ? Math.max(...distances, 1) : 0;
 
     const cluster = L.markerClusterGroup({
       maxClusterRadius: hasSearched

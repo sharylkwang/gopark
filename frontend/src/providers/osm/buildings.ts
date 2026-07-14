@@ -14,66 +14,6 @@ export interface BuildingFeature {
   };
 }
 
-export interface BuildingCollection {
-  type: 'FeatureCollection';
-  features: BuildingFeature[];
-}
-
-interface OverpassElement {
-  type: string;
-  id: number;
-  lat?: number;
-  lon?: number;
-  nodes?: number[];
-  tags?: Record<string, string>;
-}
-
-function tileToBbox(z: number, x: number, y: number) {
-  const n = 2 ** z;
-  const west = (x / n) * 360 - 180;
-  const east = ((x + 1) / n) * 360 - 180;
-  const north = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n))) * (180 / Math.PI);
-  const south = Math.atan(Math.sinh(Math.PI * (1 - (2 * (y + 1)) / n))) * (180 / Math.PI);
-  return { south, west, north, east };
-}
-
-function toGeoJson(data: { elements: OverpassElement[] }): BuildingCollection {
-  const nodes: Record<number, [number, number]> = {};
-  const features: BuildingFeature[] = [];
-
-  for (const el of data.elements) {
-    if (el.type === 'node' && el.lat !== undefined && el.lon !== undefined) {
-      nodes[el.id] = [el.lon, el.lat];
-    }
-  }
-
-  for (const el of data.elements) {
-    if (el.type === 'way' && el.tags?.building && el.nodes) {
-      const coords = el.nodes.map((nid) => nodes[nid]).filter(Boolean);
-      if (coords.length >= 3) {
-        const levels = parseFloat(el.tags['building:levels'] || '0');
-        features.push({
-          type: 'Feature',
-          properties: {
-            id: el.id,
-            name: el.tags.name || '',
-            height: parseFloat(el.tags.height || '0') || levels * 3 || 12,
-            minHeight: parseFloat(el.tags.min_height || '0'),
-            color: '#ececec',
-            roofColor: '#dedede',
-          },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [coords],
-          },
-        });
-      }
-    }
-  }
-
-  return { type: 'FeatureCollection', features };
-}
-
 export function lngLatToTile(lng: number, lat: number, z: number) {
   const n = 2 ** z;
   const x = Math.floor(((lng + 180) / 360) * n);
