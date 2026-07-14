@@ -291,12 +291,10 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
       map.removeLayer(cluster);
       clusterRef.current = null;
     };
-  }, [carparkKey, hasSearched]);
+  }, [carparkKey, hasSearched, darkBasemap, vehicleType, recommendedId]);
 
   useEffect(() => {
     const cps = carparksRef.current;
-    const distances = cps.map(c => c.distance ?? 0);
-    const maxDist = hasSearched ? Math.max(...distances, 1) : 0;
 
     for (const cp of cps) {
       const marker = markersRef.current.get(cp.id);

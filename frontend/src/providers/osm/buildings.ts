@@ -22,49 +22,7 @@ export function lngLatToTile(lng: number, lat: number, z: number) {
   return { x, y };
 }
 
-const OVERPASS_MIRRORS = [
-  'https://overpass-api.de/api/interpreter',
-  'https://overpass.kumi.systems/api/interpreter',
-  'https://overpass.nchc.org.tw/api/interpreter',
-];
-
 const TILE_ZOOM = 14;
-
-let requestQueue: Promise<void> = Promise.resolve();
-
-function enqueue<T>(fn: () => Promise<T>): Promise<T> {
-  const task = requestQueue.then(fn, fn);
-  requestQueue = task.then(
-    () => {},
-    () => {},
-  );
-  return task;
-}
-
-async function queryOverpassOnce(query: string): Promise<any> {
-  const body = `data=${encodeURIComponent(query)}`;
-  const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-
-  for (const mirror of OVERPASS_MIRRORS) {
-    try {
-      const response = await fetch(mirror, { method: 'POST', headers, body });
-      if (response.ok) return response.json();
-    } catch {}
-  }
-
-  return null;
-}
-
-async function queryOverpass(query: string): Promise<any> {
-  return enqueue(async () => {
-    for (let attempt = 0; attempt < 4; attempt++) {
-      const result = await queryOverpassOnce(query);
-      if (result) return result;
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * 2 ** attempt));
-    }
-    throw new Error('All Overpass mirrors unreachable');
-  });
-}
 
 const memCache = new Map<string, BuildingFeature[]>();
 
