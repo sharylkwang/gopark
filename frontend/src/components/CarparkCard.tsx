@@ -1,6 +1,6 @@
 import { Heart, Navigation, ParkingSquare } from 'lucide-react';
 import { AvailabilityBar } from './AvailabilityBar';
-import { formatDistance, totals } from '../utils/format';
+import { formatDistance, vehicleTotals } from '../utils/format';
 import type { CarparkSummary } from '../types';
 
 interface Props {
@@ -15,10 +15,7 @@ interface Props {
 }
 
 export function CarparkCard({ cp, selected, isFav, darkMode, vehicleType, recommended, onSelect, onToggleFav }: Props) {
-  const vAvail = vehicleType ? cp.availability[vehicleType] : null;
-  const t = vAvail
-    ? { available: vAvail.available ?? 0, total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? ((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100 : 0 }
-    : totals(cp.availability);
+  const t = vehicleTotals(cp.availability, vehicleType);
 
   return (
     <div onClick={onSelect}
