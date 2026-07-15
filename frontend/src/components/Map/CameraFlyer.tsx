@@ -13,6 +13,8 @@ interface Props {
 export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation }: Props) {
   const map = useMap();
   const hasFlownToUser = useRef(false);
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
 
   useEffect(() => {
     if (hasFlownToUser.current || !userLocation) return;
@@ -27,7 +29,7 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
     if (!hasSearched) return;
 
     if (selectedId) {
-      const target = results.find((cp) => cp.id === selectedId);
+      const target = resultsRef.current.find((cp) => cp.id === selectedId);
       if (target) {
         const zoom = map.getZoom();
         if (zoom < 15) {
@@ -45,7 +47,7 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
         easeLinearity: 0.25,
       });
     }
-  }, [selectedId, results, map, hasSearched, destinationPoint]);
+  }, [selectedId, map, hasSearched, destinationPoint?.lat, destinationPoint?.lng]);
 
   return null;
 }
