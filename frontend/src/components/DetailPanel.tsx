@@ -2,7 +2,7 @@ import { ChevronLeft, Map, Navigation, Clock } from 'lucide-react';
 import { CircularProgress } from './CircularProgress';
 import { PopularTimes } from './PopularTimes';
 import { AvailabilityBar } from './AvailabilityBar';
-import { timeAgo, totals, formatParkDuration, formatClockTime, formatTime12, parseClockTime } from '../utils/format';
+import { timeAgo, vehicleTotals, formatParkDuration, formatClockTime, formatTime12, parseClockTime } from '../utils/format';
 import { estimateCost } from '../utils/estimateCost';
 import { LOT_LABELS, LOT_ICONS, DAY_LABELS } from '../utils/constants';
 import type { CarparkDetail } from '../types';
@@ -19,14 +19,7 @@ interface Props {
 }
 
 export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil, setParkUntil, durationHours, vehicleType }: Props) {
-  const vAvail = detail.availability[vehicleType];
-  const dt = vAvail
-    ? {
-        available: vAvail.available != null ? Math.min(vAvail.available, vAvail.total ?? vAvail.available) : null,
-        total: vAvail.total ?? 0,
-        pct: vAvail.available != null && (vAvail.total ?? 0) > 0 ? Math.min((vAvail.available / (vAvail.total ?? 1)) * 100, 100) : 0,
-      }
-    : totals(detail.availability);
+  const dt = vehicleTotals(detail.availability, vehicleType);
   const dm = darkMode;
   const cost = detail.rates?.length ? estimateCost(detail.rates, durationHours, vehicleType, arrivalTime) : null;
   const sortedLots = Object.entries(detail.availability).sort(([a], [b]) => a === vehicleType ? -1 : b === vehicleType ? 1 : 0);
@@ -102,7 +95,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
           )}
         </div>
 
-        {vAvail && dt.available != null && dt.total > 0 ? (
+        {dt.hasVehicleData && dt.total > 0 && dt.available != null ? (
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${dm ? 'bg-neutral-800/50 border-neutral-700/50' : 'bg-gray-50 border-gray-200'}`}>
             <CircularProgress percentage={dt.pct} size={64} stroke={8} darkMode={dm} />
             <div>
@@ -110,7 +103,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
               <p className={`text-[9px] font-bold uppercase tracking-wider ${dm ? 'text-gray-400' : 'text-gray-500'}`}>{LOT_LABELS[vehicleType]}</p>
             </div>
           </div>
-        ) : !vAvail && (
+        ) : !dt.hasVehicleData && (
           <div className={`p-3 rounded-xl border ${dm ? 'bg-neutral-800/50 border-neutral-700/50' : 'bg-gray-50 border-gray-200'}`}>
             <p className={`text-[11px] font-bold italic ${dm ? 'text-gray-400' : 'text-gray-500'}`}>No {LOT_LABELS[vehicleType] ?? vehicleType} lots at this carpark</p>
           </div>
