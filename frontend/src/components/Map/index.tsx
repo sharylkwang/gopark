@@ -589,10 +589,19 @@ export const MapView = memo(function MapView({
     })),
   [carparks, selectedId]);
 
+  const darkBasemap = tileId === DARK_TILE || tileId === 'google-hybrid' || mode3D === 'HYBRID';
+
+  const selected = carparks.find(cp => cp.id === selectedId);
+  const camera3D = useMemo(() => {
+    if (selected) return { center: { lat: selected.lat, lng: selected.lng }, zoom: 17 };
+    if (dest3D) return { center: dest3D, zoom: 16 };
+    return { center: mapCenter, zoom: mapZoom };
+  }, [selected?.id, selected?.lat, selected?.lng, dest3D, mapCenter, mapZoom]);
+
   return (
     <div className="h-full w-full relative">
       <MapContainer
-        center={[1.3521, 103.8198]} zoom={12} className="h-full w-full z-0"
+        center={[1.3521, 103.8198]} zoom={layout === 'desktop' ? 12 : 13} className="h-full w-full z-0"
         zoomSnap={0} zoomDelta={1} wheelPxPerZoomLevel={60} zoomAnimation={true}
         doubleClickZoom={false}
         zoomControl={false} minZoom={11} maxZoom={19}
