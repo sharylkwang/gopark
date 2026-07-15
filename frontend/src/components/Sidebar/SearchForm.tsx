@@ -80,7 +80,8 @@ export function SearchForm({
             )}
           </div>
           {startDropdownOpen && startSuggestions.length > 0 && (
-            <SuggestionList items={startSuggestions} onSelect={onSelectStart} darkMode={dm} />
+            <SuggestionList items={startSuggestions} onSelect={onSelectStart} darkMode={dm}
+              activeIndex={startKeys.activeIndex} onHover={startKeys.setActiveIndex} />
           )}
         </div>
 

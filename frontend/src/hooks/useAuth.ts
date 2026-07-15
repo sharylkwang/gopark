@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { loginUser, sendVerificationCode, verifyAndRegister, requestPasswordReset, resetPassword } from '../providers/auth';
 import { fetchFavorites } from '../providers/favorites';
 import { verifyCaptcha } from '../providers/auth/captcha';
+import { captchaEnabled } from '../utils/env';
 import { PASSWORD_REGEX, PASSWORD_ERROR } from '../utils/constants';
 import type { AppState } from '../types';
 
