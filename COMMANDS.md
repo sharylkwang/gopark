@@ -53,6 +53,7 @@ docker compose logs --tail=100 backend
 | `GEOAPIFY_KEY` | | Geoapify geocoding key |
 | `GOOGLE_MAPS_KEY` | | Google Maps key (tiles + routing) |
 | `DATAMALL_API` | | LTA DataMall API key |
+| `URA_ACCESS_KEY` | | URA Maps data service access key (live lots overlay) |
 | `DATABASE_URL` | `postgresql://postgres:password123@gopark:5432/gopark` | PostgreSQL connection |
 | `ZHIPUAI_API_KEY` | | Z.AI GLM API key (cloud scraping) |
 | `ZHIPUAI_MODEL` | `glm-4-flash` | Z.AI model name |
