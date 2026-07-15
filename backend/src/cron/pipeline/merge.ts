@@ -36,6 +36,44 @@ function findByName(map: Record<string, MergedCarpark>, name: string): MergedCar
   return null;
 }
 
+const ID_PREFIXES = ['URA-', 'LTA-'];
+
+function isSamePlace(a: MergedCarpark, b: MergedCarpark): boolean {
+  return Math.abs(a.lat - b.lat) <= MERGE.proximityThreshold && Math.abs(a.lng - b.lng) <= MERGE.proximityThreshold;
+}
+
+export function collapsePrefixTwins(map: Record<string, MergedCarpark>): number {
+  let merged = 0;
+  for (const id of Object.keys(map)) {
+    const prefix = ID_PREFIXES.find(p => id.startsWith(p));
+    if (!prefix) continue;
+    const bare = map[id.slice(prefix.length)];
+    if (!bare || !isSamePlace(bare, map[id])) continue;
+
+    const dup = map[id];
+    for (const s of dup.sources) if (!bare.sources.includes(s)) bare.sources.push(s);
+    for (const [k, v] of Object.entries(dup.source_ids)) if (!(k in bare.source_ids)) bare.source_ids[k] = v;
+    for (const [lt, e] of Object.entries(dup.availability)) {
+      const cur = bare.availability[lt];
+      if (!cur) bare.availability[lt] = { ...e };
+      else {
+        if (cur.available == null && e.available != null) cur.available = e.available;
+        if (!cur.total && e.total) cur.total = e.total;
+      }
+    }
+    const rateKey = (r: RateEntry) => `${r.vehicle_type}|${r.day_type}|${r.unit}|${r.amount}|${r.period_start ?? ''}`;
+    const seen = new Set(bare.rates.map(rateKey));
+    for (const r of dup.rates) if (!seen.has(rateKey(r))) { bare.rates.push(r); seen.add(rateKey(r)); }
+    bare.address = bare.address || dup.address;
+    bare.agency = bare.agency || dup.agency;
+    Object.assign(bare.metadata, dup.metadata);
+
+    delete map[id];
+    merged++;
+  }
+  return merged;
+}
+
 function findExisting(map: Record<string, MergedCarpark>, id: string, name: string, lat: number, lng: number): MergedCarpark | null {
   if (map[id]) return map[id];
   const byProx = findByProximity(map, lat, lng, MERGE.proximityThreshold);
@@ -227,6 +265,8 @@ export function mergeAll(
       }
     }
   }
+
+  collapsePrefixTwins(map);
 
   const LT_NAMES: Record<string, string> = { C: 'Car', Y: 'Motorcycle', H: 'Heavy Vehicle' };
   return Object.values(map)
