@@ -303,18 +303,13 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
       const isSelected = cp.id === selectedId;
       const dimOthers = !!hasSearched && selectedId !== null;
 
-      let color = '#3b82f6';
-      if (isSelected) {
-        color = '#2563eb';
-      } else if (hasSearched) {
-        color = distanceColor(cp, maxDist);
-      }
-
+      const color = availabilityColor(cp, vehicleType);
       const size = isSelected ? 34 : 26;
-      marker.setIcon(pin(color, size, isSelected, dimOthers));
-      marker.setZIndexOffset(isSelected ? 1000 : 0);
+      const bob = cp.id === recommendedId;
+      marker.setIcon(pin(color, size, isSelected, dimOthers, darkBasemap, bob));
+      marker.setZIndexOffset(isSelected ? 1000 : cp.id === recommendedId ? 500 : 0);
     }
-  }, [selectedId, carparkKey, hasSearched]);
+  }, [selectedId, recommendedId, carparkKey, hasSearched, darkBasemap, vehicleType]);
 
   return null;
 }
