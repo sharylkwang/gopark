@@ -62,6 +62,16 @@ export function useAuth() {
     finally { setIsLoggingIn(false); }
   };
 
+  const requestCaptcha = async (action: PendingAction) => {
+    setPendingAction(action);
+    if (!captchaEnabled) {
+      await executePendingAction(action);
+      setPendingAction(null);
+      return;
+    }
+    setShowCaptcha(true);
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');

@@ -91,16 +91,17 @@ export function SearchForm({
             <Search className="text-gray-400 mr-2 shrink-0" size={15} />
             <input required type="text" value={destination}
               onChange={onDestinationChange}
-              onFocus={() => !submitted.current && destination.length > 2 && setIsDropdownOpen(true)}
-              onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+              onKeyDown={destKeys.onKeyDown}
+              onBlur={() => setTimeout(closeDropdown, 150)}
               placeholder="e.g. Orchard Gateway"
-              className={`bg-transparent w-full outline-none text-sm font-bold placeholder-gray-400 ${inputText}`} />
+              className={`bg-transparent w-full outline-none text-base md:text-sm font-bold placeholder-gray-400 ${inputText}`} />
             <button type="button" onClick={onPickDestination} className={pickBtn} title="Pick from map">
               <Crosshair size={14} />
             </button>
           </div>
           {isDropdownOpen && suggestions.length > 0 && (
-            <SuggestionList items={suggestions} onSelect={onSelectSuggestion} darkMode={dm} />
+            <SuggestionList items={suggestions} onSelect={onSelectSuggestion} darkMode={dm}
+              activeIndex={destKeys.activeIndex} onHover={destKeys.setActiveIndex} />
           )}
         </div>
 

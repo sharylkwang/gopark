@@ -325,7 +325,7 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
         else if (step === 'otp') { onBack(); }
         else { onBack(); }
       }}
-        className="text-xs text-gray-500 font-bold hover:text-red-600 transition text-center py-2">
+        className="text-xs text-gray-500 dark:text-gray-400 font-bold hover:text-red-600 transition text-center py-2">
         {step === 'email' ? 'Back to Login' : 'Go Back'}
       </button>
     </div>
