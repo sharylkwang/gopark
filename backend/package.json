@@ -10,6 +10,7 @@
     "test:integration": "NODE_OPTIONS='--experimental-vm-modules' node node_modules/jest/bin/jest.js --forceExit --detectOpenHandles tests/integration"
   },
   "dependencies": {
+    "@mapbox/vector-tile": "^3.0.0",
     "@prisma/client": "^6.9.0",
     "axios": "^1.16.1",
     "bcryptjs": "^3.0.3",

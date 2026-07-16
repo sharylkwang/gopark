@@ -7,6 +7,7 @@ interface Props {
   cp: CarparkSummary & { estimatedCost?: number | null };
   selected: boolean;
   isFav: boolean;
+  canFavorite?: boolean;
   darkMode: boolean;
   vehicleType?: string;
   recommended?: boolean;
