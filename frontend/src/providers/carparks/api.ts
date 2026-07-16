@@ -2,13 +2,13 @@ import type { CarparkSummary, CarparkDetail } from '../../types';
 
 export async function fetchAll(): Promise<CarparkSummary[]> {
   const res = await fetch('/api/carparks');
-  if (!res.ok) throw new Error('Failed to fetch carparks');
+  if (!res.ok) throw new Error('carparks request failed');
   return res.json();
 }
 
 export async function fetchNearby(lat: number, lng: number, radius = 1000): Promise<CarparkSummary[]> {
   const res = await fetch(`/api/carparks/nearby?lat=${lat}&lng=${lng}&radius=${radius}`);
-  if (!res.ok) throw new Error('Failed to fetch carparks');
+  if (!res.ok) throw new Error('nearby lookup failed');
   return res.json();
 }
 
@@ -18,11 +18,8 @@ export async function fetchDetail(id: string): Promise<CarparkDetail> {
   return res.json();
 }
 
-export async function fetchAvailability(): Promise<{
-  updatedAt: string;
-  carparks: Record<string, Record<string, { available: number | null; total: number | null }>>;
-}> {
+export async function fetchAvailability(): Promise<{ updatedAt: string; carparks: Record<string, Record<string, { available: number | null; total: number | null }>> }> {
   const res = await fetch('/api/carparks/availability');
-  if (!res.ok) throw new Error('Failed to fetch availability');
+  if (!res.ok) throw new Error('availability request failed');
   return res.json();
 }

@@ -7,9 +7,7 @@ const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
 
 const classifyCache = new Map<string, { data: PlaceClassification | null; ts: number }>();
 const parkingCache = new Map<string, { data: NearbyParking[]; ts: number }>();
-const CACHE_TTL = 10 * 60 * 1000;
-const CLASSIFY_RADIUS_M = 80;
-const NEARBY_PARKING_RADIUS_M = 500;
+const ttl = 10 * 60 * 1000, R = 80;
 
 interface PlaceClassification {
   type: string;
@@ -17,43 +15,36 @@ interface PlaceClassification {
   parkingHint: string;
 }
 
-const BUILDING_TYPES: Record<string, [string, boolean, string]> = {
-  apartments: ['HDB / Apartment', true, 'HDB parking nearby'],
-  residential: ['Residential', true, 'May have visitor lots'],
-  house: ['Landed Property', false, 'Street parking nearby'],
-  detached: ['Landed / Detached', false, 'Street parking nearby'],
-  bungalow: ['Landed / Bungalow', false, 'Street parking nearby'],
-  terrace: ['Landed / Terrace', false, 'Street parking nearby'],
-  semidetached_house: ['Landed / Semi-D', false, 'Street parking nearby'],
-  commercial: ['Commercial', true, 'Building carpark available'],
-  office: ['Office Building', true, 'Building carpark available'],
-  retail: ['Retail', true, 'Building parking available'],
-  industrial: ['Industrial', true, 'On-site parking likely'],
-  warehouse: ['Warehouse', true, 'On-site parking likely'],
-  hotel: ['Hotel', true, 'Hotel parking available'],
+const BUILDINGS: Record<string, PlaceClassification> = {
+  apartments: { type: 'HDB / Apartment', hasParking: true, parkingHint: 'HDB parking nearby' },
+  residential: { type: 'Residential', hasParking: true, parkingHint: 'May have visitor lots' },
+  house: { type: 'Landed Property', hasParking: false, parkingHint: 'Street parking nearby' },
+  detached: { type: 'Landed / Detached', hasParking: false, parkingHint: 'Street parking nearby' },
+  bungalow: { type: 'Landed / Bungalow', hasParking: false, parkingHint: 'Street parking nearby' },
+  terrace: { type: 'Landed / Terrace', hasParking: false, parkingHint: 'Street parking nearby' },
+  semidetached_house: { type: 'Landed / Semi-D', hasParking: false, parkingHint: 'Street parking nearby' },
+  commercial: { type: 'Commercial', hasParking: true, parkingHint: 'Building carpark available' },
+  office: { type: 'Office Building', hasParking: true, parkingHint: 'Building carpark available' },
+  retail: { type: 'Retail', hasParking: true, parkingHint: 'Building parking available' },
+  industrial: { type: 'Industrial', hasParking: true, parkingHint: 'usually has its own carpark' },
+  warehouse: { type: 'Warehouse', hasParking: true, parkingHint: 'usually has its own carpark' },
+  hotel: { type: 'Hotel', hasParking: true, parkingHint: 'Hotel parking available' },
 };
 
-const AMENITY_TYPES: Record<string, [string, boolean, string]> = {
-  hospital: ['Hospital', true, 'Hospital carpark available'],
-  clinic: ['Clinic', true, 'Building parking likely'],
-  school: ['School', true, 'Visitor parking may be limited'],
-  university: ['University', true, 'Campus parking available'],
-  college: ['Education', true, 'Visitor parking may be limited'],
-  place_of_worship: ['Place of Worship', true, 'May have limited parking'],
-  marketplace: ['Market / Food Court', false, 'Nearby HDB parking'],
-  food_court: ['Market / Food Court', false, 'Nearby HDB parking'],
+const AMENITIES: Record<string, PlaceClassification> = {
+  hospital: { type: 'Hospital', hasParking: true, parkingHint: 'Hospital carpark available' },
+  clinic: { type: 'Clinic', hasParking: true, parkingHint: 'Building parking likely' },
+  school: { type: 'School', hasParking: true, parkingHint: 'visitor lots can be tight' },
+  university: { type: 'University', hasParking: true, parkingHint: 'Campus parking available' },
+  college: { type: 'Education', hasParking: true, parkingHint: 'visitor lots can be tight' },
+  place_of_worship: { type: 'Place of Worship', hasParking: true, parkingHint: 'parking can be limited' },
+  marketplace: { type: 'Market / Food Court', hasParking: false, parkingHint: 'Nearby HDB parking' },
+  food_court: { type: 'Market / Food Court', hasParking: false, parkingHint: 'Nearby HDB parking' },
 };
-
-function toResult(tuple: [string, boolean, string]): PlaceClassification {
-  return { type: tuple[0], hasParking: tuple[1], parkingHint: tuple[2] };
-}
 
 function classifyTags(tags: Record<string, string>): PlaceClassification | null {
-  const building = tags['building'] || '';
-  const landuse = tags['landuse'] || '';
-  const amenity = tags['amenity'] || '';
-  const shop = tags['shop'] || '';
-  const leisure = tags['leisure'] || '';
+  const building = tags['building'] || '', landuse = tags['landuse'] || '', amenity = tags['amenity'] || '';
+  const shop = tags['shop'] || '', leisure = tags['leisure'] || '';
 
   if (tags['parking']) return { type: 'Parking', hasParking: true, parkingHint: 'This is a carpark' };
 
@@ -62,25 +53,24 @@ function classifyTags(tags: Record<string, string>): PlaceClassification | null 
     const isCondo = name.includes('condo') || name.includes('residence') || name.includes('tower') || name.includes('heights') || tags['residential'] === 'condominium';
     return isCondo
       ? { type: 'Condominium', hasParking: true, parkingHint: 'Likely has visitor parking' }
-      : toResult(BUILDING_TYPES['apartments']);
+      : BUILDINGS['apartments'];
   }
 
-  if (BUILDING_TYPES[building] && ['house', 'detached', 'bungalow', 'terrace', 'semidetached_house'].includes(building))
-    return toResult(BUILDING_TYPES[building]);
+  if (BUILDINGS[building] && ['house', 'detached', 'bungalow', 'terrace', 'semidetached_house'].includes(building))
+    return BUILDINGS[building];
 
   if (landuse === 'residential') return { type: 'Residential Area', hasParking: true, parkingHint: 'HDB / street parking nearby' };
 
-  if (AMENITY_TYPES[amenity]) return toResult(AMENITY_TYPES[amenity]);
+  if (AMENITIES[amenity]) return AMENITIES[amenity];
 
-  if (tags['tourism'] === 'hotel' || building === 'hotel')
-    return toResult(BUILDING_TYPES['hotel']);
+  if (tags['tourism'] === 'hotel' || building === 'hotel') return BUILDINGS['hotel'];
 
   if (shop === 'supermarket' || shop === 'mall' || shop === 'department_store')
     return { type: 'Shopping', hasParking: true, parkingHint: 'Store / mall parking available' };
 
-  if (BUILDING_TYPES[building]) return toResult(BUILDING_TYPES[building]);
-  if (landuse === 'commercial') return toResult(BUILDING_TYPES['commercial']);
-  if (landuse === 'industrial') return toResult(BUILDING_TYPES['industrial']);
+  if (BUILDINGS[building]) return BUILDINGS[building];
+  if (landuse === 'commercial') return BUILDINGS['commercial'];
+  if (landuse === 'industrial') return BUILDINGS['industrial'];
 
   if (leisure === 'sports_centre' || leisure === 'stadium')
     return { type: 'Sports Complex', hasParking: true, parkingHint: 'Facility parking available' };
@@ -105,10 +95,10 @@ export interface NearbyParking {
   capacity: number | null;
 }
 
-export async function findNearbyParking(lat: number, lng: number, radius = NEARBY_PARKING_RADIUS_M): Promise<NearbyParking[]> {
+export async function findNearbyParking(lat: number, lng: number, radius = 500): Promise<NearbyParking[]> {
   const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)},${radius}`;
   const cached = parkingCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  if (cached && Date.now() - cached.ts < ttl) return cached.data;
 
   const query = `
     [out:json][timeout:10];
@@ -135,8 +125,7 @@ export async function findNearbyParking(lat: number, lng: number, radius = NEARB
     const results: NearbyParking[] = [];
 
     for (const el of data?.elements ?? []) {
-      const elLat = el.lat ?? el.center?.lat;
-      const elLng = el.lon ?? el.center?.lon;
+      const elLat = el.lat ?? el.center?.lat, elLng = el.lon ?? el.center?.lon;
       if (!elLat || !elLng) continue;
 
       const key = `${elLat.toFixed(5)},${elLng.toFixed(5)}`;
@@ -170,7 +159,7 @@ export async function findNearbyParking(lat: number, lng: number, radius = NEARB
     parkingCache.set(cacheKey, { data: results, ts: Date.now() });
     return results;
   } catch (e) {
-    log.warn(`overpass nearby parking failed: ${e instanceof Error ? e.message : e}`);
+    log.warn(`nearby parking lookup failed: ${String(e)}`);
     return [];
   }
 }
@@ -178,17 +167,17 @@ export async function findNearbyParking(lat: number, lng: number, radius = NEARB
 export async function classifyPlace(lat: number, lng: number): Promise<PlaceClassification | null> {
   const cacheKey = `${lat.toFixed(4)},${lng.toFixed(4)}`;
   const cached = classifyCache.get(cacheKey);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  if (cached && Date.now() - cached.ts < ttl) return cached.data;
 
   const query = `
     [out:json][timeout:10];
     (
-      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["building"];
-      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["landuse"];
-      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["amenity"];
-      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["shop"];
-      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["leisure"];
-      nwr(around:${CLASSIFY_RADIUS_M},${lat},${lng})["tourism"];
+      nwr(around:${R},${lat},${lng})["building"];
+      nwr(around:${R},${lat},${lng})["landuse"];
+      nwr(around:${R},${lat},${lng})["amenity"];
+      nwr(around:${R},${lat},${lng})["shop"];
+      nwr(around:${R},${lat},${lng})["leisure"];
+      nwr(around:${R},${lat},${lng})["tourism"];
     );
     out tags center;
   `;
@@ -222,7 +211,7 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
     classifyCache.set(cacheKey, { data: null, ts: Date.now() });
     return null;
   } catch (e) {
-    log.warn(`overpass classify failed: ${e instanceof Error ? e.message : e}`);
+    log.warn(`classify query failed: ${String(e)}`);
     return null;
   }
 }

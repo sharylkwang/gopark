@@ -10,7 +10,7 @@ export async function getWalkRoute(
     body: JSON.stringify({ origin, destination }),
   });
 
-  if (!res.ok) throw new Error('Failed to get walking route');
+  if (!res.ok) throw new Error('walking route failed');
   return res.json();
 }
 
@@ -24,6 +24,6 @@ export async function getBfaRoute(
     body: JSON.stringify({ origin, destination }),
   });
 
-  if (!res.ok) throw new Error('Failed to get barrier-free route');
+  if (!res.ok) throw new Error('no barrier-free route');
   return res.json();
 }

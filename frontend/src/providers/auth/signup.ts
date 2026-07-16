@@ -8,7 +8,7 @@ export async function sendVerificationCode(username: string, email: string, pass
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to send verification code');
+  if (!response.ok) throw new Error(data.error || 'could not send the code');
   return data;
 }
 
@@ -20,6 +20,6 @@ export async function verifyAndRegister(email: string, code: string) {
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to verify code');
+  if (!response.ok) throw new Error(data.error || 'code check failed');
   return data; 
 }

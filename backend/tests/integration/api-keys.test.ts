@@ -1,21 +1,23 @@
 import { describe, it, expect } from '@jest/globals';
 
-const REQUIRED_KEYS = ['GEOAPIFY_KEY', 'DATAGOVSG_KEY', 'DATAMALL_API'] as const;
-const OPTIONAL_KEYS = ['ZHIPUAI_API_KEY'] as const;
+const zhipuKey = process.env.ZHIPUAI_API_KEY;
+if (!zhipuKey) console.warn('ZHIPUAI_API_KEY not set (optional), skipping its check');
 
-describe('API Key Verification', () => {
-  describe('required keys are set', () => {
-    for (const key of REQUIRED_KEYS) {
-      it(`${key} is defined and non-empty`, () => {
-        const val = process.env[key];
-        expect(val).toBeDefined();
-        expect(val!.trim().length).toBeGreaterThan(0);
-      });
-    }
+function expectSet(key: string) {
+  const val = process.env[key];
+  expect(val).toBeDefined();
+  expect(val!.trim().length).toBeGreaterThan(0);
+}
+
+describe('api keys', () => {
+  describe('required keys present', () => {
+    it('GEOAPIFY_KEY set', () => expectSet('GEOAPIFY_KEY'));
+    it('DATAGOVSG_KEY set', () => expectSet('DATAGOVSG_KEY'));
+    it('DATAMALL_API set', () => expectSet('DATAMALL_API'));
   });
 
-  describe('required keys are valid', () => {
-    it('GEOAPIFY_KEY can geocode Singapore', async () => {
+  describe('required keys actually work', () => {
+    it('geoapify can geocode Singapore', async () => {
       const key = process.env.GEOAPIFY_KEY;
       if (!key) return;
       const url = `https://api.geoapify.com/v1/geocode/search?text=Singapore&limit=1&format=json&apiKey=${key}`;
@@ -26,7 +28,7 @@ describe('API Key Verification', () => {
       expect(body.results?.length).toBeGreaterThan(0);
     }, 15000);
 
-    it('DATAGOVSG_KEY can fetch carpark availability', async () => {
+    it('data.gov.sg returns carpark availability', async () => {
       const key = process.env.DATAGOVSG_KEY;
       if (!key) return;
       const res = await fetch('https://api.data.gov.sg/v1/transport/carpark-availability', {
@@ -39,7 +41,7 @@ describe('API Key Verification', () => {
       expect(body.items?.[0]?.carpark_data?.length).toBeGreaterThan(0);
     }, 15000);
 
-    it('DATAMALL_API can fetch LTA carpark data', async () => {
+    it('datamall responds with LTA carpark data', async () => {
       const key = process.env.DATAMALL_API;
       if (!key) return;
       const res = await fetch('https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2', {
@@ -54,22 +56,10 @@ describe('API Key Verification', () => {
   });
 
   describe('optional keys', () => {
-    for (const key of OPTIONAL_KEYS) {
-      it(`${key} is set or skipped`, () => {
-        const val = process.env[key];
-        if (!val) {
-          console.log(`  ⚠ ${key} not set (optional)`);
-        }
-        expect(true).toBe(true);
-      });
-    }
-
-    it('ZHIPUAI_API_KEY can reach chat endpoint if set', async () => {
-      const key = process.env.ZHIPUAI_API_KEY;
-      if (!key) return;
+    (zhipuKey ? it : it.skip)('zhipu chat endpoint accepts the key', async () => {
       const res = await fetch('https://api.z.ai/api/coding/paas/v4/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${zhipuKey}` },
         body: JSON.stringify({
           model: process.env.ZHIPUAI_MODEL || 'glm-4-flash',
           messages: [{ role: 'user', content: 'ping' }],

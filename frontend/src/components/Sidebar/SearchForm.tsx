@@ -166,21 +166,17 @@ export function SearchForm({
   );
 }
 
-const PAGE_SIZE = 10;
-
 function SuggestionList({ items, onSelect, darkMode }: {
   items: PlaceSuggestion[]; onSelect: (s: PlaceSuggestion) => void; darkMode: boolean;
 }) {
   const [hovered, setHovered] = useState(-1);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [visibleCount, setVisibleCount] = useState(10);
   const listRef = useRef<HTMLUListElement>(null);
 
   const handleScroll = useCallback(() => {
     const el = listRef.current;
     if (!el || visibleCount >= items.length) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
-      setVisibleCount(v => Math.min(v + PAGE_SIZE, items.length));
-    }
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setVisibleCount(v => Math.min(v + 10, items.length));
   }, [visibleCount, items.length]);
 
   const visible = items.slice(0, visibleCount);

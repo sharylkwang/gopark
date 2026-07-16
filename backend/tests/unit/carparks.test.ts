@@ -2,19 +2,12 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
 
-const mockCarparkFindMany = jest.fn();
-const mockCarparkFindUnique = jest.fn();
-const mockAvailabilityFindMany = jest.fn();
+const findCarparks = jest.fn(), findCarpark = jest.fn(), findAvail = jest.fn();
 
 jest.unstable_mockModule('../../src/db/index', () => ({
   default: {
-    carpark: {
-      findMany: mockCarparkFindMany,
-      findUnique: mockCarparkFindUnique,
-    },
-    availability: {
-      findMany: mockAvailabilityFindMany,
-    },
+    carpark: { findMany: findCarparks, findUnique: findCarpark },
+    availability: { findMany: findAvail },
   },
 }));
 
@@ -28,12 +21,7 @@ jest.unstable_mockModule('../../src/cron/scraper/apply', () => ({
 }));
 
 jest.unstable_mockModule('../../src/lib/logger', () => ({
-  default: jest.fn().mockReturnValue({
-    info: jest.fn(),
-    error: jest.fn(),
-    warn: jest.fn(),
-    debug: jest.fn(),
-  }),
+  default: jest.fn().mockReturnValue({ info: jest.fn(), error: jest.fn(), warn: jest.fn(), debug: jest.fn() }),
 }));
 
 const { default: carparkRouter } = await import('../../src/providers/carparks/router');
@@ -46,18 +34,12 @@ function createApp() {
 }
 
 const sampleCarpark = {
-  id: 'CP1',
-  name: 'Test Carpark',
-  lat: 1.3,
-  lng: 103.8,
-  address: '123 Test St',
-  agency: 'HDB',
-  sources: ['HDB'],
-  lotTypes: 'C',
+  id: 'CP1', name: 'Test Carpark', lat: 1.3, lng: 103.8,
+  address: '123 Test St', agency: 'HDB', sources: ['HDB'], lotTypes: 'C',
   availability: [{ lotType: 'C', available: 50, total: 100 }],
 };
 
-describe('Carparks Router', () => {
+describe('carparks router', () => {
   let app: ReturnType<typeof express>;
 
   beforeEach(() => {
@@ -66,89 +48,51 @@ describe('Carparks Router', () => {
   });
 
   describe('GET /carparks', () => {
-    it('returns formatted carpark list', async () => {
-      mockCarparkFindMany.mockResolvedValue([sampleCarpark]);
-
+    it('formats the list with availability keyed by lot type', async () => {
+      findCarparks.mockResolvedValue([sampleCarpark]);
       const res = await request(app).get('/carparks');
-
       expect(res.status).toBe(200);
       expect(res.body).toHaveLength(1);
       expect(res.body[0].id).toBe('CP1');
       expect(res.body[0].name).toBe('Test Carpark');
-      expect(res.body[0].availability).toEqual({
-        C: { available: 50, total: 100 },
-      });
+      expect(res.body[0].availability).toEqual({ C: { available: 50, total: 100 } });
     });
 
-    it('returns empty array when no carparks exist', async () => {
-      mockCarparkFindMany.mockResolvedValue([]);
-
+    it('empty db gives empty array', async () => {
+      findCarparks.mockResolvedValue([]);
       const res = await request(app).get('/carparks');
-
       expect(res.status).toBe(200);
       expect(res.body).toEqual([]);
     });
   });
 
   describe('GET /carparks/nearby', () => {
-    it('returns carparks sorted by distance for valid coordinates', async () => {
-      const nearCarpark = {
-        ...sampleCarpark,
-        id: 'CP_NEAR',
-        lat: 1.3001,
-        lng: 103.8001,
-        rates: [],
-      };
-      const farCarpark = {
-        ...sampleCarpark,
-        id: 'CP_FAR',
-        lat: 1.305,
-        lng: 103.805,
-        rates: [],
-      };
-      mockCarparkFindMany.mockResolvedValue([farCarpark, nearCarpark]);
+    it('nearest comes first, with a distance field', async () => {
+      const near = { ...sampleCarpark, id: 'CP_NEAR', lat: 1.3001, lng: 103.8001, rates: [] };
+      const far = { ...sampleCarpark, id: 'CP_FAR', lat: 1.305, lng: 103.805, rates: [] };
+      findCarparks.mockResolvedValue([far, near]);
 
       const res = await request(app).get('/carparks/nearby?lat=1.3&lng=103.8');
 
       expect(res.status).toBe(200);
-      expect(res.body.length).toBeGreaterThanOrEqual(1);
       expect(res.body[0].id).toBe('CP_NEAR');
+      expect(res.body[1].id).toBe('CP_FAR');
       expect(res.body[0].distance).toBeDefined();
     });
 
-    it('returns 400 for non-numeric coordinates', async () => {
-      const res = await request(app).get('/carparks/nearby?lat=abc&lng=xyz');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Invalid coordinates');
-    });
-
-    it('returns 400 for out-of-range latitude', async () => {
-      const res = await request(app).get('/carparks/nearby?lat=91&lng=103.8');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Invalid coordinates');
-    });
-
-    it('returns 400 for out-of-range longitude', async () => {
-      const res = await request(app).get('/carparks/nearby?lat=1.3&lng=181');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Invalid coordinates');
-    });
-
-    it('returns 400 when coordinates are missing', async () => {
-      const res = await request(app).get('/carparks/nearby');
-
-      expect(res.status).toBe(400);
-      expect(res.body.error).toBe('Invalid coordinates');
+    it('rejects bad lat/lng: non-numeric, out of range, or missing', async () => {
+      for (const q of ['?lat=abc&lng=xyz', '?lat=91&lng=103.8', '?lat=1.3&lng=181', '']) {
+        const res = await request(app).get(`/carparks/nearby${q}`);
+        expect(res.status).toBe(400);
+        expect(res.body.error).toBe('Invalid coordinates');
+      }
     });
   });
 
   describe('GET /carparks/availability', () => {
-    it('returns grouped availability data', async () => {
+    it('groups rows by carpark then lot type', async () => {
       const updatedAt = new Date('2024-01-01T00:00:00Z');
-      mockAvailabilityFindMany.mockResolvedValue([
+      findAvail.mockResolvedValue([
         { carparkId: 'CP1', lotType: 'C', available: 50, total: 100, updatedAt },
         { carparkId: 'CP1', lotType: 'Y', available: 10, total: 20, updatedAt },
         { carparkId: 'CP2', lotType: 'C', available: 30, total: 60, updatedAt },
@@ -163,11 +107,9 @@ describe('Carparks Router', () => {
       expect(res.body.updatedAt).toBeDefined();
     });
 
-    it('returns null updatedAt when no availability data exists', async () => {
-      mockAvailabilityFindMany.mockResolvedValue([]);
-
+    it('updatedAt is null when the table is empty', async () => {
+      findAvail.mockResolvedValue([]);
       const res = await request(app).get('/carparks/availability');
-
       expect(res.status).toBe(200);
       expect(res.body.updatedAt).toBeNull();
       expect(res.body.carparks).toEqual({});
@@ -175,41 +117,18 @@ describe('Carparks Router', () => {
   });
 
   describe('GET /carparks/:id', () => {
-    it('returns detailed carpark for valid id', async () => {
-      mockCarparkFindUnique.mockResolvedValue({
-        id: 'CP1',
-        name: 'Test Carpark',
-        lat: 1.3,
-        lng: 103.8,
-        address: '123 Test St',
-        agency: 'HDB',
-        sources: ['HDB'],
-        sourceIds: { hdb: 'HDB-001' },
-        lotTypes: 'C',
-        metadata: {},
-        detailsUpdatedAt: null,
-        availabilityUpdatedAt: null,
-        rates: [
-          {
-            amount: 0.6,
-            durationMins: 30,
-            unit: 'per_entry',
-            vehicleType: 'Car',
-            periodStart: '07:00',
-            periodEnd: '17:00',
-            isFirst: false,
-            dayType: 'weekday',
-            sources: ['HDB'],
-          },
-        ],
-        availability: [
-          {
-            lotType: 'C',
-            available: 50,
-            total: 100,
-            updatedAt: new Date('2024-01-01'),
-          },
-        ],
+    it('full detail payload for a known id', async () => {
+      findCarpark.mockResolvedValue({
+        id: 'CP1', name: 'Test Carpark', lat: 1.3, lng: 103.8,
+        address: '123 Test St', agency: 'HDB', sources: ['HDB'],
+        sourceIds: { hdb: 'HDB-001' }, lotTypes: 'C', metadata: {},
+        detailsUpdatedAt: null, availabilityUpdatedAt: null,
+        rates: [{
+          amount: 0.6, durationMins: 30, unit: 'per_entry', vehicleType: 'Car',
+          periodStart: '07:00', periodEnd: '17:00', isFirst: false, dayType: 'weekday',
+          sources: ['HDB'],
+        }],
+        availability: [{ lotType: 'C', available: 50, total: 100, updatedAt: new Date('2024-01-01') }],
       });
 
       const res = await request(app).get('/carparks/CP1');
@@ -224,11 +143,9 @@ describe('Carparks Router', () => {
       expect(res.body.availability.C.available).toBe(50);
     });
 
-    it('returns 404 for unknown carpark id', async () => {
-      mockCarparkFindUnique.mockResolvedValue(null);
-
+    it('404 on unknown id', async () => {
+      findCarpark.mockResolvedValue(null);
       const res = await request(app).get('/carparks/UNKNOWN');
-
       expect(res.status).toBe(404);
       expect(res.body.error).toBe('Not found');
     });

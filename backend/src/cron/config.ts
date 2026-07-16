@@ -11,8 +11,6 @@ export const TIMEOUTS = {
   scrapeFetch: 30000,
   llmExtract: 240000,
   llmHealthCheck: 5000,
-  sgcarmart: 30000,
-  datamall: 30000,
   parkaholicRate: 10000,
 };
 

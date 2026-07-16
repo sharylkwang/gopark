@@ -5,7 +5,7 @@ const log = createLogger('onemap');
 
 let token = process.env.ONEMAP_API || '';
 let expiresAt = 0;
-let refreshing: Promise<void> | null = null;
+let inflight: Promise<void> | null = null;
 
 async function refreshToken() {
   const email = process.env.ONEMAP_EMAIL;
@@ -22,13 +22,9 @@ async function refreshToken() {
 }
 
 async function ensureToken() {
-  const buffer = 60 * 60 * 1000;
-  if (token && Date.now() < expiresAt - buffer) return;
-
-  if (!refreshing) {
-    refreshing = refreshToken().finally(() => { refreshing = null; });
-  }
-  await refreshing;
+  if (token && Date.now() < expiresAt - 3600000) return;
+  if (!inflight) inflight = refreshToken().finally(() => { inflight = null; });
+  await inflight;
 }
 
 const onemapClient = axios.create({
