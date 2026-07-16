@@ -155,7 +155,7 @@ router.post('/auth/register/verify', resetLimiter, async (req: Request, res: Res
       return res.status(400).json({ error: 'code expired' });
     }
 
-    if (cached.otp !== code) {
+    if (String(cached.otp) !== String(code)) {
       cached.attempts++;
       if (cached.attempts >= 5) {
         otpCache.delete(email);
@@ -291,7 +291,7 @@ router.post('/auth/password/reset', resetLimiter, async (req: Request, res: Resp
       return res.status(400).json({ error: 'code expired' });
     }
 
-    if (cached.otp !== code) {
+    if (String(cached.otp) !== String(code)) {
       cached.attempts++;
       if (cached.attempts >= 5) {
         otpCache.delete(email);
