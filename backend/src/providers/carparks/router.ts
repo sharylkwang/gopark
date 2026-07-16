@@ -83,8 +83,12 @@ router.get('/carparks/nearby', async (req: Request, res: Response) => {
   res.json(nearby);
 });
 
-router.get('/carparks/availability', async (_req: Request, res: Response) => {
+router.get('/carparks/availability', async (req: Request, res: Response) => {
+  const idParam = typeof req.query.ids === 'string' ? req.query.ids : '';
+  const ids = idParam.split(',').map(id => id.trim()).filter(Boolean).slice(0, 200);
+
   const rows = await prisma.availability.findMany({
+    where: ids.length ? { carparkId: { in: ids } } : undefined,
     select: { carparkId: true, lotType: true, available: true, total: true, updatedAt: true },
   });
 
