@@ -79,9 +79,7 @@ export function useAuth() {
       setAuthError(PASSWORD_ERROR);
       return;
     }
-    const action = isLoginView ? 'login' : 'signup';
-    setPendingAction(action);
-    setShowCaptcha(true);
+    await requestCaptcha(isLoginView ? 'login' : 'signup');
   };
 
   const handleCaptchaToken = async (token: string) => {
