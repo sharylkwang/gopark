@@ -156,8 +156,24 @@ async function fullMerge(): Promise<MergedCarpark[]> {
   } else {
     await bulkInsert(merged);
   }
+
+  await deactivateCollapsedTwins();
+
   log.info(`merge done - ${merged.length} carparks in ${((Date.now() - t0) / 1000).toFixed(1)}s`);
   return merged;
+}
+
+async function deactivateCollapsedTwins(): Promise<void> {
+  const result = await prisma.$executeRawUnsafe(`
+    UPDATE carparks t SET active = false
+    WHERE t.active
+      AND (t.id LIKE 'URA-%' OR t.id LIKE 'LTA-%')
+      AND EXISTS (
+        SELECT 1 FROM carparks b
+        WHERE b.id = substring(t.id from 5) AND b.active
+          AND abs(b.lat - t.lat) <= 0.001 AND abs(b.lng - t.lng) <= 0.001
+      )`);
+  if (result) log.info(`retired ${result} duplicate URA/LTA prefix-twin pins`);
 }
 
 async function dbHasData(): Promise<boolean> {
