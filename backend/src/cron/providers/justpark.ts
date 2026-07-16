@@ -1,10 +1,7 @@
 import { fetchSites, fetchAllRates, type JustParkSite } from '../../lib/justparkClient.js';
-import type { CarparkRecord, AvailabilityEntry, RateEntry } from '../pipeline/types.js';
+import type { CarparkRecord, AvailabilityEntry, RateEntry, JustParkResult } from '../pipeline/types.js';
 
-export interface JustParkResult {
-  records: CarparkRecord[];
-  availability: Record<string, Record<string, AvailabilityEntry>>;
-}
+export type { JustParkResult };
 
 function parseSiteCode(site: JustParkSite): string {
   return `CLND-${site.SiteCode}`;
@@ -44,87 +41,22 @@ function parseRateText(text: string): RateEntry[] {
       const timeMatch = line.match(/(\d{1,2}[:.]\d{2}\s*(?:am|pm)?)\s*(?:to|-)\s*(\d{1,2}[:.]\d{2}\s*(?:am|pm)?)/i);
       const periodStart = timeMatch ? normalizeTime(timeMatch[1]) : null;
       const periodEnd = timeMatch ? normalizeTime(timeMatch[2]) : null;
+      const push = (amount: number, over: Partial<RateEntry>) => rates.push({ amount, duration_mins: null, unit: 'flat', vehicle_type: vehicleType, period_start: periodStart, period_end: periodEnd, is_first: false, day_type: dayType, source: 'justpark', ...over });
 
       const perEntry = line.match(/\$(\d+\.?\d*)\s*per\s*entry/i);
-      if (perEntry) {
-        rates.push({
-          amount: parseFloat(perEntry[1]),
-          duration_mins: null,
-          unit: 'per_entry',
-          vehicle_type: vehicleType,
-          period_start: periodStart,
-          period_end: periodEnd,
-          is_first: false,
-          day_type: dayType,
-          source: 'justpark',
-        });
-        continue;
-      }
+      if (perEntry) { push(parseFloat(perEntry[1]), { unit: 'per_entry' }); continue; }
 
       const firstHour = line.match(/1st\s*hour\s*@?\s*\$(\d+\.?\d*)/i);
-      if (firstHour) {
-        rates.push({
-          amount: parseFloat(firstHour[1]),
-          duration_mins: 60,
-          unit: 'per_60min',
-          vehicle_type: vehicleType,
-          period_start: periodStart,
-          period_end: periodEnd,
-          is_first: true,
-          day_type: dayType,
-          source: 'justpark',
-        });
-        continue;
-      }
+      if (firstHour) { push(parseFloat(firstHour[1]), { duration_mins: 60, unit: 'per_60min', is_first: true }); continue; }
 
       const subseq = line.match(/\$(\d+\.?\d*)\s*(?:for\s+)?(?:subsequent|sub)\s*(\d+)\s*min/i);
-      if (subseq) {
-        const mins = parseInt(subseq[2]);
-        rates.push({
-          amount: parseFloat(subseq[1]),
-          duration_mins: mins,
-          unit: `per_${mins}min`,
-          vehicle_type: vehicleType,
-          period_start: periodStart,
-          period_end: periodEnd,
-          is_first: false,
-          day_type: dayType,
-          source: 'justpark',
-        });
-        continue;
-      }
+      if (subseq) { const mins = parseInt(subseq[2]); push(parseFloat(subseq[1]), { duration_mins: mins, unit: `per_${mins}min` }); continue; }
 
       const every = line.match(/every\s*(\d+)\s*min[s]?\s*@?\s*\$(\d+\.?\d*)/i);
-      if (every) {
-        const mins = parseInt(every[1]);
-        rates.push({
-          amount: parseFloat(every[2]),
-          duration_mins: mins,
-          unit: `per_${mins}min`,
-          vehicle_type: vehicleType,
-          period_start: periodStart,
-          period_end: periodEnd,
-          is_first: false,
-          day_type: dayType,
-          source: 'justpark',
-        });
-        continue;
-      }
+      if (every) { const mins = parseInt(every[1]); push(parseFloat(every[2]), { duration_mins: mins, unit: `per_${mins}min` }); continue; }
 
       const generic = line.match(/\$(\d+\.?\d*)\s*[-–]\s*(?:for\s+)?(?:first|1st)?\s*(?:hour|hr)/i);
-      if (generic) {
-        rates.push({
-          amount: parseFloat(generic[1]),
-          duration_mins: 60,
-          unit: 'per_60min',
-          vehicle_type: vehicleType,
-          period_start: periodStart,
-          period_end: periodEnd,
-          is_first: line.toLowerCase().includes('first') || line.toLowerCase().includes('1st'),
-          day_type: dayType,
-          source: 'justpark',
-        });
-      }
+      if (generic) push(parseFloat(generic[1]), { duration_mins: 60, unit: 'per_60min', is_first: /first|1st/i.test(line) });
     }
   }
 

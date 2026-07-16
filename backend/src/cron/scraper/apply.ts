@@ -4,15 +4,11 @@ import { SCRAPER } from '../config.js';
 import { isInSingapore } from '../../lib/geofence.js';
 import { geocode } from './geocode.js';
 import type { ScrapedResult, ScrapedCarpark } from '../pipeline/types.js';
+import { VT_MAP, normalize } from '../pipeline/merge.js';
 
 const log = createLogger('scraper-apply');
 
-const VT_MAP: Record<string, string> = { car: 'C', motorcycle: 'Y', heavy_vehicle: 'H' };
 const SCRAPER_SOURCES = new Set<string>([...SCRAPER.domains.map(d => d.domain), 'smart_search']);
-
-function normalize(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
 
 function isScraperManaged(sources: string[]): boolean {
   return sources.length > 0 && sources.every(s => SCRAPER_SOURCES.has(s));

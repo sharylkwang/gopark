@@ -14,58 +14,29 @@ export interface OnemapRouteResponse {
   speedIntervals: never[];
 }
 
-export async function computeWalkRoute(origin: LatLng, destination: LatLng): Promise<OnemapRouteResponse> {
-  const response = await onemapClient.get('/routingsvc/route', {
-    params: {
-      start: `${origin.lat},${origin.lng}`,
-      end: `${destination.lat},${destination.lng}`,
-      routeType: 'walk',
-    },
-  });
-
-  const data = response.data;
-
-  if (data.status !== 0 || !data.route_geometry) {
-    throw new Error(data.status_message || 'No walking route found');
-  }
-
+async function fetchRoute(path: string, params: Record<string, string>, travelMode: 'WALK' | 'BFA', missing: string): Promise<OnemapRouteResponse> {
+  const { data } = await onemapClient.get(path, { params });
+  if (data.status !== 0 || !data.route_geometry) throw new Error(data.status_message || missing);
   return {
     distanceMeters: data.route_summary.total_distance,
     duration: `${data.route_summary.total_time}s`,
     polyline: data.route_geometry,
-    travelMode: 'WALK',
+    travelMode,
     trafficCondition: 'NORMAL',
     speedIntervals: [],
   };
 }
 
+export function computeWalkRoute(origin: LatLng, destination: LatLng): Promise<OnemapRouteResponse> {
+  return fetchRoute('/routingsvc/route', { start: `${origin.lat},${origin.lng}`, end: `${destination.lat},${destination.lng}`, routeType: 'walk' }, 'WALK', 'No walking route found');
+}
+
 export async function computeBfaRoute(origin: LatLng, destination: LatLng): Promise<OnemapRouteResponse> {
-  let response;
   try {
-    response = await onemapClient.get('/bfa/routingsvc/route', {
-      params: {
-        start: `${origin.lat},${origin.lng}`,
-        end: `${destination.lat},${destination.lng}`,
-      },
-    });
+    return await fetchRoute('/bfa/routingsvc/route', { start: `${origin.lat},${origin.lng}`, end: `${destination.lat},${destination.lng}` }, 'BFA', 'No barrier-free route found');
   } catch (err: any) {
     if (err.response?.status === 403) throw new Error('BFA API access not authorized');
     if (err.response?.status === 404) throw new Error('Location outside BFA coverage area');
     throw err;
   }
-
-  const data = response.data;
-
-  if (data.status !== 0 || !data.route_geometry) {
-    throw new Error(data.status_message || 'No barrier-free route found');
-  }
-
-  return {
-    distanceMeters: data.route_summary.total_distance,
-    duration: `${data.route_summary.total_time}s`,
-    polyline: data.route_geometry,
-    travelMode: 'BFA',
-    trafficCondition: 'NORMAL',
-    speedIntervals: [],
-  };
 }

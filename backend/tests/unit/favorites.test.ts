@@ -2,23 +2,17 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
 
-const mockFavFindMany = jest.fn();
-const mockFavUpsert = jest.fn();
-const mockFavDeleteMany = jest.fn();
+const findFavs = jest.fn(), upsertFav = jest.fn(), deleteFavs = jest.fn();
 
 jest.unstable_mockModule('../../src/db/index', () => ({
   default: {
-    fav: {
-      findMany: mockFavFindMany,
-      upsert: mockFavUpsert,
-      deleteMany: mockFavDeleteMany,
-    },
+    fav: { findMany: findFavs, upsert: upsertFav, deleteMany: deleteFavs },
   },
 }));
 
-const mockRequireAuthImpl = jest.fn();
+const authImpl = jest.fn();
 jest.unstable_mockModule('../../src/middleware/auth', () => ({
-  requireAuth: (req: any, res: any, next: any) => mockRequireAuthImpl(req, res, next),
+  requireAuth: (req: any, res: any, next: any) => authImpl(req, res, next),
   AuthRequest: {},
 }));
 
@@ -31,32 +25,30 @@ function createApp() {
   return app;
 }
 
-describe('Favorites Router', () => {
+describe('favorites router', () => {
   let app: ReturnType<typeof express>;
 
   beforeEach(() => {
     app = createApp();
     jest.clearAllMocks();
-    mockRequireAuthImpl.mockImplementation((req: any, _res: any, next: any) => {
+    authImpl.mockImplementation((req: any, _res: any, next: any) => {
       req.user = { id: 'user-1', email: 'test@test.com' };
       next();
     });
   });
 
   describe('GET /favorites', () => {
-    it('returns 401 without authentication', async () => {
-      mockRequireAuthImpl.mockImplementation((_req: any, res: any) => {
+    it('401 when not logged in', async () => {
+      authImpl.mockImplementation((_req: any, res: any) => {
         res.status(401).json({ error: 'Not authenticated' });
       });
-
       const res = await request(app).get('/favorites');
-
       expect(res.status).toBe(401);
       expect(res.body.error).toBe('Not authenticated');
     });
 
-    it('returns carpark IDs when authenticated', async () => {
-      mockFavFindMany.mockResolvedValue([
+    it('lists just the carpark ids', async () => {
+      findFavs.mockResolvedValue([
         { carparkId: 'CP1' },
         { carparkId: 'CP2' },
         { carparkId: 'CP3' },
@@ -68,62 +60,56 @@ describe('Favorites Router', () => {
       expect(res.body).toEqual(['CP1', 'CP2', 'CP3']);
     });
 
-    it('returns empty array when no favorites exist', async () => {
-      mockFavFindMany.mockResolvedValue([]);
-
+    it('no favorites means empty array', async () => {
+      findFavs.mockResolvedValue([]);
       const res = await request(app).get('/favorites');
-
       expect(res.status).toBe(200);
       expect(res.body).toEqual([]);
     });
   });
 
   describe('POST /favorites/:carparkId', () => {
-    it('returns ok true when adding a favorite', async () => {
-      mockFavUpsert.mockResolvedValue({});
+    it('upserts the favorite for the authed user', async () => {
+      upsertFav.mockResolvedValue({});
 
       const res = await request(app).post('/favorites/CP1');
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true });
-      expect(mockFavUpsert).toHaveBeenCalledWith({
+      expect(upsertFav).toHaveBeenCalledWith({
         where: { userId_carparkId: { userId: 'user-1', carparkId: 'CP1' } },
         create: { userId: 'user-1', carparkId: 'CP1' },
         update: {},
       });
     });
 
-    it('returns 401 without authentication', async () => {
-      mockRequireAuthImpl.mockImplementation((_req: any, res: any) => {
+    it('adding needs auth', async () => {
+      authImpl.mockImplementation((_req: any, res: any) => {
         res.status(401).json({ error: 'Not authenticated' });
       });
-
       const res = await request(app).post('/favorites/CP1');
-
       expect(res.status).toBe(401);
     });
   });
 
   describe('DELETE /favorites/:carparkId', () => {
-    it('returns ok true when removing a favorite', async () => {
-      mockFavDeleteMany.mockResolvedValue({ count: 1 });
+    it('deletes by user and carpark id', async () => {
+      deleteFavs.mockResolvedValue({ count: 1 });
 
       const res = await request(app).delete('/favorites/CP1');
 
       expect(res.status).toBe(200);
       expect(res.body).toEqual({ ok: true });
-      expect(mockFavDeleteMany).toHaveBeenCalledWith({
+      expect(deleteFavs).toHaveBeenCalledWith({
         where: { userId: 'user-1', carparkId: 'CP1' },
       });
     });
 
-    it('returns 401 without authentication', async () => {
-      mockRequireAuthImpl.mockImplementation((_req: any, res: any) => {
+    it('removing needs auth too', async () => {
+      authImpl.mockImplementation((_req: any, res: any) => {
         res.status(401).json({ error: 'Not authenticated' });
       });
-
       const res = await request(app).delete('/favorites/CP1');
-
       expect(res.status).toBe(401);
     });
   });

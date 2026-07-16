@@ -10,46 +10,46 @@ function createApp() {
   return app;
 }
 
-describe('Helmet Security Headers', () => {
+describe('helmet headers', () => {
   const app = createApp();
 
-  it('sets X-Content-Type-Options to nosniff', async () => {
+  it('X-Content-Type-Options is nosniff', async () => {
     const res = await request(app).get('/test');
     expect(res.headers['x-content-type-options']).toBe('nosniff');
   });
 
-  it('sets X-Frame-Options to SAMEORIGIN', async () => {
+  it('X-Frame-Options is SAMEORIGIN', async () => {
     const res = await request(app).get('/test');
     expect(res.headers['x-frame-options']).toBe('SAMEORIGIN');
   });
 
-  it('removes X-Powered-By header', async () => {
+  it('X-Powered-By is stripped', async () => {
     const res = await request(app).get('/test');
     expect(res.headers['x-powered-by']).toBeUndefined();
   });
 
-  it('sets Strict-Transport-Security header', async () => {
+  it('HSTS is on with a max-age', async () => {
     const res = await request(app).get('/test');
     expect(res.headers['strict-transport-security']).toBeDefined();
     expect(res.headers['strict-transport-security']).toContain('max-age=');
   });
 
-  it('sets Content-Security-Policy header', async () => {
+  it('CSP is present', async () => {
     const res = await request(app).get('/test');
     expect(res.headers['content-security-policy']).toBeDefined();
   });
 
-  it('sets X-DNS-Prefetch-Control to off', async () => {
+  it('DNS prefetch control is off', async () => {
     const res = await request(app).get('/test');
     expect(res.headers['x-dns-prefetch-control']).toBe('off');
   });
 
-  it('sets Referrer-Policy header', async () => {
+  it('Referrer-Policy is present', async () => {
     const res = await request(app).get('/test');
     expect(res.headers['referrer-policy']).toBeDefined();
   });
 
-  it('does not set X-Powered-By even on error routes', async () => {
+  it('X-Powered-By stays gone on unknown routes', async () => {
     const res = await request(app).get('/nonexistent');
     expect(res.headers['x-powered-by']).toBeUndefined();
   });

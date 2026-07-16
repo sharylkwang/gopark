@@ -3,9 +3,7 @@ export function timeAgo(iso: string) {
   if (diff < 60000) return 'just now';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return new Date(iso).toLocaleDateString('en-SG', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  });
+  return new Date(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 export function formatDuration(seconds: number) {
@@ -20,8 +18,7 @@ export function formatDistance(meters: number) {
 
 export function formatParkDuration(hours: number) {
   const totalMins = Math.round(hours * 60);
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
+  const h = Math.floor(totalMins / 60), m = totalMins % 60;
   if (h === 0) return `${m} mins`;
   return m > 0 ? `${h}h ${m} mins` : `${h}h`;
 }

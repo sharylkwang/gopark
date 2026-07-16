@@ -1,18 +1,15 @@
 class VerboseReporter {
   onTestResult(_test, result) {
-    const file = result.testFilePath.split('/').pop();
-    console.log('\n  ' + file);
+    console.log('\n' + result.testFilePath.split('/').pop());
     for (const t of result.testResults) {
-      const icon = t.status === 'passed' ? '✓' : '✗';
-      const path = t.ancestorTitles.join(' › ');
-      console.log(`    ${icon} ${path} › ${t.title}`);
+      const mark = t.status === 'passed' ? 'pass' : 'FAIL';
+      console.log(`  ${mark}  ${t.fullName}`);
     }
   }
   onRunComplete(_contexts, results) {
-    console.log('\n' + '─'.repeat(60));
-    console.log(`Test Suites: ${results.numPassedTestSuites} passed, ${results.numTotalTestSuites} total`);
-    console.log(`Tests:       ${results.numPassedTests} passed, ${results.numTotalTests} total`);
-    console.log(`Time:        ${((results.testResults.reduce((s, r) => s + (r.perfStats?.runtime || 0), 0)) / 1000).toFixed(1)}s`);
+    const secs = (results.testResults.reduce((s, r) => s + (r.perfStats?.runtime || 0), 0) / 1000).toFixed(1);
+    console.log(`\nsuites: ${results.numPassedTestSuites}/${results.numTotalTestSuites} passed`);
+    console.log(`tests:  ${results.numPassedTests}/${results.numTotalTests} passed in ${secs}s`);
   }
 }
 module.exports = VerboseReporter;
