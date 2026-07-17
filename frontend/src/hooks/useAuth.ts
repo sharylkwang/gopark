@@ -146,8 +146,10 @@ export function useAuth() {
     setAuthError('');
     setResetLoading(true);
     try {
-      const result = await verifyCaptcha(token);
-      if (!result.success) { setAuthError('Captcha verification failed'); setResetLoading(false); return; }
+      if (captchaEnabled) {
+        const result = await verifyCaptcha(token);
+        if (!result.success) { setAuthError('Captcha verification failed'); setResetLoading(false); return; }
+      }
       await resetPassword(email, otp, newPassword);
       alert('Password updated successfully!');
       setIsResetView(false); setIsLinkSent(false); setIsLoginView(true); setOtp(''); setNewPassword('');
