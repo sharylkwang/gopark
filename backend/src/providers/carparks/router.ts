@@ -4,6 +4,7 @@ import prisma from '../../db/index.js';
 import { runScraper, smartSearch } from '../../cron/scraper/index.js';
 import { applyScraped } from '../../cron/scraper/apply.js';
 import createLogger from '../../lib/logger.js';
+import { requireAuth } from '../../middleware/auth.js';
 
 const log = createLogger('carparks-api');
 const router = Router();
@@ -123,7 +124,7 @@ router.get('/carparks/:id', async (req: Request, res: Response) => {
   });
 });
 
-router.post('/carparks/scrape', async (req: Request, res: Response) => {
+router.post('/carparks/scrape', requireAuth, async (req: Request, res: Response) => {
   try {
     const full = req.query.full === 'true';
     const results = full ? [...await runScraper(), ...await smartSearch()] : await smartSearch();
