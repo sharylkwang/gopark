@@ -46,12 +46,12 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
     }
 
     if (destinationPoint) {
-      map.flyTo([destinationPoint.lat, destinationPoint.lng], 15, {
+      map.flyTo([destinationPoint.lat, destinationPoint.lng], zoom.destination, {
         duration: 1.5,
         easeLinearity: 0.25,
       });
     }
-  }, [selectedId, results, map, hasSearched, destinationPoint]);
+  }, [selectedId, results, map, hasSearched, destinationPoint, zoom]);
 
   return null;
 }
