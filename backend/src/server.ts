@@ -7,11 +7,12 @@ import providers from './providers/index.js';
 import { startCron, shutdown } from './cron/index.js';
 import createLogger from './lib/logger.js';
 import authRouter from './providers/auth/router.js';
+import { startLiveAvailability } from './providers/carparks/live.js';
 
 const log = createLogger('server');
 const app = express();
 app.set('trust proxy', 1);
-const PORT = process.env.PORT || 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(helmet());
 app.use(cors({

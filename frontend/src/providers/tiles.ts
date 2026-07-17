@@ -4,9 +4,9 @@ import { OSM_TILES } from './osm';
 import { ONEMAP_TILES } from './onemap';
 
 export const TILE_PROVIDERS: TileProviderConfig[] = [
-  ...OSM_TILES,
-  ...GOOGLE_TILES,
   ...ONEMAP_TILES,
+  ...GOOGLE_TILES,
+  ...OSM_TILES,
 ];
 
 export const DEFAULT_TILE = 'google-roads';
