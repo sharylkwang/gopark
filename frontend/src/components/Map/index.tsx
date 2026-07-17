@@ -609,15 +609,19 @@ export const MapView = memo(function MapView({
       >
         <MapResizer sidebarOpen={sidebarOpen} />
         <PositionTracker onMove={handlePositionChange} />
-        <ZoomControl position="bottomright" />
+        <FocusFlyer point={focusPoint ?? null} />
+        <MapHandle onReady={onMapReady} />
         <TileLayer key={tile.id} url={tile.url} attribution={tile.attribution}
           maxZoom={tile.maxZoom} subdomains={tile.subdomains ?? []}
           tileSize={tile.tileSize ?? 256} zoomOffset={tile.zoomOffset ?? 0} />
 
         <CameraFlyer selectedId={selectedId} results={carparks} hasSearched={hasSearched}
-          destinationPoint={destinationPoint} userLocation={userLocation} />
+          destinationPoint={destinationPoint} userLocation={userLocation} compact={layout !== 'desktop'} />
 
         <SingaporeBoundary />
+        {buildings3D && (
+          <OSMBuildingLayer darkMode={!!darkMode} retryToken={buildingRetry} onStatus={setBuildingStatus} />
+        )}
         {eventHandlers && <EventHandler {...eventHandlers} />}
 
         {destinationPoint && (
