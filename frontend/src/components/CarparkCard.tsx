@@ -23,7 +23,7 @@ export function CarparkCard({ cp, selected, isFav, canFavorite = true, darkMode,
 
   return (
     <div onClick={onSelect}
-      className={`rounded-2xl p-2.5 cursor-pointer transition-all duration-200 ${
+      className={`press rounded-2xl p-2.5 cursor-pointer transition-all duration-200 ${
         recommended ? 'recommended-card border-2 ' : 'border '
       }${
         selected

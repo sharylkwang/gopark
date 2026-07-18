@@ -34,6 +34,8 @@ services:
   frontend:
     build: ./frontend
     container_name: gopark-frontend
+    environment:
+      - VITE_CAPTCHA_ENABLED=${VITE_CAPTCHA_ENABLED:-false}
     volumes:
       - ./frontend:/app
       - /app/node_modules
