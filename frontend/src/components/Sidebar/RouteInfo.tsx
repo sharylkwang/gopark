@@ -21,7 +21,7 @@ export function RouteInfo({ darkMode, driveRoute, walkRoute, destinationPoint, h
   if (!hasRoutes && !hasClassification) return null;
 
   return (
-    <div className={`shrink-0 px-3 py-2 border-b ${dm ? 'border-neutral-700/40' : 'border-gray-200/30'}`}>
+    <div className={`animate-fade-up shrink-0 px-3 py-2 border-b ${dm ? 'border-neutral-700/40' : 'border-gray-200/30'}`}>
       {hasRoutes && (
         <div className="flex gap-1.5">
           {driveRoute && (
