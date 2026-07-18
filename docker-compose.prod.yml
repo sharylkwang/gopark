@@ -7,6 +7,7 @@ services:
       dockerfile: nginx/Dockerfile
       args:
         VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY}
+        VITE_CAPTCHA_ENABLED: "true"
     container_name: gopark-nginx
     expose:
       - "80"

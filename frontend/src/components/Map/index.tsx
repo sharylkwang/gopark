@@ -653,7 +653,7 @@ export const MapView = memo(function MapView({
 
         {nearbyParking && <NearbyParkingMarkers spots={nearbyParking} />}
 
-        <MarkerCluster carparks={carparks} backgroundCarparks={backgroundCarparks} selectedId={selectedId} onSelect={onSelectCarpark} hasSearched={hasSearched} />
+        <MarkerCluster carparks={carparks} backgroundCarparks={backgroundCarparks} selectedId={selectedId} recommendedId={recommendedId} onSelect={onSelectCarpark} hasSearched={hasSearched} darkBasemap={darkBasemap} vehicleType={vehicleType} />
 
         {drivePolyline && drivePolyline.length > 0 && (
           <>
