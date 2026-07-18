@@ -680,17 +680,22 @@ export const MapView = memo(function MapView({
       {mode3D && (
         <Google3DMap
           mode={mode3D}
-          center={dest3D || mapCenter}
-          zoom={dest3D ? 16 : mapZoom}
+          center={camera3D.center}
+          zoom={camera3D.zoom}
           routes={routes3D}
           markers={markers3D}
           destination={dest3D}
         />
       )}
 
-      <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
-        mode3D={mode3D} onMode3DChange={setMode3D}
-        mapCenter={mapCenter} mapZoom={mapZoom} />
+      {!hideSwitcher && (
+        <TileLayerSwitcher currentTile={tileId} onTileChange={chooseTile}
+          mode3D={mode3D} onMode3DChange={setMode3D}
+          buildings3D={buildings3D} onBuildings3DChange={toggleBuildings}
+          buildingStatus={buildingStatus} onRetryBuildings={() => setBuildingRetry(t => t + 1)}
+          mapZoomLive={mapZoom}
+          mapCenter={mapCenter} mapZoom={mapZoom} layout={layout} darkMode={!!darkMode} />
+      )}
     </div>
   );
-}
+});
