@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import rateLimit from 'express-rate-limit';
 import { requireAuth, AuthRequest } from '../../middleware/auth';
-import { captchaVerify } from './routing';
+import { captchaVerify, captchaEnabled } from './routing';
 
 const router = Router();
 const prisma = new PrismaClient();
