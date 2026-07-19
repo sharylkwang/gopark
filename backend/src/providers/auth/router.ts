@@ -99,6 +99,7 @@ const resetLimiter = rateLimit({
   legacyHeaders: false,
   standardHeaders: true,
 });
+const verifyLimiter = rateLimit({ windowMs: window15, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many verification attempts, come back later' } });
 const captchaLimiter = rateLimit({ windowMs: window15, standardHeaders: true, max: 10, legacyHeaders: false, message: { error: 'Too many tries. Give it a few minutes' } });
 
 router.post('/auth/verify/captcha', captchaLimiter, async (req: Request, res: Response) => {
@@ -142,7 +143,7 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
   }
 });
 
-router.post('/auth/register/verify', resetLimiter, async (req: Request, res: Response) => {
+router.post('/auth/register/verify', verifyLimiter, async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
     const email = (req.body.email || '').toLowerCase().trim();
