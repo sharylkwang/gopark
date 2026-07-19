@@ -75,12 +75,23 @@ export async function fetchBuildingTile(z: number, x: number, y: number): Promis
   const stored = loadFromStorage(key);
   if (stored) return stored;
 
-  const bbox = tileToBbox(z, x, y);
-  const query = `[out:json][timeout:30];(way["building"](${bbox.south},${bbox.west},${bbox.north},${bbox.east}););out body;>;out skel qt;`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
 
-  const data = await queryOverpass(query);
-  const geojson = toGeoJson(data);
-  memCache.set(key, geojson.features);
-  saveToStorage(key, geojson.features);
-  return geojson.features;
+  try {
+    const res = await fetch(`/api/osm/buildings/${z}/${x}/${y}`, { signal: controller.signal });
+    if (!res.ok) throw new Error(`building tile ${key} -> ${res.status}`);
+
+    const data = await res.json();
+    const features: BuildingFeature[] = (data.features ?? []).map((f: any) => ({
+      ...f,
+      properties: { ...f.properties, color: '#ececec', roofColor: '#dedede' },
+    }));
+
+    memCache.set(key, features);
+    saveToStorage(key, features);
+    return features;
+  } finally {
+    clearTimeout(timer);
+  }
 }
