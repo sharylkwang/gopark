@@ -17,13 +17,14 @@ export function getTileProvider(id: string): TileProviderConfig | undefined {
 
 export function getPreviewUrl(tile: TileProviderConfig, lat: number, lng: number, zoom: number): string | null {
   if (!tile.url) return null;
-  const n = Math.pow(2, zoom);
+  const z = Math.max(0, Math.floor(zoom));
+  const n = Math.pow(2, z);
   const x = Math.floor(((lng + 180) / 360) * n);
   const latRad = (lat * Math.PI) / 180;
   const y = Math.floor((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n);
   return tile.url
     .replace('{s}', tile.subdomains?.[0] ?? '')
-    .replace('{z}', String(zoom))
+    .replace('{z}', String(z))
     .replace('{x}', String(x))
     .replace('{y}', String(y))
     .replace('{r}', '');
