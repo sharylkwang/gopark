@@ -49,6 +49,16 @@ export function parseDurationSecs(dur: string) {
   return parseInt(dur.replace('s', ''), 10) || 0;
 }
 
+export function hasFreeLots(
+  avail: Record<string, { available: number | null; total: number | null }>,
+  vehicleType: string,
+) {
+  const forVehicle = avail[vehicleType];
+  if (forVehicle) return (forVehicle.total ?? 0) > 0 && (forVehicle.available ?? 0) > 0;
+  const t = totals(avail);
+  return t.total > 0 && t.available > 0;
+}
+
 export function totals(avail: Record<string, { available: number | null; total: number | null }>) {
   const entries = Object.values(avail);
   const available = entries.reduce((sum, e) => sum + (e.available ?? 0), 0);
