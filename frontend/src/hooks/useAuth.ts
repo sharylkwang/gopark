@@ -159,8 +159,7 @@ export function useAuth() {
 
   const enterGuest = () => {
     setAuthError('');
-    setPendingAction('guest');
-    setShowCaptcha(true);
+    requestCaptcha('guest');
   };
 
   useEffect(() => {
