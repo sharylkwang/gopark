@@ -10,62 +10,38 @@ const router = Router();
 router.get('/geoapify/geocode', async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string;
-    if (!q) {
-      res.status(400).json({ error: 'Missing search query' });
-      return;
-    }
+    if (!q) { res.status(400).json({ error: 'Missing search query' }); return; }
 
-    const response = await geoapifyClient.get('/search', {
-      params: { text: q },
-    });
+    const response = await geoapifyClient.get('/search', { params: { text: q } });
 
     const results = response.data?.results || [];
-    if (results.length === 0) {
-      res.status(404).json({ error: 'Location not found' });
-      return;
-    }
+    if (results.length === 0) { res.status(404).json({ error: 'Location not found' }); return; }
 
     const place = results[0];
-    res.json({
-      name: place.name || q,
-      formatted: place.formatted,
-      lat: place.lat,
-      lon: place.lon,
-    });
+    res.json({ name: place.name || q, formatted: place.formatted, lat: place.lat, lon: place.lon });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    log.error(`geocode API error: ${message}`);
-    res.status(500).json({ error: 'Failed to geocode location' });
+    log.error(`geocode blew up: ${String(err)}`);
+    res.status(500).json({ error: 'geocode failed' });
   }
 });
 
 router.get('/geoapify/reverse', async (req: Request, res: Response) => {
   try {
-    const lat = parseFloat(req.query.lat as string);
-    const lng = parseFloat(req.query.lng as string);
+    const lat = parseFloat(req.query.lat as string), lng = parseFloat(req.query.lng as string);
     if (isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
       res.status(400).json({ error: 'Invalid coordinates' });
       return;
     }
 
-    const response = await geoapifyClient.get('/reverse', {
-      params: { lat, lon: lng },
-    });
+    const response = await geoapifyClient.get('/reverse', { params: { lat, lon: lng } });
 
     const results = response.data?.results || [];
-    if (results.length === 0) {
-      res.json({ name: `${lat}, ${lng}`, formatted: `${lat}, ${lng}` });
-      return;
-    }
+    if (results.length === 0) { res.json({ name: `${lat}, ${lng}`, formatted: `${lat}, ${lng}` }); return; }
 
     const place = results[0];
-    res.json({
-      name: place.name || place.street || place.formatted,
-      formatted: place.formatted,
-    });
+    res.json({ name: place.name || place.street || place.formatted, formatted: place.formatted });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    log.error(`reverse geocode error: ${message}`);
+    log.error('reverse geocode failed', err);
     res.json({ name: `${req.query.lat}, ${req.query.lng}`, formatted: '' });
   }
 });
@@ -73,20 +49,13 @@ router.get('/geoapify/reverse', async (req: Request, res: Response) => {
 router.get('/geoapify/autocomplete', async (req: Request, res: Response) => {
   try {
     const q = req.query.q as string;
-    if (!q) {
-      res.status(400).json({ error: 'Missing search query' });
-      return;
-    }
+    if (!q) { res.status(400).json({ error: 'missing query' }); return; }
 
-    const response = await geoapifyClient.get('/autocomplete', {
-      params: { text: q },
-    });
-
+    const response = await geoapifyClient.get('/autocomplete', { params: { text: q } });
     res.json(response.data?.results || []);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    log.error(`autocomplete API error: ${message}`);
-    res.status(500).json({ error: 'Failed to fetch autocomplete suggestions' });
+    log.error(`autocomplete died: ${(err as Error).message}`);
+    res.status(500).json({ error: 'suggestions unavailable' });
   }
 });
 

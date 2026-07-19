@@ -42,33 +42,26 @@ function toGeoJson(data: { elements: OverpassElement[] }): BuildingCollection {
   const features: BuildingFeature[] = [];
 
   for (const el of data.elements) {
-    if (el.type === 'node' && el.lat !== undefined && el.lon !== undefined) {
-      nodes[el.id] = [el.lon, el.lat];
-    }
+    if (el.type === 'node' && el.lat !== undefined && el.lon !== undefined) nodes[el.id] = [el.lon, el.lat];
   }
 
   for (const el of data.elements) {
-    if (el.type === 'way' && el.tags?.building && el.nodes) {
-      const coords = el.nodes.map((nid) => nodes[nid]).filter(Boolean);
-      if (coords.length >= 3) {
-        const levels = parseFloat(el.tags['building:levels'] || '0');
-        features.push({
-          type: 'Feature',
-          properties: {
-            id: el.id,
-            name: el.tags.name || '',
-            height: parseFloat(el.tags.height || '0') || levels * 3 || 12,
-            minHeight: parseFloat(el.tags.min_height || '0'),
-            color: '#ececec',
-            roofColor: '#dedede',
-          },
-          geometry: {
-            type: 'Polygon',
-            coordinates: [coords],
-          },
-        });
-      }
-    }
+    if (el.type !== 'way' || !el.tags?.building || !el.nodes) continue;
+    const coords = el.nodes.map(nid => nodes[nid]).filter(Boolean);
+    if (coords.length < 3) continue;
+    const levels = parseFloat(el.tags['building:levels'] || '0');
+    features.push({
+      type: 'Feature',
+      properties: {
+        id: el.id,
+        name: el.tags.name || '',
+        height: parseFloat(el.tags.height || '0') || levels * 3 || 12,
+        minHeight: parseFloat(el.tags.min_height || '0'),
+        color: '#ececec',
+        roofColor: '#dedede',
+      },
+      geometry: { type: 'Polygon', coordinates: [coords] },
+    });
   }
 
   return { type: 'FeatureCollection', features };
@@ -82,7 +75,7 @@ export function lngLatToTile(lng: number, lat: number, z: number) {
   return { x, y };
 }
 
-const OVERPASS_MIRRORS = [
+const MIRRORS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.nchc.org.tw/api/interpreter',
@@ -94,10 +87,7 @@ let requestQueue: Promise<void> = Promise.resolve();
 
 function enqueue<T>(fn: () => Promise<T>): Promise<T> {
   const task = requestQueue.then(fn, fn);
-  requestQueue = task.then(
-    () => {},
-    () => {},
-  );
+  requestQueue = task.then(() => {}, () => {});
   return task;
 }
 
@@ -105,7 +95,7 @@ async function queryOverpassOnce(query: string): Promise<any> {
   const body = `data=${encodeURIComponent(query)}`;
   const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
 
-  for (const mirror of OVERPASS_MIRRORS) {
+  for (const mirror of MIRRORS) {
     try {
       const response = await fetch(mirror, { method: 'POST', headers, body });
       if (response.ok) return response.json();
@@ -120,9 +110,9 @@ async function queryOverpass(query: string): Promise<any> {
     for (let attempt = 0; attempt < 4; attempt++) {
       const result = await queryOverpassOnce(query);
       if (result) return result;
-      if (attempt < 3) await new Promise((r) => setTimeout(r, 1500 * 2 ** attempt));
+      if (attempt < 3) await new Promise(r => setTimeout(r, 1500 * 2 ** attempt));
     }
-    throw new Error('All Overpass mirrors unreachable');
+    throw new Error('overpass mirrors all failed');
   });
 }
 
@@ -150,11 +140,7 @@ export function getTilesForBounds(bounds: { north: number; south: number; east: 
   const tiles: { x: number; y: number }[] = [];
   const nw = lngLatToTile(bounds.west, bounds.north, TILE_ZOOM);
   const se = lngLatToTile(bounds.east, bounds.south, TILE_ZOOM);
-  for (let x = nw.x; x <= se.x; x++) {
-    for (let y = nw.y; y <= se.y; y++) {
-      tiles.push({ x, y });
-    }
-  }
+  for (let x = nw.x; x <= se.x; x++) for (let y = nw.y; y <= se.y; y++) tiles.push({ x, y });
   return { z: TILE_ZOOM, tiles };
 }
 

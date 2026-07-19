@@ -6,7 +6,7 @@ import type { Response, NextFunction } from 'express';
 
 const { requireAuth } = await import('../../src/middleware/auth');
 
-function createMockResponse() {
+function fakeRes() {
   return {
     status: jest.fn().mockReturnThis(),
     json: jest.fn().mockReturnThis(),
@@ -15,24 +15,19 @@ function createMockResponse() {
 }
 
 describe('requireAuth', () => {
-  it('returns 401 when no token provided', () => {
+  it('no token means 401', () => {
     const req = { headers: {}, cookies: {} } as any;
-    const res = createMockResponse();
+    const res = fakeRes();
     const next = jest.fn() as unknown as NextFunction;
-
     requireAuth(req, res, next);
-
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: 'Not authenticated' });
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('returns 401 for invalid token', () => {
-    const req = {
-      headers: { authorization: 'Bearer invalid-token' },
-      cookies: {},
-    } as any;
-    const res = createMockResponse();
+  it('garbage token gets 401 and the cookie cleared', () => {
+    const req = { headers: { authorization: 'Bearer invalid-token' }, cookies: {} } as any;
+    const res = fakeRes();
     const next = jest.fn() as unknown as NextFunction;
 
     requireAuth(req, res, next);
@@ -43,28 +38,20 @@ describe('requireAuth', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('calls next with user set for valid Bearer token', () => {
+  it('valid bearer token passes through with req.user set', () => {
     const token = jwt.sign({ id: 'user-1', email: 'test@test.com' }, 'test-secret');
-    const req = {
-      headers: { authorization: `Bearer ${token}` },
-      cookies: {},
-    } as any;
-    const res = createMockResponse();
+    const req = { headers: { authorization: `Bearer ${token}` }, cookies: {} } as any;
+    const res = fakeRes();
     const next = jest.fn() as unknown as NextFunction;
-
     requireAuth(req, res, next);
-
     expect(next).toHaveBeenCalled();
     expect(req.user).toEqual({ id: 'user-1', email: 'test@test.com' });
   });
 
-  it('calls next with user set for valid cookie token', () => {
+  it('cookie token works too', () => {
     const token = jwt.sign({ id: 'user-2', email: 'cookie@test.com' }, 'test-secret');
-    const req = {
-      headers: {},
-      cookies: { gopark_token: token },
-    } as any;
-    const res = createMockResponse();
+    const req = { headers: {}, cookies: { gopark_token: token } } as any;
+    const res = fakeRes();
     const next = jest.fn() as unknown as NextFunction;
 
     requireAuth(req, res, next);
