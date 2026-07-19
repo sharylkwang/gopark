@@ -84,6 +84,13 @@ describe('auth router', () => {
       expect(res.body.error).toBe('Invalid email or password');
     });
 
+    it('still runs a password comparison for a missing account, no timing oracle', async () => {
+      findUser.mockResolvedValue(null);
+      compare.mockResolvedValue(false);
+      await request(app).post('/auth/login').send({ email: 'nobody@test.com', password: 'Pass1234!' });
+      expect(compare).toHaveBeenCalled();
+    });
+
     it('wrong password is also a 401', async () => {
       findUser.mockResolvedValue({
         id: '1', email: 'test@test.com', password: 'hashed-pw',

@@ -43,6 +43,7 @@ function generateOtp() {
 }
 
 const PASSWORD_ERROR = 'Password needs 8+ characters with uppercase, lowercase, number, and special character.';
+const DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
 
 function isStrongPassword(password: unknown) {
   return typeof password === 'string'
@@ -203,7 +204,10 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
     if (!email || !password) return res.status(400).json({ error: 'Email and password are required' });
 
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user) return res.status(401).json({ error: 'Invalid email or password' });
+    if (!user) {
+      await bcrypt.compare(password, DUMMY_HASH);
+      return res.status(401).json({ error: 'Invalid email or password' });
+    }
 
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const minsLeft = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000);
