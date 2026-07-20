@@ -7,6 +7,7 @@ import onemapRouter from './onemap/router.js';
 import osmBuildingsRouter from './osm/buildings.js';
 import trafficRouter from './traffic/router.js';
 import uraRouter from './ura/router.js';
+import pricingRouter from './pricing/router.js';
 import favoritesRouter from './favorites/router.js';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.use(onemapRouter);
 router.use(osmBuildingsRouter);
 router.use(trafficRouter);
 router.use(uraRouter);
+router.use(pricingRouter);
 router.use(favoritesRouter);
 
 export default router;
