@@ -5,6 +5,7 @@ import { estimateCost, type PricingRate } from '../../lib/pricing.js';
 
 const log = createLogger('pricing');
 
+const TICK_MS = 30000;
 const MAX_DURATION_MINS = 60 * 24 * 14;
 
 const RATE_SELECT = {
@@ -50,6 +51,28 @@ router.get('/pricing/quote', async (req: Request, res: Response) => {
 
   res.set('Cache-Control', 'no-store');
   res.json({ carparkId, vehicleType, durationMins, at: at.toISOString(), cost });
+});
+
+router.get('/pricing/ticks', (req: Request, res: Response) => {
+  res.set({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders?.();
+
+  const send = () => {
+    res.write(`event: tick\ndata: ${JSON.stringify({ now: new Date().toISOString() })}\n\n`);
+  };
+
+  send();
+  const timer = setInterval(send, TICK_MS);
+
+  req.on('close', () => {
+    clearInterval(timer);
+    res.end();
+  });
 });
 
 log.debug('pricing routes ready');
