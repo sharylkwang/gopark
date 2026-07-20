@@ -14,6 +14,7 @@ router.use(govsgRouter);
 router.use(geoapifyRouter);
 router.use(carparksRouter);
 router.use(onemapRouter);
+router.use(osmBuildingsRouter);
 router.use(favoritesRouter);
 
 export default router;
