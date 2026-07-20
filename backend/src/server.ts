@@ -29,6 +29,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   startCron().catch(err => log.error('cron startup failed', err));
 });
 
+startLiveAvailability(server);
+
 async function gracefulShutdown(signal: string) {
   log.info(`${signal} received - shutting down`);
   await shutdown();
