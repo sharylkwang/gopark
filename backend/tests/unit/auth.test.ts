@@ -31,6 +31,9 @@ jest.unstable_mockModule('nodemailer', () => ({
   default: { createTransport: jest.fn().mockReturnValue({ sendMail: mockSendMail }) },
 }));
 
+const mockRandomInt = jest.fn(() => 123456);
+jest.unstable_mockModule('crypto', () => ({ default: { randomInt: mockRandomInt } }));
+
 jest.unstable_mockModule('express-rate-limit', () => ({
   default: jest.fn().mockImplementation(() => (_req: any, _res: any, next: any) => next()),
 }));
@@ -123,6 +126,22 @@ describe('Auth Router', () => {
       expect(res.status).toBe(423);
       expect(res.body.error).toContain('Account locked');
     });
+
+    it('does not instantly re-lock a wrong attempt after the lock window expired', async () => {
+      mockUserFindUnique.mockResolvedValue({
+        id: '1', email: 'test@test.com', password: 'hashed-pw',
+        username: 'testuser', failedAttempts: 5,
+        lockedUntil: new Date(Date.now() - 60 * 1000),
+      });
+      mockCompare.mockResolvedValue(false);
+      mockUserUpdate.mockResolvedValue({});
+
+      const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'Wrong1!' });
+      expect(res.status).toBe(401);
+      expect(mockUserUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { failedAttempts: 1 } }),
+      );
+    });
   });
 
   describe('POST /auth/register/send-code', () => {
@@ -164,6 +183,24 @@ describe('Auth Router', () => {
       expect(res.status).toBe(200);
       expect(res.body.message).toBe('Verification code sent!');
       expect(mockSendMail).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /auth/register/verify', () => {
+    it('accepts a numeric code that matches the stored string otp', async () => {
+      mockUserFindUnique.mockResolvedValue(null);
+      mockHash.mockResolvedValue('hashed-password');
+      mockSendMail.mockResolvedValue({});
+      mockUserCreate.mockResolvedValue({ id: '9', username: 'newuser', email: 'new@test.com' });
+      mockSign.mockReturnValue('mock-jwt-token');
+
+      await request(app).post('/auth/register/send-code')
+        .send({ username: 'newuser', email: 'new@test.com', password: 'StrongPass1!' });
+
+      const res = await request(app).post('/auth/register/verify')
+        .send({ email: 'new@test.com', code: 123456 });
+      expect(res.status).toBe(201);
+      expect(mockUserCreate).toHaveBeenCalled();
     });
   });
 
