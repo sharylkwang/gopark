@@ -59,3 +59,30 @@ describe('estimateCost', () => {
     expect(estimateCost([rate({ amount: 1, durationMins: 30 })], 0, 'C', weekday9am)).toBeNull();
   });
 });
+
+describe('estimateCost robustness against dirty rate data', () => {
+  it('ignores rates with NaN or negative amounts', () => {
+    const rates = [
+      rate({ amount: NaN, durationMins: 30 }),
+      rate({ amount: -5, durationMins: 30 }),
+      rate({ amount: 1.2, durationMins: 30 }),
+    ];
+    expect(estimateCost(rates, 60, 'C', weekday9am)).toBe(2.4);
+  });
+
+  it('treats a malformed time string as an unbounded period rather than dropping the rate', () => {
+    const rates = [rate({ amount: 1.2, durationMins: 30, periodStart: 'abc', periodEnd: '25:99' })];
+    expect(estimateCost(rates, 60, 'C', weekday9am)).toBe(2.4);
+  });
+
+  it('returns null when every rate for the vehicle is unusable', () => {
+    const rates = [rate({ amount: NaN, durationMins: 30 }), rate({ amount: 2, durationMins: 0 })];
+    expect(estimateCost(rates, 60, 'C', weekday9am)).toBeNull();
+  });
+
+  it('never returns a NaN cost', () => {
+    const rates = [rate({ amount: Infinity, durationMins: 30 }), rate({ amount: 1, durationMins: 30 })];
+    const cost = estimateCost(rates, 120, 'C', weekday9am);
+    expect(cost == null || Number.isFinite(cost)).toBe(true);
+  });
+});
