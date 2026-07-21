@@ -16,15 +16,23 @@ function dayTypeOf(d: Date): string {
   return 'weekday';
 }
 
-function toMins(t: string): number {
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + (m || 0);
+function toMins(t: string | null): number | null {
+  if (!t) return null;
+  const parts = t.split(':');
+  const h = Number(parts[0]);
+  const m = parts.length > 1 ? Number(parts[1]) : 0;
+  if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
+function isUsableRate(r: PricingRate): boolean {
+  return Number.isFinite(r.amount) && r.amount >= 0 && (r.durationMins == null || (Number.isFinite(r.durationMins) && r.durationMins > 0));
 }
 
 function matchesTime(rate: PricingRate, minuteOfDay: number): boolean {
-  if (!rate.periodStart || !rate.periodEnd) return true;
   const s = toMins(rate.periodStart);
   const e = toMins(rate.periodEnd);
+  if (s == null || e == null) return true;
   if (s <= e) return minuteOfDay >= s && minuteOfDay < e;
   return minuteOfDay >= s || minuteOfDay < e;
 }
@@ -50,8 +58,8 @@ function nextBoundary(from: Date, rates: PricingRate[]): Date {
   let earliest = midnight;
 
   for (const r of rates) {
-    if (!r.periodEnd) continue;
     const endMins = toMins(r.periodEnd);
+    if (endMins == null) continue;
     const candidate = new Date(from);
     candidate.setHours(Math.floor(endMins / 60), endMins % 60, 0, 0);
     if (candidate <= from) candidate.setDate(candidate.getDate() + 1);
@@ -78,7 +86,7 @@ function bestPerMinuteRate(rates: PricingRate[]): { amount: number; durationMins
 export function estimateCost(rates: PricingRate[], durationMins: number, vehicleType = 'C', startTime?: Date): number | null {
   if (!rates?.length || durationMins <= 0) return null;
 
-  const vehicleRates = rates.filter(r => r.vehicleType === vehicleType);
+  const vehicleRates = rates.filter(r => r.vehicleType === vehicleType && isUsableRate(r));
   if (!vehicleRates.length) return null;
 
   const totalMins = Math.round(durationMins);
