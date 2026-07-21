@@ -127,6 +127,10 @@ router.post('/auth/verify/captcha', captchaLimiter, async (req: Request, res: Re
   try {
     const { token } = req.body;
 
+    if (!captchaEnabled) {
+      return res.status(200).json({ success: true, message: 'Captcha disabled' });
+    }
+
     if (!token) {
       return res.status(400).json({ error: 'Captcha token is required' });
     }
