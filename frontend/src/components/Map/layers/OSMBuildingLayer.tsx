@@ -100,8 +100,11 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
     const anyMap = map as unknown as { _zoomAnimated: boolean };
     const prevAnimation = map.options.zoomAnimation;
     const prevAnimated = anyMap._zoomAnimated;
+    const prevSnap = map.options.zoomSnap;
     map.options.zoomAnimation = false;
     anyMap._zoomAnimated = false;
+    map.options.zoomSnap = 1;
+    if (!Number.isInteger(map.getZoom())) map.setZoom(Math.round(map.getZoom()), { animate: false });
 
     const osm = new window.OSMBuildings(map);
     osm.style({
@@ -115,6 +118,7 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
     return () => {
       map.options.zoomAnimation = prevAnimation;
       anyMap._zoomAnimated = prevAnimated;
+      map.options.zoomSnap = prevSnap;
       if (buildingsRef.current) {
         map.removeLayer(buildingsRef.current);
         buildingsRef.current = null;
