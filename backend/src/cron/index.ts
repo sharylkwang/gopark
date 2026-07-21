@@ -10,6 +10,7 @@ import { fetchSgcarmart } from './providers/sgcarmart.js';
 import { fetchJustpark, fetchJustparkAvailability } from './providers/justpark.js';
 import { fetchUraCapacity } from './providers/uraCapacity.js';
 import { runScraper, smartSearch } from './scraper/index.js';
+import { recordSnapshots, runDailyTrends } from './trends/index.js';
 import { applyScraped } from './scraper/apply.js';
 
 const log = createLogger('cron');
@@ -18,6 +19,7 @@ let merging = false;
 let refreshing = false;
 let scraping = false;
 let scheduled = false;
+let computingTrends = false;
 
 async function upsert(carparks: MergedCarpark[]) {
   const now = new Date();
@@ -200,6 +202,24 @@ function schedule() {
     catch (e) { log.error('scraper failed', e); }
     finally { scraping = false; }
   }, CRON.scraperCheckInterval);
+
+  const snapshotDelay = 3600000 - (Date.now() % 3600000);
+  setTimeout(() => {
+    recordSnapshots().catch(e => log.error('snapshot failed', e));
+    setInterval(() => recordSnapshots().catch(e => log.error('snapshot failed', e)), CRON.snapshotInterval);
+  }, snapshotDelay);
+
+  let lastTrendDay = '';
+  setInterval(async () => {
+    const now = new Date();
+    if (now.getHours() !== 0) return;
+    const day = now.toDateString();
+    if (day === lastTrendDay || computingTrends) return;
+    lastTrendDay = day;
+    computingTrends = true;
+    try { await runDailyTrends(now); } catch (e) { log.error('daily trends failed', e); }
+    finally { computingTrends = false; }
+  }, CRON.trendCheckInterval);
 }
 
 export async function startCron() {
