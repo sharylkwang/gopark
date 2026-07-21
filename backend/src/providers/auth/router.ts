@@ -269,9 +269,12 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
       });
     }
 
+    const lockExpired = user.lockedUntil != null && user.lockedUntil <= new Date();
+    const priorAttempts = lockExpired ? 0 : user.failedAttempts;
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      const attempts = user.failedAttempts + 1;
+      const attempts = priorAttempts + 1;
 
       if (attempts >= 5) {
         await prisma.user.update({
