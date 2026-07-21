@@ -1,6 +1,6 @@
 import type { RateEntry } from './types.js';
 
-const DOLLAR = /\$\s*([\d]+\.[\d]{2}|\d+)/g;
+const DOLLAR = /\$\s*(\d+(?:\.\d+)?)/g;
 const TIME = /(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm))\s*(?:to|-)\s*(\d{1,2}(?:[:.]\d{2})?\s*(?:am|pm))/i;
 
 function toTime(raw: string): string {
