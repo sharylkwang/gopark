@@ -77,7 +77,3 @@ Without the optional keys the app still works  you just lose Google tile styles,
 | Parkaholic | 4,700 | Locations, availability, rate text |
 | SGCarMart | 1,100 | Weekday/Saturday/Sunday rates |
 | OneMotoring, GetGo, SgBikes | varies | Official, CBD, and motorcycle rates (AI-scraped) |
-
-## Team
-
-NUS Orbital 2026 (CP2106)
