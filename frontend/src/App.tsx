@@ -27,6 +27,7 @@ import { useLocation } from './hooks/useLocation';
 import { useLayoutMode } from './hooks/useLayoutMode';
 import { useBottomSheet } from './hooks/useBottomSheet';
 import { useLiveAvailability } from './hooks/useLiveAvailability';
+import { usePricingTick } from './hooks/usePricingTick';
 import { geocodeLocation, autocompleteLocation, reverseGeocode, classifyLocation, fetchNearbyParking } from './providers/geoapify';
 import { fetchAll, fetchNearby, fetchDetail } from './providers/carparks';
 import type { AvailabilityMap } from './providers/carparks';
@@ -86,10 +87,7 @@ export default function GoParkApp() {
     }
   }, [loc.userLocation, destinationPoint?.lat, destinationPoint?.lng]);
   const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(id);
-  }, []);
+  usePricingTick(setNow);
 
   const [parkUntil, setParkUntil] = useState<string>(() => {
     const d = new Date();
