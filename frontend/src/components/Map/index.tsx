@@ -616,7 +616,9 @@ export const MapView = memo(function MapView({
           tileSize={tile.tileSize ?? 256} zoomOffset={tile.zoomOffset ?? 0} />
 
         <CameraFlyer selectedId={selectedId} results={carparks} hasSearched={hasSearched}
-          destinationPoint={destinationPoint} userLocation={userLocation} compact={layout !== 'desktop'} />
+          destinationPoint={destinationPoint} userLocation={userLocation} compact={layout !== 'desktop'}
+          routePolyline={drivePolyline && drivePolyline.length > 1 ? drivePolyline : walkPolyline}
+          sidebarOpen={sidebarOpen} />
 
         <SingaporeBoundary />
         {buildings3D && (
