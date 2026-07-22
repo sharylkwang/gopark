@@ -116,6 +116,7 @@ export default function GoParkApp() {
   const routes = useRoutes(startCoords, loc.userLocation);
   const travelMins = routes.driveRoute ? Math.ceil(parseDurationSecs(routes.driveRoute.duration) / 60) : 0;
   const arrivalTime = new Date(now.getTime() + travelMins * 60000);
+  const arrivalMinute = Math.floor(arrivalTime.getTime() / 60000);
 
   useEffect(() => {
     const [h, m] = parkUntil.split(':').map(Number);
@@ -246,7 +247,7 @@ export default function GoParkApp() {
   useEffect(() => {
     if (!hasSearched || nearbyRaw.length === 0) return;
     setSearchResults(rankResults(nearbyRaw));
-  }, [vehicleType, maxPrice, durationHours, nearbyRaw, hasSearched]);
+  }, [vehicleType, maxPrice, durationHours, arrivalMinute, nearbyRaw, hasSearched]);
 
   const resetHome = () => {
     setHasSearched(false);
