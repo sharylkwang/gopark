@@ -3,7 +3,13 @@ export interface CaptchaResponse {
   message: string;
 }
 
+export const captchaEnabled = process.env.CAPTCHA_ENABLED !== 'false';
+
 export async function captchaVerify(token: string): Promise<CaptchaResponse> {
+  if (!captchaEnabled) {
+    return { success: true, message: 'Captcha disabled' };
+  }
+
   const body = new URLSearchParams({
     secret: process.env.TURNSTILE_SECRET_KEY || '',
     response: token,

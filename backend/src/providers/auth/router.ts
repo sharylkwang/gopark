@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import nodemailer from 'nodemailer';
 import rateLimit from 'express-rate-limit';
 import { requireAuth, AuthRequest } from '../../middleware/auth';
-import { captchaVerify } from './routing';
+import { captchaVerify, captchaEnabled } from './routing';
 
 const router = Router();
 const prisma = new PrismaClient();
@@ -126,6 +126,10 @@ const captchaLimiter = rateLimit({
 router.post('/auth/verify/captcha', captchaLimiter, async (req: Request, res: Response) => {
   try {
     const { token } = req.body;
+
+    if (!captchaEnabled) {
+      return res.status(200).json({ success: true, message: 'Captcha disabled' });
+    }
 
     if (!token) {
       return res.status(400).json({ error: 'Captcha token is required' });

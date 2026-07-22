@@ -36,7 +36,7 @@ jest.unstable_mockModule('express-rate-limit', () => ({
 }));
 
 const mockCaptchaVerify = jest.fn();
-jest.unstable_mockModule('../../src/providers/auth/routing', () => ({ captchaVerify: mockCaptchaVerify }));
+jest.unstable_mockModule('../../src/providers/auth/routing', () => ({ captchaVerify: mockCaptchaVerify, captchaEnabled: true }));
 
 const mockRequireAuthImpl = jest.fn();
 jest.unstable_mockModule('../../src/middleware/auth', () => ({
