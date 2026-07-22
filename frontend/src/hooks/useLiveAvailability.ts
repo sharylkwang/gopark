@@ -90,7 +90,12 @@ export function useLiveAvailability(ids: string[], onUpdate: (carparks: Availabi
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (socket) {
         socket.onclose = null;
-        socket.close();
+        if (socket.readyState === WebSocket.CONNECTING) {
+          const pending = socket;
+          pending.onopen = () => pending.close();
+        } else {
+          socket.close();
+        }
       }
     };
   }, [key]);

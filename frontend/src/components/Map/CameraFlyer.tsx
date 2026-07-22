@@ -19,6 +19,8 @@ const ZOOM = {
 export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation, compact = false }: Props) {
   const map = useMap();
   const hasFlownToUser = useRef(false);
+  const resultsRef = useRef(results);
+  resultsRef.current = results;
   const zoom = compact ? ZOOM.compact : ZOOM.desktop;
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
     if (!hasSearched) return;
 
     if (selectedId) {
-      const target = results.find((cp) => cp.id === selectedId);
+      const target = resultsRef.current.find((cp) => cp.id === selectedId);
       if (target) {
         if (map.getZoom() < zoom.threshold) {
           map.flyTo([target.lat, target.lng], zoom.carpark, { duration: 1, easeLinearity: 0.25 });
@@ -51,7 +53,7 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
         easeLinearity: 0.25,
       });
     }
-  }, [selectedId, results, map, hasSearched, destinationPoint, zoom]);
+  }, [selectedId, map, hasSearched, destinationPoint?.lat, destinationPoint?.lng, zoom]);
 
   return null;
 }
