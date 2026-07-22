@@ -1,6 +1,6 @@
 import { Heart, Navigation, ParkingSquare } from 'lucide-react';
 import { AvailabilityBar } from './AvailabilityBar';
-import { formatDistance, totals } from '../utils/format';
+import { formatDistance, vehicleTotals } from '../utils/format';
 import type { CarparkSummary } from '../types';
 
 interface Props {
@@ -16,10 +16,7 @@ interface Props {
 }
 
 export function CarparkCard({ cp, selected, isFav, canFavorite = true, darkMode, vehicleType, recommended, onSelect, onToggleFav }: Props) {
-  const vAvail = vehicleType ? cp.availability[vehicleType] : null;
-  const t = vAvail
-    ? { available: vAvail.available ?? 0, total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? ((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100 : 0 }
-    : totals(cp.availability);
+  const t = vehicleTotals(cp.availability, vehicleType);
 
   return (
     <div onClick={onSelect}
@@ -49,7 +46,7 @@ export function CarparkCard({ cp, selected, isFav, canFavorite = true, darkMode,
               <Heart size={16} fill={isFav ? 'currentColor' : 'none'} strokeWidth={2.5} />
             </button>
           )}
-          {t.total > 0 && (
+          {t.available != null && t.total > 0 && (
             <div className={`text-[10px] font-black px-1.5 py-0.5 rounded ${t.pct > 30 ? (darkMode ? 'bg-green-900/50 text-green-400' : 'bg-green-100 text-green-700') : t.pct > 10 ? (darkMode ? 'bg-amber-900/50 text-amber-400' : 'bg-amber-100 text-amber-700') : (darkMode ? 'bg-red-900/50 text-red-400' : 'bg-red-100 text-red-700')}`}>
               {t.available}
             </div>
@@ -58,7 +55,7 @@ export function CarparkCard({ cp, selected, isFav, canFavorite = true, darkMode,
       </div>
       <div className="flex justify-between items-end mt-2">
         <div className="flex-1 mr-3">
-          <AvailabilityBar available={t.total > 0 ? t.available : null} total={t.total || null} compact darkMode={darkMode} />
+          <AvailabilityBar available={t.available} total={t.total || null} compact darkMode={darkMode} />
         </div>
         <div className="text-right shrink-0 flex flex-col items-end gap-0.5">
           {cp.estimatedCost != null && (

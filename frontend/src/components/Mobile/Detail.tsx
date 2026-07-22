@@ -1,7 +1,7 @@
 import { ChevronLeft, Map, Navigation } from 'lucide-react';
 import { AvailabilityBar } from '../AvailabilityBar';
 import { TimeRange } from './TimeRange';
-import { timeAgo, totals, formatParkDuration, formatTime12, parseClockTime, formatDuration, parseDurationSecs } from '../../utils/format';
+import { timeAgo, vehicleTotals, formatParkDuration, formatTime12, parseClockTime, formatDuration, parseDurationSecs } from '../../utils/format';
 import { estimateCost } from '../../utils/estimateCost';
 import { LOT_LABELS, LOT_ICONS, DAY_LABELS } from '../../utils/constants';
 import { cockpit, availabilityTone } from './theme';
@@ -26,10 +26,7 @@ export function MobileDetail({
   durationHours, vehicleType, driveRoute, walkRoute,
 }: Props) {
   const c = cockpit(darkMode);
-  const vAvail = detail.availability[vehicleType];
-  const dt = vAvail
-    ? { available: Math.min(vAvail.available ?? 0, vAvail.total ?? 0), total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? Math.min(((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100, 100) : 0 }
-    : totals(detail.availability);
+  const dt = vehicleTotals(detail.availability, vehicleType);
   const tone = availabilityTone(dt.pct, dt.total);
   const cost = detail.rates?.length ? estimateCost(detail.rates, durationHours, vehicleType, arrivalTime) : null;
   const rates = detail.rates.filter(r => r.vehicleType === vehicleType);
@@ -53,8 +50,8 @@ export function MobileDetail({
 
         <div className="grid grid-cols-3 gap-1.5">
           <Tile c={c} label={LOT_LABELS[vehicleType] ?? 'Lots'}>
-            {dt.total > 0
-              ? <span className={tone.text}>{dt.available}<span className={`text-[11px] ${c.muted}`}>/{dt.total}</span></span>
+            {dt.available != null
+              ? <span className={tone.text}>{dt.available}{dt.total > 0 && <span className={`text-[11px] ${c.muted}`}>/{dt.total}</span>}</span>
               : <span className={c.muted}>—</span>}
           </Tile>
           <Tile c={c} label="Est. cost">

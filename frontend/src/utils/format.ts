@@ -55,6 +55,7 @@ export function hasFreeLots(
 ) {
   const forVehicle = avail[vehicleType];
   if (forVehicle) return (forVehicle.total ?? 0) > 0 && (forVehicle.available ?? 0) > 0;
+  if (vehicleType !== 'C') return false;
   const t = totals(avail);
   return t.total > 0 && t.available > 0;
 }
@@ -66,4 +67,20 @@ export function totals(avail: Record<string, { available: number | null; total: 
   const capped = Math.min(available, total);
   const pct = total > 0 ? Math.min((capped / total) * 100, 100) : 0;
   return { available: capped, total, pct };
+}
+
+export function vehicleTotals(
+  avail: Record<string, { available: number | null; total: number | null }>,
+  vehicleType?: string,
+) {
+  const forVehicle = vehicleType ? avail[vehicleType] : undefined;
+  if (forVehicle) {
+    const total = forVehicle.total ?? 0;
+    const raw = forVehicle.available;
+    const available = raw == null ? null : total > 0 ? Math.min(raw, total) : raw;
+    const pct = total > 0 && available != null ? Math.min((available / total) * 100, 100) : 0;
+    return { available, total, pct, hasVehicleData: true };
+  }
+  if (!vehicleType || vehicleType === 'C') return { ...totals(avail), hasVehicleData: false };
+  return { available: null, total: 0, pct: 0, hasVehicleData: false };
 }

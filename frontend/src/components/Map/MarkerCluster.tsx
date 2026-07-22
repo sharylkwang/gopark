@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster';
-import { totals } from '../../utils/format';
+import { vehicleTotals } from '../../utils/format';
 import type { CarparkSummary } from '../../types';
 
 const AVAILABILITY = {
@@ -14,12 +14,9 @@ const AVAILABILITY = {
 };
 
 function availabilityColor(cp: CarparkSummary, vehicleType: string) {
-  const forVehicle = cp.availability[vehicleType];
-  const t = forVehicle
-    ? { available: forVehicle.available ?? 0, total: forVehicle.total ?? 0 }
-    : totals(cp.availability);
+  const t = vehicleTotals(cp.availability, vehicleType);
 
-  if (t.total <= 0) return AVAILABILITY.unknown;
+  if (t.total <= 0 || t.available == null) return AVAILABILITY.unknown;
   if (t.available <= 0) return AVAILABILITY.full;
 
   const pct = (t.available / t.total) * 100;

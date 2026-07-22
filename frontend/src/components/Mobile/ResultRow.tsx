@@ -1,5 +1,5 @@
 import { Heart, Star } from 'lucide-react';
-import { formatDistance, totals } from '../../utils/format';
+import { formatDistance, vehicleTotals } from '../../utils/format';
 import { cockpit, availabilityTone } from './theme';
 import type { CarparkSummary } from '../../types';
 
@@ -18,10 +18,7 @@ interface Props {
 
 export function MobileResultRow({ cp, selected, isFav, canFavorite, darkMode, vehicleType, recommended, dense = false, onSelect, onToggleFav }: Props) {
   const c = cockpit(darkMode);
-  const vAvail = cp.availability[vehicleType];
-  const t = vAvail
-    ? { available: vAvail.available ?? 0, total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? ((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100 : 0 }
-    : totals(cp.availability);
+  const t = vehicleTotals(cp.availability, vehicleType);
   const tone = availabilityTone(t.pct, t.total);
 
   return (
@@ -30,7 +27,7 @@ export function MobileResultRow({ cp, selected, isFav, canFavorite, darkMode, ve
         recommended ? 'top-pick-row' : selected ? (darkMode ? 'bg-white/6' : 'bg-black/4') : ''
       }`}>
       <div className={`shrink-0 rounded-xl grid place-items-center ${dense ? 'w-10 h-10' : 'w-12 h-12'} ${tone.bg}`}>
-        {t.total > 0 ? (
+        {t.available != null ? (
           <>
             <span className={`font-black leading-none ${dense ? 'text-base' : 'text-lg'} ${tone.text}`}>{t.available}</span>
             <span className={`text-[8px] font-black uppercase tracking-wider mt-0.5 ${c.muted}`}>lots</span>
