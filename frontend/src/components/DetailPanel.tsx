@@ -1,5 +1,6 @@
 import { ChevronLeft, Map, Navigation, Clock } from 'lucide-react';
 import { CircularProgress } from './CircularProgress';
+import { PopularTimes } from './PopularTimes';
 import { AvailabilityBar } from './AvailabilityBar';
 import { timeAgo, totals, formatParkDuration, formatClockTime, formatTime12, parseClockTime } from '../utils/format';
 import { estimateCost } from '../utils/estimateCost';
@@ -110,6 +111,8 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
             <p className={`text-[11px] font-bold italic ${dm ? 'text-gray-400' : 'text-gray-500'}`}>No {LOT_LABELS[vehicleType] ?? vehicleType} lots at this carpark</p>
           </div>
         )}
+
+        <PopularTimes carparkId={detail.id} darkMode={dm} />
 
         <div className="space-y-1.5">
           <h3 className={`text-[9px] font-black uppercase tracking-widest ${dm ? 'text-gray-500' : 'text-gray-400'}`}>By Lot Type</h3>
