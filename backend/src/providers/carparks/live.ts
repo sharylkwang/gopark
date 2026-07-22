@@ -118,7 +118,6 @@ export function startLiveAvailability(server: Server) {
         const initial: Record<string, CarparkState> = {};
         for (const [id, state] of current) {
           initial[id] = state;
-          snapshot.set(id, state);
         }
         send(client, initial);
       }
