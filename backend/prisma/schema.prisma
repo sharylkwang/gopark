@@ -127,3 +127,26 @@ model PasswordHistory {
   @@index([userId]) 
   @@map("password_history")
 }
+
+model AvailabilitySnapshot {
+  id           Int      @id @default(autoincrement())
+  carparkId    String   @map("carpark_id")
+  occupancyPct Int      @map("occupancy_pct")
+  recordedAt   DateTime @default(now()) @map("recorded_at")
+
+  @@index([carparkId, recordedAt])
+  @@index([recordedAt])
+  @@map("availability_snapshots")
+}
+
+model CarparkTrend {
+  carparkId   String   @id @map("carpark_id")
+  profile     Json
+  todayProfile Json    @map("today_profile")
+  todaySource String   @map("today_source")
+  isHoliday   Boolean  @default(false) @map("is_holiday")
+  sampleCount Int      @default(0) @map("sample_count")
+  computedAt  DateTime @default(now()) @map("computed_at")
+
+  @@map("carpark_trends")
+}
