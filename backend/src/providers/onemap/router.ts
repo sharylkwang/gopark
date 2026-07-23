@@ -1,13 +1,14 @@
 import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { computeWalkRoute, computeBfaRoute } from './routing.js';
+import { isLatLng } from '../../lib/coords.js';
 
 const router = Router();
 
 router.post('/onemap/walk', async (req: Request, res: Response) => {
   const { origin, destination } = req.body;
 
-  if (!origin?.lat || !origin?.lng || !destination?.lat || !destination?.lng) {
+  if (!isLatLng(origin) || !isLatLng(destination)) {
     res.status(400).json({ error: 'Missing origin or destination coordinates' });
     return;
   }
@@ -24,7 +25,7 @@ router.post('/onemap/walk', async (req: Request, res: Response) => {
 router.post('/onemap/bfa', async (req: Request, res: Response) => {
   const { origin, destination } = req.body;
 
-  if (!origin?.lat || !origin?.lng || !destination?.lat || !destination?.lng) {
+  if (!isLatLng(origin) || !isLatLng(destination)) {
     res.status(400).json({ error: 'Missing origin or destination coordinates' });
     return;
   }

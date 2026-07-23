@@ -31,6 +31,9 @@ jest.unstable_mockModule('nodemailer', () => ({
   default: { createTransport: jest.fn().mockReturnValue({ sendMail: mockSendMail }) },
 }));
 
+const mockRandomInt = jest.fn(() => 123456);
+jest.unstable_mockModule('crypto', () => ({ default: { randomInt: mockRandomInt } }));
+
 jest.unstable_mockModule('express-rate-limit', () => ({
   default: jest.fn().mockImplementation(() => (_req: any, _res: any, next: any) => next()),
 }));
@@ -85,6 +88,13 @@ describe('Auth Router', () => {
       expect(res.body.error).toBe('Invalid email or password');
     });
 
+    it('still runs a password comparison for a missing account (no timing oracle)', async () => {
+      mockUserFindUnique.mockResolvedValue(null);
+      mockCompare.mockResolvedValue(false);
+      await request(app).post('/auth/login').send({ email: 'nobody@test.com', password: 'Pass1234!' });
+      expect(mockCompare).toHaveBeenCalled();
+    });
+
     it('returns 401 for wrong password', async () => {
       mockUserFindUnique.mockResolvedValue({
         id: '1', email: 'test@test.com', password: 'hashed-pw',
@@ -112,6 +122,20 @@ describe('Auth Router', () => {
       expect(res.body.user).toEqual({ id: '1', username: 'testuser', email: 'test@test.com' });
     });
 
+    it('sets the auth cookie to expire with the token, not days later', async () => {
+      mockUserFindUnique.mockResolvedValue({
+        id: '1', email: 'test@test.com', password: 'hashed-pw',
+        username: 'testuser', failedAttempts: 0, lockedUntil: null,
+      });
+      mockCompare.mockResolvedValue(true);
+      mockSign.mockReturnValue('mock-jwt-token');
+
+      const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'Correct1!' });
+      const cookie = (res.headers['set-cookie'] as unknown as string[])[0];
+      expect(cookie).toMatch(/Max-Age=3600\b/);
+      expect(cookie).not.toMatch(/Max-Age=604800/);
+    });
+
     it('returns 423 for locked account', async () => {
       mockUserFindUnique.mockResolvedValue({
         id: '1', email: 'test@test.com', password: 'hashed-pw',
@@ -122,6 +146,22 @@ describe('Auth Router', () => {
       const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'Any1!' });
       expect(res.status).toBe(423);
       expect(res.body.error).toContain('Account locked');
+    });
+
+    it('does not instantly re-lock a wrong attempt after the lock window expired', async () => {
+      mockUserFindUnique.mockResolvedValue({
+        id: '1', email: 'test@test.com', password: 'hashed-pw',
+        username: 'testuser', failedAttempts: 5,
+        lockedUntil: new Date(Date.now() - 60 * 1000),
+      });
+      mockCompare.mockResolvedValue(false);
+      mockUserUpdate.mockResolvedValue({});
+
+      const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'Wrong1!' });
+      expect(res.status).toBe(401);
+      expect(mockUserUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { failedAttempts: 1 } }),
+      );
     });
   });
 
@@ -164,6 +204,24 @@ describe('Auth Router', () => {
       expect(res.status).toBe(200);
       expect(res.body.message).toBe('Verification code sent!');
       expect(mockSendMail).toHaveBeenCalled();
+    });
+  });
+
+  describe('POST /auth/register/verify', () => {
+    it('accepts a numeric code that matches the stored string otp', async () => {
+      mockUserFindUnique.mockResolvedValue(null);
+      mockHash.mockResolvedValue('hashed-password');
+      mockSendMail.mockResolvedValue({});
+      mockUserCreate.mockResolvedValue({ id: '9', username: 'newuser', email: 'new@test.com' });
+      mockSign.mockReturnValue('mock-jwt-token');
+
+      await request(app).post('/auth/register/send-code')
+        .send({ username: 'newuser', email: 'new@test.com', password: 'StrongPass1!' });
+
+      const res = await request(app).post('/auth/register/verify')
+        .send({ email: 'new@test.com', code: 123456 });
+      expect(res.status).toBe(201);
+      expect(mockUserCreate).toHaveBeenCalled();
     });
   });
 

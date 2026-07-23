@@ -1,6 +1,12 @@
+process.env.JWT_SECRET = 'test-secret';
+
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import express from 'express';
 import request from 'supertest';
+
+const mockRunScraper = jest.fn();
+const mockSmartSearch = jest.fn();
+const mockApplyScraped = jest.fn();
 
 const mockCarparkFindMany = jest.fn();
 const mockCarparkFindUnique = jest.fn();
@@ -19,12 +25,12 @@ jest.unstable_mockModule('../../src/db/index', () => ({
 }));
 
 jest.unstable_mockModule('../../src/cron/scraper/index', () => ({
-  runScraper: jest.fn(),
-  smartSearch: jest.fn(),
+  runScraper: mockRunScraper,
+  smartSearch: mockSmartSearch,
 }));
 
 jest.unstable_mockModule('../../src/cron/scraper/apply', () => ({
-  applyScraped: jest.fn(),
+  applyScraped: mockApplyScraped,
 }));
 
 jest.unstable_mockModule('../../src/lib/logger', () => ({
@@ -231,6 +237,17 @@ describe('Carparks Router', () => {
 
       expect(res.status).toBe(404);
       expect(res.body.error).toBe('Not found');
+    });
+  });
+
+  describe('POST /carparks/scrape', () => {
+    it('rejects an unauthenticated request without scraping or writing', async () => {
+      const res = await request(app).post('/carparks/scrape?full=true').send({});
+
+      expect(res.status).toBe(401);
+      expect(mockRunScraper).not.toHaveBeenCalled();
+      expect(mockSmartSearch).not.toHaveBeenCalled();
+      expect(mockApplyScraped).not.toHaveBeenCalled();
     });
   });
 });

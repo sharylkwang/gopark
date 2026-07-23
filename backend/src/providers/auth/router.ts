@@ -58,8 +58,11 @@ function isStrongPassword(password: unknown) {
     && /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]/.test(password);
 }
 
+const TOKEN_TTL_MS = 60 * 60 * 1000;
+const DUMMY_HASH = '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy';
+
 function signToken(user: { id: string; email: string }) {
-  return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: TOKEN_TTL_MS / 1000 });
 }
 
 function setAuthCookie(res: Response, token: string) {
@@ -67,7 +70,7 @@ function setAuthCookie(res: Response, token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: TOKEN_TTL_MS,
     path: '/',
   });
 }
@@ -111,6 +114,14 @@ const resetLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many reset attempts. Please try again later.' },
+});
+
+const verifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many verification attempts. Please try again later.' },
 });
 
 const captchaLimiter = rateLimit({
@@ -190,7 +201,7 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
   }
 });
 
-router.post('/auth/register/verify', resetLimiter, async (req: Request, res: Response) => {
+router.post('/auth/register/verify', verifyLimiter, async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
     const email = (req.body.email || '').toLowerCase().trim();
@@ -205,7 +216,7 @@ router.post('/auth/register/verify', resetLimiter, async (req: Request, res: Res
       return res.status(400).json({ error: 'Verification code has expired' });
     }
 
-    if (cached.otp !== code) {
+    if (String(cached.otp) !== String(code)) {
       cached.attempts++;
       if (cached.attempts >= 5) {
         otpCache.delete(email);
@@ -259,6 +270,9 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      // Run a comparison against a throwaway hash so a missing account costs the same time as a
+      // wrong password; otherwise the fast 401 leaks which emails are registered.
+      await bcrypt.compare(password, DUMMY_HASH);
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
@@ -269,9 +283,12 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
       });
     }
 
+    const lockExpired = user.lockedUntil != null && user.lockedUntil <= new Date();
+    const priorAttempts = lockExpired ? 0 : user.failedAttempts;
+
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
-      const attempts = user.failedAttempts + 1;
+      const attempts = priorAttempts + 1;
 
       if (attempts >= 5) {
         await prisma.user.update({
@@ -370,7 +387,7 @@ router.post('/auth/password/reset', resetLimiter, async (req: Request, res: Resp
       return res.status(400).json({ error: 'Code has expired' });
     }
 
-    if (cached.otp !== code) {
+    if (String(cached.otp) !== String(code)) {
       cached.attempts++;
       if (cached.attempts >= 5) {
         otpCache.delete(email);
