@@ -35,11 +35,8 @@ export default function GoParkApp() {
   const [destinationPoint, setDestinationPoint] = useState<DestinationPoint | null>(null);
 
   useEffect(() => {
-    if (destinationPoint) {
-      updateForCoords(destinationPoint.lat, destinationPoint.lng);
-    } else if (loc.userLocation) {
-      updateForCoords(loc.userLocation[0], loc.userLocation[1]);
-    }
+    if (destinationPoint) updateForCoords(destinationPoint.lat, destinationPoint.lng);
+    else if (loc.userLocation) updateForCoords(loc.userLocation[0], loc.userLocation[1]);
   }, [loc.userLocation, destinationPoint?.lat, destinationPoint?.lng]);
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
@@ -505,7 +502,7 @@ export default function GoParkApp() {
               }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-lg border cursor-pointer transition ${nearbyParking.length ? 'bg-green-600/80 border-green-400/30' : 'bg-blue-600/80 border-blue-400/30'} text-white`}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                <span className="text-[11px] font-bold whitespace-nowrap">{destinationPoint.classification.type} — {nearbyParking.length ? `${nearbyParking.length} parking locations nearby` : destinationPoint.classification.parkingHint}</span>
+                <span className="text-[11px] font-bold whitespace-nowrap">{destinationPoint.classification.type} - {nearbyParking.length ? `${nearbyParking.length} parking locations nearby` : destinationPoint.classification.parkingHint}</span>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5 opacity-60"><path d={nearbyParking.length ? 'M18 6L6 18M6 6l12 12' : 'M9 18l6-6-6-6'}/></svg>
               </button>
             )}

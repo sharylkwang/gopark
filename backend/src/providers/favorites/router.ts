@@ -14,7 +14,7 @@ router.get('/favorites', requireAuth, async (req: AuthRequest, res: Response) =>
     });
     res.json(favs.map(f => f.carparkId));
   } catch {
-    res.status(500).json({ error: 'Failed to fetch favorites' });
+    res.status(500).json({ error: 'could not load favorites' });
   }
 });
 
@@ -29,7 +29,7 @@ router.post('/favorites/:carparkId', requireAuth, async (req: AuthRequest, res: 
     });
     res.json({ ok: true });
   } catch {
-    res.status(500).json({ error: 'Failed to add favorite' });
+    res.status(500).json({ error: 'favorite add failed' });
   }
 });
 
@@ -42,7 +42,7 @@ router.delete('/favorites/:carparkId', requireAuth, async (req: AuthRequest, res
     });
     res.json({ ok: true });
   } catch {
-    res.status(500).json({ error: 'Failed to remove favorite' });
+    res.status(500).json({ error: 'remove failed' });
   }
 });
 

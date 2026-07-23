@@ -1,20 +1,6 @@
 import axios from 'axios';
 
-interface ProxyConfig {
-  buildUrl: (z: number, x: number, y: number) => string;
-}
-
-const TILE_TYPES: Record<string, ProxyConfig> = {
-  roads: {
-    buildUrl: (z, x, y) => `https://mt${(x + y) % 4}.google.com/vt/lyrs=m&x=${x}&y=${y}&z=${z}`,
-  },
-  hybrid: {
-    buildUrl: (z, x, y) => `https://mt${(x + y) % 4}.google.com/vt/lyrs=y&x=${x}&y=${y}&z=${z}`,
-  },
-  '3d': {
-    buildUrl: (z, x, y) => `https://mt${(x + y) % 4}.google.com/vt/lyrs=s&x=${x}&y=${y}&z=${z}`,
-  },
-};
+const LYRS: Record<string, string> = { roads: 'm', hybrid: 'y', '3d': 's' };
 
 interface TileResult {
   data: Buffer;
@@ -22,14 +8,14 @@ interface TileResult {
 }
 
 export function isValidTileType(type: string): boolean {
-  return type in TILE_TYPES;
+  return type in LYRS;
 }
 
 export async function fetchTile(type: string, z: number, x: number, y: number): Promise<TileResult> {
-  const config = TILE_TYPES[type];
-  if (!config) throw new Error(`Unknown tile type: ${type}`);
+  const lyrs = LYRS[type];
+  if (!lyrs) throw new Error(`Unknown tile type: ${type}`);
 
-  let url = config.buildUrl(z, x, y);
+  let url = `https://mt${(x + y) % 4}.google.com/vt/lyrs=${lyrs}&x=${x}&y=${y}&z=${z}`;
 
   const key = process.env.GOOGLE_MAPS_KEY;
   if (key) url += `&key=${key}`;

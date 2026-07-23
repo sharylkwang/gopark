@@ -14,7 +14,7 @@ export function FavoritesList({ darkMode, allCarparks, favorites, selectedId, on
   const favCarparks = allCarparks.filter(cp => favorites.has(cp.id));
 
   if (favCarparks.length === 0) {
-    return <p className={`text-sm font-bold italic text-center py-8 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>No favorites yet. Tap the heart on any carpark to save it.</p>;
+    return <p className={`text-sm font-bold italic text-center py-8 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>no favorites yet, tap the heart on a carpark to save it</p>;
   }
 
   return (

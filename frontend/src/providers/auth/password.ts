@@ -8,7 +8,7 @@ export async function requestPasswordReset(email: string) {
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to send reset code');
+  if (!response.ok) throw new Error(data.error || 'could not send the reset code');
   return data;
 }
 
@@ -20,6 +20,6 @@ export async function resetPassword(email: string, code: string, newPassword: st
   });
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || 'Failed to reset password');
+  if (!response.ok) throw new Error(data.error || 'password reset failed');
   return data;
 }

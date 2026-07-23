@@ -8,7 +8,6 @@ interface Props {
   selectedId: string | null;
   favorites: Set<string>;
   vehicleType: string;
-  durationHours: number;
   onSelectCarpark: (id: string) => void;
   onToggleFav: (e: React.MouseEvent, id: string) => void;
 }
