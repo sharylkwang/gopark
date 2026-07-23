@@ -19,6 +19,8 @@ import { fetchAll, fetchNearby, fetchDetail, fetchAvailability } from './provide
 import { estimateCost } from './utils/estimateCost';
 import { totals, parseDurationSecs, formatClockTime } from './utils/format';
 import type { CarparkSummary, CarparkDetail, DestinationPoint, PlaceSuggestion, NearbyParking } from './types';
+import { TrafficTicker } from './components/TrafficTicker';
+import type { TrafficIncident } from './providers/traffic';
 
 export default function GoParkApp() {
   const auth = useAuth();
@@ -67,6 +69,7 @@ export default function GoParkApp() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pickMode, setPickMode] = useState<'start' | 'destination' | null>(null);
   const [nearbyParking, setNearbyParking] = useState<NearbyParking[]>([]);
+  const [activeIncident, setActiveIncident] = useState<TrafficIncident | null>(null);
   const prefetchedParkingRef = useRef<NearbyParking[] | null>(null);
 
   const routes = useRoutes(startCoords, loc.userLocation);
@@ -214,6 +217,7 @@ export default function GoParkApp() {
   };
 
   const executeSearch = async (query: string) => {
+    setActiveIncident(null);
     setSuggestions([]);
     setStartSuggestions([]);
     setIsDropdownOpen(false);
@@ -476,7 +480,15 @@ export default function GoParkApp() {
           hasSearched={hasSearched} onSelectCarpark={selectAndClose} onDestinationDrag={handleDestinationDrag}
           eventHandlers={pickMode ? { onMapClick: handleMapPick } : undefined}
           userLocation={loc.userLocation} drivePolyline={routes.drivePolyline} driveRoute={routes.driveRoute}
-          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} nearbyParking={nearbyParking} />
+          walkPolyline={routes.walkPolyline} walkRoute={routes.walkRoute} startCoords={startCoords} sidebarOpen={sidebarOpen} nearbyParking={nearbyParking}
+          incident={activeIncident} />
+      </div>
+
+      <div className="absolute bottom-3 z-20 w-[min(640px,55vw)] -translate-x-1/2 [&>div]:rounded-full [&>div]:shadow-xl"
+        style={{ left: sidebarOpen ? 'calc(358px + (100% - 358px) / 2)' : '50%' }}>
+        <TrafficTicker userLocation={loc.userLocation} darkMode={darkMode}
+          destination={destinationPoint ? { lat: destinationPoint.lat, lng: destinationPoint.lng } : null}
+          onSelect={setActiveIncident} />
       </div>
 
       <div className="absolute top-3 z-40 -translate-x-1/2 max-md:left-1/2 flex flex-col items-center gap-2" style={{ left: sidebarOpen ? 'calc(358px + (100% - 358px) / 2)' : '50%' }}>
