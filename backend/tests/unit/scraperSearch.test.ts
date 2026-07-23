@@ -33,3 +33,21 @@ describe('extractResultUrls', () => {
     expect(() => extractResultUrls('href="//duckduckgo.com/l/?uddg=%E0%A4%A&rut=1"')).not.toThrow();
   });
 });
+
+import { shouldBackOff } from '../../src/cron/scraper/search';
+
+describe('shouldBackOff', () => {
+  it('backs off on connection errors', () => {
+    expect(shouldBackOff({ code: 'ECONNREFUSED' })).toBe(true);
+    expect(shouldBackOff({ code: 'ETIMEDOUT' })).toBe(true);
+  });
+  it('backs off on DuckDuckGo HTTP blocks (403/429/5xx)', () => {
+    expect(shouldBackOff({ response: { status: 403 } })).toBe(true);
+    expect(shouldBackOff({ response: { status: 429 } })).toBe(true);
+    expect(shouldBackOff({ response: { status: 503 } })).toBe(true);
+  });
+  it('does not back off on an ordinary 404 or a parse error', () => {
+    expect(shouldBackOff({ response: { status: 404 } })).toBe(false);
+    expect(shouldBackOff(new Error('bad regex'))).toBe(false);
+  });
+});

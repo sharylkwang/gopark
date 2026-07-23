@@ -18,6 +18,22 @@ export function isSearchAvailable(): boolean {
   return false;
 }
 
+const BACKOFF_CODES = new Set(['ECONNREFUSED', 'ECONNABORTED', 'ETIMEDOUT', 'ENOTFOUND']);
+const BACKOFF_STATUSES = new Set([403, 429, 500, 502, 503]);
+
+// DuckDuckGo blocks/rate-limits with an HTTP status (403/429), not a socket error, so the old
+// code-only check kept hammering it across every domain in the loop. Treat both as "down".
+export function shouldBackOff(e: unknown): boolean {
+  const err = e as { code?: string; response?: { status?: number } };
+  if (err.code && BACKOFF_CODES.has(err.code)) return true;
+  return err.response?.status != null && BACKOFF_STATUSES.has(err.response.status);
+}
+
+function describeSearchError(e: unknown): string {
+  const err = e as { code?: string; response?: { status?: number } };
+  return err.code ?? (err.response?.status != null ? `HTTP ${err.response.status}` : 'unknown');
+}
+
 const REDIRECT_HOSTS = ['duckduckgo.com', 'google.com/url', 'bing.com'];
 
 // DuckDuckGo's HTML results wrap every target in a redirect link:
@@ -54,11 +70,10 @@ export async function searchWeb(query: string): Promise<string[]> {
     searchDown = false;
     return extractResultUrls(data as string).slice(0, SCRAPER.maxSearchResults);
   } catch (e) {
-    const code = (e as { code?: string }).code;
-    if (code === 'ECONNREFUSED' || code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
+    if (shouldBackOff(e)) {
       searchDown = true;
       searchDownSince = Date.now();
-      log.warn(`search unreachable (${code}), backing off for 6 hours`);
+      log.warn(`search unavailable (${describeSearchError(e)}), backing off for 6 hours`);
     }
     throw e;
   }
