@@ -115,6 +115,20 @@ describe('Auth Router', () => {
       expect(res.body.user).toEqual({ id: '1', username: 'testuser', email: 'test@test.com' });
     });
 
+    it('sets the auth cookie to expire with the token, not days later', async () => {
+      mockUserFindUnique.mockResolvedValue({
+        id: '1', email: 'test@test.com', password: 'hashed-pw',
+        username: 'testuser', failedAttempts: 0, lockedUntil: null,
+      });
+      mockCompare.mockResolvedValue(true);
+      mockSign.mockReturnValue('mock-jwt-token');
+
+      const res = await request(app).post('/auth/login').send({ email: 'test@test.com', password: 'Correct1!' });
+      const cookie = (res.headers['set-cookie'] as unknown as string[])[0];
+      expect(cookie).toMatch(/Max-Age=3600\b/);
+      expect(cookie).not.toMatch(/Max-Age=604800/);
+    });
+
     it('returns 423 for locked account', async () => {
       mockUserFindUnique.mockResolvedValue({
         id: '1', email: 'test@test.com', password: 'hashed-pw',

@@ -58,8 +58,10 @@ function isStrongPassword(password: unknown) {
     && /[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]/.test(password);
 }
 
+const TOKEN_TTL_MS = 60 * 60 * 1000;
+
 function signToken(user: { id: string; email: string }) {
-  return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: '1h' });
+  return jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, { expiresIn: TOKEN_TTL_MS / 1000 });
 }
 
 function setAuthCookie(res: Response, token: string) {
@@ -67,7 +69,7 @@ function setAuthCookie(res: Response, token: string) {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge: 7 * 24 * 60 * 60 * 1000,
+    maxAge: TOKEN_TTL_MS,
     path: '/',
   });
 }
