@@ -113,6 +113,14 @@ const resetLimiter = rateLimit({
   message: { error: 'Too many reset attempts. Please try again later.' },
 });
 
+const verifyLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Too many verification attempts. Please try again later.' },
+});
+
 const captchaLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 10,
@@ -190,7 +198,7 @@ router.post('/auth/register/send-code', emailLimiter, async (req: Request, res: 
   }
 });
 
-router.post('/auth/register/verify', resetLimiter, async (req: Request, res: Response) => {
+router.post('/auth/register/verify', verifyLimiter, async (req: Request, res: Response) => {
   try {
     const { code } = req.body;
     const email = (req.body.email || '').toLowerCase().trim();
