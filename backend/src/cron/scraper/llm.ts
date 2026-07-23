@@ -12,12 +12,26 @@ const VLLM_MODEL = process.env.VLLM_MODEL || 'Qwen/Qwen3.5-4B';
 
 export type Backend = 'zhipuai' | 'vllm' | 'none';
 
-export async function detect(): Promise<Backend> {
-  if (ZHIPUAI_KEY) return 'zhipuai';
-  if (VLLM_URL) {
-    try { await axios.get(`${VLLM_URL}/models`, { timeout: TIMEOUTS.llmHealthCheck }); return 'vllm'; }
-    catch { log.debug('vLLM not reachable'); return 'none'; }
+export async function canComplete(backend: Backend): Promise<boolean> {
+  try {
+    const { url, key, model } = endpoint(backend);
+    const { data } = await axios.post(`${url}/chat/completions`, {
+      model, messages: [{ role: 'user', content: 'ping' }], max_tokens: 1, temperature: 0,
+    }, {
+      headers: { 'Content-Type': 'application/json', ...(key ? { Authorization: `Bearer ${key}` } : {}) },
+      timeout: TIMEOUTS.llmHealthCheck,
+    });
+    return Array.isArray(data?.choices) && data.choices.length > 0;
+  } catch (e) {
+    log.warn(`${backend} backend probe failed: ${e instanceof Error ? e.message : e}`);
+    return false;
   }
+}
+
+export async function detect(): Promise<Backend> {
+  if (ZHIPUAI_KEY && await canComplete('zhipuai')) return 'zhipuai';
+  if (await canComplete('vllm')) { log.info('falling back to the local vLLM backend'); return 'vllm'; }
+  log.warn('no working LLM backend (cloud balance/model or local vLLM both unavailable)');
   return 'none';
 }
 
