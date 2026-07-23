@@ -1,5 +1,27 @@
 import { fetchSites, fetchAllRates, type JustParkSite } from '../../lib/justparkClient.js';
 import type { CarparkRecord, AvailabilityEntry, RateEntry } from '../pipeline/types.js';
+import { geocode } from '../scraper/geocode.js';
+import createLogger from '../../lib/logger.js';
+
+const log = createLogger('justpark');
+
+const coordCache = new Map<string, { lat: number; lng: number } | null>();
+
+type GeocodeFn = (query: string) => Promise<{ lat: number; lng: number } | null>;
+
+// CapitaLand's feed ships every site at 0,0, so 62 of 91 malls were dropped by the Singapore
+// geofence. Geocode the mall name (cached — malls don't move) so unmatched sites still land.
+export async function resolveJustparkCoords(records: CarparkRecord[], geocodeFn: GeocodeFn = geocode): Promise<number> {
+  let resolved = 0;
+  for (const r of records) {
+    if (r.lat !== 0 || r.lng !== 0) continue;
+    const key = r.name.toLowerCase().trim();
+    if (!coordCache.has(key)) coordCache.set(key, await geocodeFn(`${r.name}, Singapore`));
+    const geo = coordCache.get(key);
+    if (geo) { r.lat = geo.lat; r.lng = geo.lng; resolved++; }
+  }
+  return resolved;
+}
 
 export interface JustParkResult {
   records: CarparkRecord[];
@@ -178,6 +200,9 @@ export async function fetchJustpark(): Promise<JustParkResult> {
       },
     });
   }
+
+  const resolved = await resolveJustparkCoords(records);
+  if (resolved) log.info(`geocoded ${resolved} JustPark sites that shipped without coordinates`);
 
   return { records, availability };
 }
