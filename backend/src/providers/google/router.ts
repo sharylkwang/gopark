@@ -2,6 +2,7 @@ import { Router } from 'express';
 import type { Request, Response } from 'express';
 import { fetchTile, isValidTileType } from './tiles';
 import { computeRoute, type TravelMode } from './routing';
+import { isLatLng } from '../../lib/coords.js';
 
 const VALID_MODES = new Set(['DRIVE', 'WALK', 'BICYCLE']);
 const router = Router();
@@ -29,7 +30,7 @@ router.get('/google/tiles/:type/:z/:x/:y', async (req: Request, res: Response) =
 router.post('/google/route', async (req: Request, res: Response) => {
   const { origin, destination, travelMode } = req.body;
 
-  if (!origin?.lat || !origin?.lng || !destination?.lat || !destination?.lng) {
+  if (!isLatLng(origin) || !isLatLng(destination)) {
     res.status(400).json({ error: 'origin and destination required' });
     return;
   }
