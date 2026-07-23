@@ -18,6 +18,30 @@ export function isSearchAvailable(): boolean {
   return false;
 }
 
+const REDIRECT_HOSTS = ['duckduckgo.com', 'google.com/url', 'bing.com'];
+
+// DuckDuckGo's HTML results wrap every target in a redirect link:
+//   href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fx&rut=..."
+// so the real URL is the url-encoded `uddg` parameter, not a bare href. Pull those out first,
+// then fall back to any direct external https links the page might also carry.
+export function extractResultUrls(html: string): string[] {
+  const urls: string[] = [];
+
+  for (const m of html.matchAll(/[?&]uddg=([^&"']+)/g)) {
+    try {
+      const decoded = decodeURIComponent(m[1]);
+      if (decoded.startsWith('http')) urls.push(decoded);
+    } catch { /* skip malformed escape sequences */ }
+  }
+
+  for (const m of html.matchAll(/href="(https?:\/\/[^"]+)"/g)) {
+    const url = m[1];
+    if (!REDIRECT_HOSTS.some(h => url.includes(h))) urls.push(url);
+  }
+
+  return [...new Set(urls)];
+}
+
 export async function searchWeb(query: string): Promise<string[]> {
   if (!isSearchAvailable()) return [];
 
@@ -27,13 +51,8 @@ export async function searchWeb(query: string): Promise<string[]> {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: TIMEOUTS.scrapeSearch,
     });
-    const urls: string[] = [];
-    for (const m of (data as string).matchAll(/href="(https?:\/\/[^"]+)"/g)) {
-      const url = m[1];
-      if (!url.includes('duckduckgo') && !url.includes('google.com/url')) urls.push(url);
-    }
     searchDown = false;
-    return [...new Set(urls)].slice(0, SCRAPER.maxSearchResults);
+    return extractResultUrls(data as string).slice(0, SCRAPER.maxSearchResults);
   } catch (e) {
     const code = (e as { code?: string }).code;
     if (code === 'ECONNREFUSED' || code === 'ECONNABORTED' || code === 'ETIMEDOUT') {
