@@ -5,6 +5,7 @@ import geoapifyRouter from './geoapify/router.js';
 import carparksRouter from './carparks/router.js';
 import onemapRouter from './onemap/router.js';
 import osmBuildingsRouter from './osm/buildings.js';
+import trafficRouter from './traffic/router.js';
 import favoritesRouter from './favorites/router.js';
 
 const router = Router();
@@ -15,6 +16,7 @@ router.use(geoapifyRouter);
 router.use(carparksRouter);
 router.use(onemapRouter);
 router.use(osmBuildingsRouter);
+router.use(trafficRouter);
 router.use(favoritesRouter);
 
 export default router;

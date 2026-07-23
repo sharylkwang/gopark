@@ -11,6 +11,7 @@ import type { Map3DMode } from './layers/Google3DMap';
 import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import { reverseGeocode } from '../../providers/geoapify';
 import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../types';
+import type { TrafficIncident } from '../../providers/traffic';
 import type { MapEventHandlers } from '../../types/map';
 import type { RouteResult, SpeedInterval } from '../../providers/google/routing';
 import { formatDistance, formatDuration, parseDurationSecs } from '../../utils/format';
@@ -165,6 +166,51 @@ interface Props {
   startCoords?: [number, number] | null;
   sidebarOpen?: boolean;
   nearbyParking?: NearbyParking[];
+  incident?: TrafficIncident | null;
+}
+
+function getIncidentIcon(type: string) {
+  const colors: Record<string, string> = {
+    'accident': '#dc2626', 'roadwork': '#f59e0b', 'vehicle breakdown': '#f97316',
+    'heavy traffic': '#9333ea', 'weather': '#0284c7', 'road block': '#be123c',
+  };
+  const color = colors[type.toLowerCase()] ?? '#475569';
+  return L.divIcon({
+    className: '',
+    iconSize: [34, 34],
+    iconAnchor: [17, 30],
+    popupAnchor: [0, -28],
+    html: `<div style="width:34px;height:34px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.4))">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="${color}" stroke="#ffffff" stroke-width="1.6" stroke-linejoin="round">
+        <path d="M12 2 L23 21 H1 Z"/>
+      </svg>
+      <span style="position:absolute;top:9px;left:0;right:0;text-align:center;color:#fff;font-weight:900;font-size:13px;font-family:Inter,system-ui,sans-serif">!</span>
+    </div>`,
+  });
+}
+
+function IncidentMarker({ incident }: { incident: TrafficIncident }) {
+  const map = useMap();
+  const markerRef = useRef<L.Marker | null>(null);
+
+  useEffect(() => {
+    map.flyTo([incident.lat, incident.lng], Math.max(map.getZoom(), 15), { duration: 0.8 });
+    const timer = setTimeout(() => markerRef.current?.openPopup(), 900);
+    return () => clearTimeout(timer);
+  }, [incident.id, incident.lat, incident.lng, map]);
+
+  return (
+    <Marker ref={markerRef} position={[incident.lat, incident.lng]} icon={getIncidentIcon(incident.type)} zIndexOffset={2000}>
+      <Popup autoPan={false}>
+        <div style={{ fontFamily: 'system-ui, sans-serif', minWidth: 180, maxWidth: 240 }}>
+          <p style={{ fontWeight: 900, fontSize: 12, textTransform: 'uppercase', letterSpacing: 1, color: '#dc2626', margin: '0 0 3px' }}>
+            {incident.type}{incident.time ? ` · ${incident.time}` : ''}
+          </p>
+          <p style={{ fontSize: 12.5, lineHeight: 1.45, margin: 0, color: '#1f2937' }}>{incident.headline}</p>
+        </div>
+      </Popup>
+    </Marker>
+  );
 }
 
 function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
@@ -551,7 +597,7 @@ export function MapView({
   carparks, backgroundCarparks, selectedId, destinationPoint, hasSearched,
   onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
-  nearbyParking,
+  nearbyParking, incident,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
@@ -647,6 +693,7 @@ export function MapView({
         )}
 
         {nearbyParking && <NearbyParkingMarkers spots={nearbyParking} />}
+        {incident && <IncidentMarker incident={incident} />}
 
         <MarkerCluster carparks={carparks} backgroundCarparks={backgroundCarparks} selectedId={selectedId} onSelect={onSelectCarpark} hasSearched={hasSearched} />
 
