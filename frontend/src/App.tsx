@@ -477,6 +477,37 @@ export default function GoParkApp() {
   const mapApiRef = useRef<LeafletMap | null>(null);
   const captureMap = useCallback((m: LeafletMap) => { mapApiRef.current = m; }, []);
 
+  const fitRoute = () => {
+    const m = mapApiRef.current;
+    const pts: [number, number][] = [...(routes.drivePolyline ?? []), ...(routes.walkPolyline ?? [])];
+    if (startCoords) pts.push(startCoords);
+    else if (loc.userLocation) pts.push(loc.userLocation);
+    if (destinationPoint) pts.push([destinationPoint.lat, destinationPoint.lng]);
+    if (!m || pts.length < 2) return;
+    const leftPad = isDesktop && sidebarOpen ? 390 : isRail ? Math.min(window.innerWidth * 0.42, 400) + 30 : 40;
+    const topPad = isSheet ? 130 + (showParkingHint ? 44 : 0) + 40 : 70;
+    const bottomPad = isSheet ? Math.max(60, sheet.height - sheet.translateY + 30) : 60;
+    m.fitBounds(latLngBounds(pts), {
+      paddingTopLeft: [leftPad, topPad],
+      paddingBottomRight: [70, bottomPad],
+      maxZoom: 17,
+    });
+  };
+  const fitRouteRef = useRef(fitRoute);
+  fitRouteRef.current = fitRoute;
+
+  const routeSig = useMemo(() => {
+    const d = routes.drivePolyline, w = routes.walkPolyline;
+    const pl = d && d.length > 1 ? d : w && w.length > 1 ? w : null;
+    return pl ? `${pl.length}:${pl[0].join()}:${pl[pl.length - 1].join()}` : '';
+  }, [routes.drivePolyline, routes.walkPolyline]);
+
+  useEffect(() => {
+    if (!routeSig) return;
+    const t = setTimeout(() => fitRouteRef.current(), 400);
+    return () => clearTimeout(t);
+  }, [routeSig]);
+
   if (auth.appState === 'login') {
     return (
       <LoginPage
@@ -518,20 +549,6 @@ export default function GoParkApp() {
   const flyToPoint = (lat: number, lng: number) => {
     const m = mapApiRef.current;
     if (m) m.flyTo([lat, lng], Math.max(m.getZoom(), 15), { duration: 0.8 });
-  };
-  const fitRoute = () => {
-    const m = mapApiRef.current;
-    const pts: [number, number][] = [...(routes.drivePolyline ?? []), ...(routes.walkPolyline ?? [])];
-    if (startCoords) pts.push(startCoords);
-    else if (loc.userLocation) pts.push(loc.userLocation);
-    if (destinationPoint) pts.push([destinationPoint.lat, destinationPoint.lng]);
-    if (!m || pts.length < 2) return;
-    const leftPad = isDesktop && sidebarOpen ? 390 : isRail ? Math.min(window.innerWidth * 0.42, 400) + 30 : 40;
-    const bottomPad = isSheet ? Math.max(60, sheet.height - sheet.translateY + 30) : 60;
-    m.fitBounds(latLngBounds(pts), {
-      paddingTopLeft: [leftPad, isSheet ? 180 : 60],
-      paddingBottomRight: [70, bottomPad],
-    });
   };
 
   const hasRoute = !!(routes.drivePolyline?.length || routes.walkPolyline?.length);

@@ -18,7 +18,7 @@ const ZOOM = {
   compact: { user: 17, carpark: 17, destination: 16, threshold: 16 },
 };
 
-export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation, compact = false, routePolyline, sidebarOpen = true }: Props) {
+export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation, compact = false, routePolyline }: Props) {
   const map = useMap();
   const hasFlownToUser = useRef(false);
   const resultsRef = useRef(results);
@@ -28,13 +28,6 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
   const routeKey = routePolyline && routePolyline.length > 1
     ? `${routePolyline.length}:${routePolyline[0].join()}:${routePolyline[routePolyline.length - 1].join()}`
     : '';
-
-  useEffect(() => {
-    if (!routePolyline || routePolyline.length < 2) return;
-    const paddingTopLeft: [number, number] = compact ? [40, 150] : [sidebarOpen ? 380 : 40, 70];
-    const paddingBottomRight: [number, number] = compact ? [40, 260] : [70, 70];
-    map.fitBounds(routePolyline as [number, number][], { paddingTopLeft, paddingBottomRight, maxZoom: 17 });
-  }, [routeKey, map, compact, sidebarOpen]);
 
   useEffect(() => {
     if (hasFlownToUser.current || !userLocation) return;
