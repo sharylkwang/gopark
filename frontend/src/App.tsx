@@ -297,7 +297,7 @@ export default function GoParkApp() {
     });
   };
 
-  const loadNearbyForDestination = async (dest: DestinationPoint) => {
+  const loadNearbyForDestination = async (dest: DestinationPoint, originOverride?: [number, number]) => {
     const nearby = await fetchNearby(dest.lat, dest.lng, 2000);
     setNearbyRaw(nearby);
     const ranked = rankResults(nearby);
@@ -309,7 +309,7 @@ export default function GoParkApp() {
       setSelectedId(ranked[0].id);
       if (isDesktop) fetchDetail(ranked[0].id).then(setDetail).catch(() => setDetail(null));
       routedCarparkRef.current = ranked[0];
-      routes.fetchRoutes(ranked[0], dest);
+      routes.fetchRoutes(ranked[0], dest, originOverride);
     } else {
       setSelectedId(null);
       routes.clearRoutes();
@@ -326,7 +326,11 @@ export default function GoParkApp() {
     setStartDropdownOpen(false);
     setLoading(true);
     try {
-      if (startPoint.trim() && !startCoords) await resolveStart();
+      let startOrigin = startCoords;
+      if (startPoint.trim()) {
+        const resolved = await resolveStart();
+        if (resolved) startOrigin = resolved;
+      }
       let lat = 0, lng = 0, placeName = query, formatted = query;
 
       const picked = destinationRef.current;
@@ -364,7 +368,7 @@ export default function GoParkApp() {
       setDestination(formatted || placeName);
 
       updateDestinationClassification(dest);
-      await loadNearbyForDestination(dest);
+      await loadNearbyForDestination(dest, startOrigin ?? undefined);
     } catch { alert('Could not find destination'); }
     finally { setLoading(false); }
   };
