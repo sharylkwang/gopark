@@ -54,9 +54,16 @@ export function getTilesForBounds(bounds: { north: number; south: number; east: 
   const cx = (nw.x + se.x) / 2;
   const cy = (nw.y + se.y) / 2;
 
-  for (let x = nw.x; x <= se.x; x++) for (let y = nw.y; y <= se.y; y++) tiles.push({ x, y });
+  for (let x = nw.x; x <= se.x; x++) {
+    for (let y = nw.y; y <= se.y; y++) {
+      tiles.push({ x, y });
+    }
+  }
 
-  tiles.sort((a, b) => (a.x - cx) ** 2 + (a.y - cy) ** 2 - ((b.x - cx) ** 2 + (b.y - cy) ** 2));
+  // Cover the middle of the view first and cap the count: a wide viewport can otherwise ask for
+  // dozens of tiles at once and get the whole batch rate-limited.
+  tiles.sort((a, b) =>
+    (a.x - cx) ** 2 + (a.y - cy) ** 2 - ((b.x - cx) ** 2 + (b.y - cy) ** 2));
 
   return { z: TILE_ZOOM, tiles: tiles.slice(0, MAX_TILES_PER_VIEW) };
 }
@@ -70,6 +77,9 @@ export async function fetchBuildingTile(z: number, x: number, y: number): Promis
   const stored = loadFromStorage(key);
   if (stored) return stored;
 
+  // Tiles come from our own backend now, which caches them server-side and shares them across
+  // every client - so the first person to view an area pays the Overpass cost and nobody else
+  // does, and a browser never talks to a flaky public mirror directly.
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15000);
 

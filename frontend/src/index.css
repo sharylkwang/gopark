@@ -19,13 +19,27 @@ body {
   overscroll-behavior-y: none;
 }
 
+/* The UI is sized in fixed px tuned for a phone or a laptop window. On a large touch device (a
+   tablet) those sizes read tiny across the big canvas, so scale the whole document up. `zoom`
+   reflows layout (unlike transform: scale) and does not affect the media-query viewport, so the
+   layout mode and these queries stay stable. Desktops are pointer:fine and excluded. The
+   min-height gate keeps a phone in landscape (wide but short) out of this — it is already tight on
+   height and keeps the phone layout. */
 @media (pointer: coarse) and (min-width: 768px) and (min-height: 600px) {
-  :root { zoom: 1.18; --zoom: 1.18; }
+  :root {
+    zoom: 1.18;
+    --zoom: 1.18;
+  }
 }
 @media (pointer: coarse) and (min-width: 1000px) and (min-height: 600px) {
-  :root { zoom: 1.32; --zoom: 1.32; }
+  :root {
+    zoom: 1.32;
+    --zoom: 1.32;
+  }
 }
 
+/* Chrome paints its own background on autofilled fields, which lands as a pale box inside the
+   dark card. The inset shadow is the only way to repaint it. */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -582,6 +596,8 @@ input:-webkit-autofill:active {
   100% { background-position: -100% 0; }
 }
 
+/* Mobile top-pick row: a static tint + left accent bar so it reads as the recommendation in the
+   list. The moving emphasis lives on the map marker (.gp-bob), not here. */
 .top-pick-row {
   position: relative;
   background-color: rgba(250, 204, 21, 0.1);
@@ -597,15 +613,21 @@ input:-webkit-autofill:active {
   background: #facc15;
 }
 
+/* The top-pick map marker bobs up and down to draw the eye. The bob lives on the inner wrapper so
+   it composes with Leaflet's own positioning transform on the parent element. */
 @keyframes markerBob {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-7px); }
 }
 
-.gp-bob { animation: markerBob 1s ease-in-out infinite; }
+.gp-bob {
+  animation: markerBob 1s ease-in-out infinite;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  .gp-bob { animation: none; }
+  .gp-bob {
+    animation: none;
+  }
 }
 
 .vAygCK-api-load-alpha-banner {
@@ -650,8 +672,3 @@ input:-webkit-autofill:active {
 .news-ticker-track {
   animation: ticker-scroll linear infinite;
 }
-@keyframes livePulse {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
-  50% { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0); }
-}
-.live-pulse { animation: livePulse 1.6s ease-in-out infinite; }
