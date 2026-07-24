@@ -8,6 +8,7 @@ import osmBuildingsRouter from './osm/buildings.js';
 import trafficRouter from './traffic/router.js';
 import uraRouter from './ura/router.js';
 import pricingRouter from './pricing/router.js';
+import trendsRouter from './trends/router.js';
 import favoritesRouter from './favorites/router.js';
 
 const router = Router();
@@ -21,6 +22,7 @@ router.use(osmBuildingsRouter);
 router.use(trafficRouter);
 router.use(uraRouter);
 router.use(pricingRouter);
+router.use(trendsRouter);
 router.use(favoritesRouter);
 
 export default router;

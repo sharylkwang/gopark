@@ -3,6 +3,8 @@ export const CRON = {
   fullMergeInterval: 6 * 60 * 60 * 1000,
   scraperCheckInterval: 6 * 60 * 60 * 1000,
   scraperRunEveryDays: 7,
+  snapshotInterval: 60 * 60 * 1000,
+  trendCheckInterval: 5 * 60 * 1000,
 };
 
 export const TIMEOUTS = {
