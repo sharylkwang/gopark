@@ -1,8 +1,17 @@
 ## Main Features
+
+
+
+
+
+Sk
 - [ ] Mobile compatibility (responsive layout, touch interactions)
+- [ ] Fix UI Bugs
+
+Mt
+- [ ] Add https://eservice.ura.gov.sg/maps/api/
 - [ ] Fix motorcycle availability glitch in detail panel
 - [ ] Fix some of the Availability bugs, like not showing up etc
-- [ ] Fix UI Bugs
 
 ## Thinking Ideas
 1. I think need rework Geofence, it was applied to only parkaholic, but shld be applied to all as a pipeline preprocessing layer to handle new carpark or any new sources of data.
