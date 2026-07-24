@@ -56,7 +56,7 @@ export function MobileSearchBar({
   const destKeys = useSuggestionKeys(suggestions, isDropdownOpen, onSelectSuggestion, submitTyped, closeDropdown);
   const startKeys = useSuggestionKeys(startSuggestions, startDropdownOpen, onSelectStart, () => { closeStartDropdown(); onStartSubmit(); }, closeStartDropdown);
 
-  const input = `flex-1 min-w-0 bg-transparent outline-none text-[15px] font-semibold ${c.text} ${
+  const input = `flex-1 min-w-0 bg-transparent outline-none text-[16px] font-semibold ${c.text} ${
     darkMode ? 'placeholder:text-[#8b95a3]' : 'placeholder:text-gray-400'
   } placeholder:font-medium`;
   const iconBtn = `shrink-0 h-9 w-9 grid place-items-center rounded-lg ${c.muted}`;
