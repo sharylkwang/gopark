@@ -314,3 +314,14 @@ body {
   animation: markerDrop 0.5s ease-out forwards;
   animation-iteration-count: 1;
 }
+
+@keyframes ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.news-ticker-track { animation: ticker-scroll linear infinite; }
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+  50% { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0); }
+}
+.live-pulse { animation: livePulse 1.6s ease-in-out infinite; }
