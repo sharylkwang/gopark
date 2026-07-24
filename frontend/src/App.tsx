@@ -101,6 +101,7 @@ export default function GoParkApp() {
   const [startCoords, setStartCoords] = useState<[number, number] | null>(null);
   const [startSuggestions, setStartSuggestions] = useState<PlaceSuggestion[]>([]);
   const [startDropdownOpen, setStartDropdownOpen] = useState(false);
+  const startResolvedRef = useRef('');
   const [maxPrice, setMaxPrice] = useState<number | null>(null);
   const [sidebarTab, setSidebarTab] = useState<'search' | 'favorites'>('search');
   const [allCarparks, setAllCarparks] = useState<CarparkSummary[]>([]);
@@ -313,6 +314,7 @@ export default function GoParkApp() {
     setStartDropdownOpen(false);
     setLoading(true);
     try {
+      if (startPoint.trim() && !startCoords) await resolveStart();
       let lat = 0, lng = 0, placeName = query, formatted = query;
 
       const picked = destinationRef.current;
@@ -409,9 +411,42 @@ export default function GoParkApp() {
   };
 
   const selectStart = (s: PlaceSuggestion) => {
-    setStartPoint(s.formatted || s.name || '');
+    const label = s.formatted || s.name || '';
+    startResolvedRef.current = label;
+    setStartPoint(label);
     setStartCoords([s.lat, s.lon]);
     closeStartDropdown();
+  };
+
+  const resolveStart = async (raw?: string): Promise<[number, number] | null> => {
+    const query = (raw ?? startPoint).trim();
+    if (!query) return null;
+    if (startCoords && startResolvedRef.current === query) return startCoords;
+    try {
+      let lat = 0, lng = 0, name = query, formatted = query;
+      const postalMatch = query.match(/\b\d{6}\b/);
+      if (postalMatch) {
+        const res = await fetch(`https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${postalMatch[0]}&returnGeom=Y&getAddrDetails=Y`);
+        const data = await res.json();
+        if (data.found > 0) {
+          lat = parseFloat(data.results[0].LATITUDE);
+          lng = parseFloat(data.results[0].LONGITUDE);
+          name = `${data.results[0].BLK_NO} ${data.results[0].ROAD_NAME}`;
+          formatted = `Singapore ${postalMatch[0]}`;
+        }
+      }
+      if (lat === 0 || lng === 0) {
+        const place = await geocodeLocation(query);
+        lat = place.lat; lng = place.lon;
+        name = place.name || query; formatted = place.formatted;
+      }
+      const label = formatted || name;
+      startResolvedRef.current = label;
+      setStartPoint(label);
+      setStartCoords([lat, lng]);
+      closeStartDropdown();
+      return [lat, lng];
+    } catch { return null; }
   };
 
   const selectCarpark = async (id: string) => {
@@ -641,7 +676,7 @@ export default function GoParkApp() {
       startPoint={startPoint} onStartChange={handleStartChange}
       startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
       startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
-      closeStartDropdown={closeStartDropdown} onSelectStart={selectStart}
+      closeStartDropdown={closeStartDropdown} onSelectStart={selectStart} onStartSubmit={() => resolveStart()}
       onPickStart={() => startPick('start')}
       onLogout={handleLogout} onReset={resetHome}
       locationShared={loc.locationShared}
@@ -724,7 +759,7 @@ export default function GoParkApp() {
                 startPoint={startPoint} onStartChange={handleStartChange}
                 startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
                 startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
-                closeStartDropdown={closeStartDropdown} onSelectStart={selectStart}
+                closeStartDropdown={closeStartDropdown} onSelectStart={selectStart} onStartSubmit={() => resolveStart()}
                 locationShared={loc.locationShared}
                 arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil}
                 vehicleType={vehicleType} setVehicleType={setVehicleType}

@@ -28,6 +28,7 @@ interface Props {
   startDropdownOpen: boolean;
   closeStartDropdown: () => void;
   onSelectStart: (s: PlaceSuggestion) => void;
+  onStartSubmit: () => void;
   onPickStart: () => void;
 
   onLogout: () => void;
@@ -41,7 +42,7 @@ export function MobileSearchBar({
   destination, onDestinationChange, suggestions, isDropdownOpen, closeDropdown,
   onSelectSuggestion, onSubmit, onPickDestination, onClear,
   startPoint, onStartChange, startCoords, clearStart,
-  startSuggestions, startDropdownOpen, closeStartDropdown, onSelectStart, onPickStart,
+  startSuggestions, startDropdownOpen, closeStartDropdown, onSelectStart, onStartSubmit, onPickStart,
   onLogout, onReset, locationShared, onShareLocation,
 }: Props) {
   const c = cockpit(darkMode);
@@ -53,7 +54,7 @@ export function MobileSearchBar({
   };
 
   const destKeys = useSuggestionKeys(suggestions, isDropdownOpen, onSelectSuggestion, submitTyped, closeDropdown);
-  const startKeys = useSuggestionKeys(startSuggestions, startDropdownOpen, onSelectStart, closeStartDropdown, closeStartDropdown);
+  const startKeys = useSuggestionKeys(startSuggestions, startDropdownOpen, onSelectStart, () => { closeStartDropdown(); onStartSubmit(); }, closeStartDropdown);
 
   const input = `flex-1 min-w-0 bg-transparent outline-none text-[15px] font-semibold ${c.text} ${
     darkMode ? 'placeholder:text-[#8b95a3]' : 'placeholder:text-gray-400'

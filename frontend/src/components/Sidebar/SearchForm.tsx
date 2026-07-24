@@ -20,6 +20,7 @@ interface Props {
   startDropdownOpen: boolean;
   closeStartDropdown: () => void;
   onSelectStart: (s: PlaceSuggestion) => void;
+  onStartSubmit: () => void;
   locationShared: boolean;
   arrivalTime: Date;
   parkUntil: string;
@@ -39,7 +40,7 @@ export function SearchForm({
   darkMode, destination, onDestinationChange,
   suggestions, isDropdownOpen, closeDropdown, onSelectSuggestion,
   startPoint, onStartChange, startCoords, clearStart,
-  startSuggestions, startDropdownOpen, closeStartDropdown, onSelectStart,
+  startSuggestions, startDropdownOpen, closeStartDropdown, onSelectStart, onStartSubmit,
   locationShared, arrivalTime, parkUntil, setParkUntil,
   vehicleType, setVehicleType, maxPrice, setMaxPrice, costRange,
   loading, onSubmit, onPickStart, onPickDestination,
@@ -57,7 +58,7 @@ export function SearchForm({
   };
 
   const destKeys = useSuggestionKeys(suggestions, isDropdownOpen, onSelectSuggestion, submitTyped, closeDropdown);
-  const startKeys = useSuggestionKeys(startSuggestions, startDropdownOpen, onSelectStart, () => closeStartDropdown(), closeStartDropdown);
+  const startKeys = useSuggestionKeys(startSuggestions, startDropdownOpen, onSelectStart, () => { closeStartDropdown(); onStartSubmit(); }, closeStartDropdown);
 
   return (
     <div className={`px-3 py-3 border-b shrink-0 ${dm ? 'bg-neutral-900 border-neutral-700/40' : 'bg-white border-gray-200/30'}`}>

@@ -3,7 +3,7 @@ import { fetchTrend } from '../providers/trends';
 import type { CarparkTrend } from '../providers/trends';
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const START_HOUR = 6;
+const START_HOUR = 0;
 const END_HOUR = 24;
 
 function busyLabel(pct: number): string {
@@ -78,7 +78,7 @@ export function PopularTimes({ carparkId, darkMode }: { carparkId: string; darkM
         {hours.map(({ hour, pct }) => {
           const isNow = day === today && hour === nowHour;
           return (
-            <div key={hour} className="flex-1 flex flex-col items-center justify-end h-full" title={`${hour}:00 — ${pct}% full`}>
+            <div key={hour} className={`flex-1 flex flex-col items-center justify-end h-full rounded-sm ${isNow ? tone('bg-yellow-400/15', 'bg-yellow-400/25') : ''}`} title={`${hour}:00 — ${pct}% full`}>
               <div className="w-full rounded-t-sm transition-all"
                 style={{ height: `${Math.max(4, pct)}%`, background: barColor(pct, isNow, darkMode) }} />
             </div>
@@ -87,7 +87,7 @@ export function PopularTimes({ carparkId, darkMode }: { carparkId: string; darkM
       </div>
 
       <div className={`flex justify-between text-[8px] font-semibold ${tone('text-gray-600', 'text-gray-400')}`}>
-        <span>6a</span><span>12p</span><span>6p</span><span>12a</span>
+        <span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span>
       </div>
 
       <div className="flex flex-wrap gap-1">
