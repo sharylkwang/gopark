@@ -124,11 +124,12 @@ export function mergeAll(
 
   function mergeAvailability(cp: MergedCarpark, avail: Record<string, AvailabilityEntry>) {
     for (const [lt, e] of Object.entries(avail)) {
-      if (!cp.availability[lt] || (e.total && !cp.availability[lt].total)) {
-        cp.availability[lt] = e;
-      } else if (e.available != null) {
-        cp.availability[lt].available = e.available;
-        if (e.total) cp.availability[lt].total = e.total;
+      const cur = cp.availability[lt];
+      if (!cur) {
+        cp.availability[lt] = { ...e };
+      } else {
+        if (e.available != null) cur.available = e.available;
+        if (e.total != null) cur.total = e.total;
       }
     }
   }
