@@ -166,21 +166,17 @@ export default function GoParkApp() {
   const destinationSeq = useRef(0);
   const startSeq = useRef(0);
   const focusSeq = useRef(0);
-  const didMountStart = useRef(false);
+  const routedCarparkRef = useRef<CarparkSummary | null>(null);
 
-  useEffect(() => {
-    if (!didMountStart.current) { didMountStart.current = true; return; }
-    if (!selectedId) return;
-    const cp = searchResults.find(c => c.id === selectedId) || allCarparks.find(c => c.id === selectedId);
+  const rerouteFrom = (origin: [number, number] | null) => {
+    const cp = (selectedId && (searchResults.find(c => c.id === selectedId) || allCarparks.find(c => c.id === selectedId)))
+      || routedCarparkRef.current;
     if (!cp) return;
     const dest = destinationRef.current;
-    if (dest) {
-      routes.fetchRoutes(cp, dest);
-    } else {
-      const origin = startCoords || loc.userLocation;
-      if (origin) routes.fetchDriveOnly(origin, cp);
-    }
-  }, [startCoords]);
+    const o = origin || loc.userLocation;
+    if (dest) routes.fetchRoutes(cp, dest, o ?? undefined);
+    else if (o) routes.fetchDriveOnly(o, cp);
+  };
 
   auth.onLogin.current = (ids: string[]) => loadFavorites(ids);
 
@@ -312,6 +308,7 @@ export default function GoParkApp() {
     if (ranked.length > 0) {
       setSelectedId(ranked[0].id);
       if (isDesktop) fetchDetail(ranked[0].id).then(setDetail).catch(() => setDetail(null));
+      routedCarparkRef.current = ranked[0];
       routes.fetchRoutes(ranked[0], dest);
     } else {
       setSelectedId(null);
@@ -431,6 +428,7 @@ export default function GoParkApp() {
     setStartPoint(label);
     setStartCoords([s.lat, s.lon]);
     closeStartDropdown();
+    rerouteFrom([s.lat, s.lon]);
   };
 
   const resolveStart = async (raw?: string): Promise<[number, number] | null> => {
@@ -460,6 +458,7 @@ export default function GoParkApp() {
       setStartPoint(label);
       setStartCoords([lat, lng]);
       closeStartDropdown();
+      rerouteFrom([lat, lng]);
       return [lat, lng];
     } catch { return null; }
   };
@@ -470,6 +469,7 @@ export default function GoParkApp() {
 
     const cp = searchResults.find(c => c.id === id) || allCarparks.find(c => c.id === id);
     if (!cp) return;
+    routedCarparkRef.current = cp;
 
     const dest = destinationRef.current;
     if (dest) {
@@ -493,6 +493,7 @@ export default function GoParkApp() {
     if (mode === 'start') {
       setStartPoint(name);
       setStartCoords([pos.lat, pos.lng]);
+      rerouteFrom([pos.lat, pos.lng]);
       if (isSheet) sheet.setSnap('half');
       return;
     }
@@ -689,7 +690,7 @@ export default function GoParkApp() {
       onSubmit={searchAndClose} onPickDestination={() => startPick('destination')}
       onClear={() => { setDestination(''); closeDestinationDropdown(); }}
       startPoint={startPoint} onStartChange={handleStartChange}
-      startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
+      startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); rerouteFrom(null); }}
       startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
       closeStartDropdown={closeStartDropdown} onSelectStart={selectStart} onStartSubmit={() => resolveStart()}
       onPickStart={() => startPick('start')}
@@ -772,7 +773,7 @@ export default function GoParkApp() {
                 suggestions={suggestions} isDropdownOpen={isDropdownOpen}
                 closeDropdown={closeDestinationDropdown} onSelectSuggestion={selectSuggestion}
                 startPoint={startPoint} onStartChange={handleStartChange}
-                startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
+                startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); rerouteFrom(null); }}
                 startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
                 closeStartDropdown={closeStartDropdown} onSelectStart={selectStart} onStartSubmit={() => resolveStart()}
                 locationShared={loc.locationShared}

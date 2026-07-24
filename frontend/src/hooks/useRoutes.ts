@@ -15,8 +15,8 @@ export function useRoutes(startCoords: [number, number] | null, userLocation: [n
     setWalkRoute(null); setWalkPolyline(null);
   };
 
-  const fetchRoutes = async (carpark: CarparkSummary, dest: DestinationPoint) => {
-    const origin = startCoords || userLocation;
+  const fetchRoutes = async (carpark: CarparkSummary, dest: DestinationPoint, originOverride?: [number, number]) => {
+    const origin = originOverride || startCoords || userLocation;
     if (origin) {
       try {
         const r = await getRoute({ lat: origin[0], lng: origin[1] }, { lat: carpark.lat, lng: carpark.lng }, 'DRIVE');
