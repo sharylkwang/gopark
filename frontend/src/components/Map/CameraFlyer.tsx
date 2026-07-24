@@ -8,32 +8,47 @@ interface Props {
   hasSearched: boolean;
   destinationPoint: DestinationPoint | null;
   userLocation?: [number, number] | null;
+  compact?: boolean;
+  routePolyline?: [number, number][] | null;
+  sidebarOpen?: boolean;
 }
 
-export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation }: Props) {
+// A phone shows a fraction of the map a desktop does, so the same zoom leaves it feeling lost:
+// every camera move goes a step closer on mobile.
+const ZOOM = {
+  desktop: { user: 16, carpark: 16, destination: 15, threshold: 15 },
+  compact: { user: 17, carpark: 17, destination: 16, threshold: 16 },
+};
+
+export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation, compact = false, routePolyline }: Props) {
   const map = useMap();
   const hasFlownToUser = useRef(false);
   const resultsRef = useRef(results);
   resultsRef.current = results;
+  const zoom = compact ? ZOOM.compact : ZOOM.desktop;
+
+  const routeKey = routePolyline && routePolyline.length > 1
+    ? `${routePolyline.length}:${routePolyline[0].join()}:${routePolyline[routePolyline.length - 1].join()}`
+    : '';
 
   useEffect(() => {
     if (hasFlownToUser.current || !userLocation) return;
     hasFlownToUser.current = true;
-    map.flyTo(userLocation, 16, {
+    map.flyTo(userLocation, zoom.user, {
       duration: 1.5,
       easeLinearity: 0.25,
     });
-  }, [userLocation, map]);
+  }, [userLocation, map, zoom.user]);
 
   useEffect(() => {
     if (!hasSearched) return;
 
     if (selectedId) {
+      if (routePolyline && routePolyline.length > 1) return;
       const target = resultsRef.current.find((cp) => cp.id === selectedId);
       if (target) {
-        const zoom = map.getZoom();
-        if (zoom < 15) {
-          map.flyTo([target.lat, target.lng], 16, { duration: 1, easeLinearity: 0.25 });
+        if (map.getZoom() < zoom.threshold) {
+          map.flyTo([target.lat, target.lng], zoom.carpark, { duration: 1, easeLinearity: 0.25 });
         } else {
           map.panTo([target.lat, target.lng], { animate: true, duration: 0.5 });
         }
@@ -42,12 +57,12 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
     }
 
     if (destinationPoint) {
-      map.flyTo([destinationPoint.lat, destinationPoint.lng], 15, {
+      map.flyTo([destinationPoint.lat, destinationPoint.lng], zoom.destination, {
         duration: 1.5,
         easeLinearity: 0.25,
       });
     }
-  }, [selectedId, map, hasSearched, destinationPoint?.lat, destinationPoint?.lng]);
+  }, [selectedId, map, hasSearched, destinationPoint?.lat, destinationPoint?.lng, zoom, routeKey]);
 
   return null;
 }

@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, ZoomControl, Polyline, useMap } from 'react-leaflet';
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L, { LatLngBounds } from 'leaflet';
 import { CameraFlyer } from './CameraFlyer';
 import { EventHandler } from './EventHandler';
 import { MarkerCluster } from './MarkerCluster';
 import { SingaporeBoundary } from './layers/SingaporeBoundary';
 import { UraLiveLotsLayer } from './layers/UraLiveLotsLayer';
+import { OSMBuildingLayer } from './layers/OSMBuildingLayer';
+import type { BuildingStatus } from './layers/OSMBuildingLayer';
 import { TileLayerSwitcher } from './TileLayerSwitcher';
 import { Google3DMap } from './layers/Google3DMap';
 import type { Map3DMode } from './layers/Google3DMap';
@@ -14,20 +16,15 @@ import { reverseGeocode } from '../../providers/geoapify';
 import { fetchUraStatus } from '../../providers/ura';
 import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../types';
 import type { TrafficIncident } from '../../providers/traffic';
+import type { LayoutMode } from '../../hooks/useLayoutMode';
 import type { MapEventHandlers } from '../../types/map';
 import type { RouteResult, SpeedInterval } from '../../providers/google/routing';
-import { formatDistance, formatDuration, parseDurationSecs } from '../../utils/format';
+import { formatDuration, parseDurationSecs } from '../../utils/format';
 
 const SPEED_COLORS: Record<string, string> = {
   NORMAL: '#22c55e',
   SLOW: '#f59e0b',
   TRAFFIC_JAM: '#dc2626',
-};
-
-const TRAFFIC_LABELS: Record<string, string> = {
-  NORMAL: 'Light traffic',
-  MODERATE: 'Moderate traffic',
-  HEAVY: 'Heavy traffic',
 };
 
 const TRAFFIC_DOT: Record<string, string> = {
@@ -168,8 +165,44 @@ interface Props {
   startCoords?: [number, number] | null;
   sidebarOpen?: boolean;
   nearbyParking?: NearbyParking[];
-  incident?: TrafficIncident | null;
+  layout?: LayoutMode;
+  hideSwitcher?: boolean;
   darkMode?: boolean;
+  focusPoint?: FocusPoint | null;
+  vehicleType?: string;
+  recommendedId?: string | null;
+  onMapReady?: (map: L.Map) => void;
+  incident?: TrafficIncident | null;
+}
+
+export interface FocusPoint {
+  lat: number;
+  lng: number;
+  token: number;
+}
+
+const DARK_TILE = 'carto-dark';
+
+function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 300);
+    return () => clearTimeout(t);
+  }, [sidebarOpen]);
+  return null;
+}
+
+function FocusFlyer({ point }: { point: FocusPoint | null }) {
+  const map = useMap();
+  const lastToken = useRef<number>(0);
+
+  useEffect(() => {
+    if (!point || point.token === lastToken.current) return;
+    lastToken.current = point.token;
+    map.flyTo([point.lat, point.lng], Math.max(map.getZoom(), 16), { duration: 1 });
+  }, [point, map]);
+
+  return null;
 }
 
 function getIncidentIcon(type: string) {
@@ -216,12 +249,9 @@ function IncidentMarker({ incident }: { incident: TrafficIncident }) {
   );
 }
 
-function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
+function MapHandle({ onReady }: { onReady?: (map: L.Map) => void }) {
   const map = useMap();
-  useEffect(() => {
-    const t = setTimeout(() => map.invalidateSize(), 300);
-    return () => clearTimeout(t);
-  }, [sidebarOpen]);
+  useEffect(() => { onReady?.(map); }, [map, onReady]);
   return null;
 }
 
@@ -240,53 +270,32 @@ function PositionTracker({ onMove }: { onMove: (center: { lat: number; lng: numb
 }
 
 function getParkingSpotIcon(index: number, animate: boolean) {
-  const size = 26;
-  const hit = size + 8;
+  const size = 24;
+  const hit = size + 14;
+  const stem = 8;
   const delay = index * 80;
   const dropClass = animate ? 'nearby-parking-drop' : '';
   const delayStyle = animate ? `animation-delay:${delay}ms;` : '';
+
   return L.divIcon({
     className: '',
     iconSize: [hit, hit],
     iconAnchor: [hit / 2, hit],
     popupAnchor: [0, -hit],
-    html: `<div class="${dropClass}" style="width:${hit}px;height:${hit}px;display:flex;align-items:center;justify-content:center;cursor:pointer;${delayStyle}">
-      <div style="width:${size}px;height:${size}px;background:#f97316;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2.5px solid white;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.45));position:relative;pointer-events:none">
-        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;transform:rotate(45deg)">
-          <span style="color:white;font-weight:900;font-size:12px">P</span>
-        </div>
-      </div>
+    html: `<div class="${dropClass}" style="width:${hit}px;height:${hit}px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;filter:drop-shadow(0 2px 5px rgba(0,0,0,0.35));${delayStyle}">
+      <div style="width:${size}px;height:${size}px;background:#ffffff;border:2.5px dashed #475569;border-radius:7px;display:flex;align-items:center;justify-content:center;color:#0d1013;font-weight:900;font-size:13px;font-family:Inter,system-ui,sans-serif;pointer-events:none">P</div>
+      <div style="width:${stem}px;height:${stem}px;margin-top:-5px;background:#ffffff;border-right:2.5px solid #475569;border-bottom:2.5px solid #475569;border-bottom-right-radius:2px;transform:rotate(45deg);pointer-events:none"></div>
     </div>`,
   });
 }
 
 function NearbyParkingMarkers({ spots }: { spots: NearbyParking[] }) {
-  const animatedRef = useRef(false);
-  const prevLenRef = useRef(0);
-
-  const shouldAnimate = spots.length > 0 && spots.length !== prevLenRef.current;
-  if (shouldAnimate) {
-    animatedRef.current = false;
-  }
-  if (spots.length === 0) {
-    prevLenRef.current = 0;
-    animatedRef.current = false;
-  }
-
-  const animate = !animatedRef.current && spots.length > 0;
-
-  useEffect(() => {
-    if (spots.length > 0 && !animatedRef.current) {
-      const timer = setTimeout(() => { animatedRef.current = true; }, spots.length * 80 + 600);
-      prevLenRef.current = spots.length;
-      return () => clearTimeout(timer);
-    }
-  }, [spots]);
+  const icons = useMemo(() => spots.map((_, i) => getParkingSpotIcon(i, true)), [spots]);
 
   return (
     <>
       {spots.map((p, i) => (
-        <Marker key={`np-${i}`} position={[p.lat, p.lng]} icon={getParkingSpotIcon(i, animate)} zIndexOffset={800}>
+        <Marker key={`np-${i}`} position={[p.lat, p.lng]} icon={icons[i]} zIndexOffset={800}>
           <Popup>
             <div style={{ fontFamily: 'system-ui', minWidth: 140 }}>
               <p style={{ fontWeight: 900, fontSize: 13, margin: '0 0 2px' }}>{p.name || 'Parking'}</p>
@@ -356,32 +365,13 @@ function RouteLabel({ position, route, type }: {
   type: 'drive' | 'walk';
 }) {
   const time = formatDuration(parseDurationSecs(route.duration));
-  const dist = formatDistance(route.distanceMeters);
   const isDrive = type === 'drive';
-  const trafficLabel = isDrive ? (TRAFFIC_LABELS[route.trafficCondition] || '') : '';
   const trafficDot = isDrive ? (TRAFFIC_DOT[route.trafficCondition] || '') : '';
-  const label = isDrive ? 'Drive' : 'Walk';
   const svg = isDrive ? CAR_SVG : WALK_SVG;
 
   const icon = makePill(time, svg, 'white', isDrive ? '#d1d5db' : '#93c5fd', isDrive ? '#111827' : '#1e40af', isDrive ? trafficDot : undefined);
 
-  return (
-    <Marker position={position} icon={icon} zIndexOffset={1000}>
-      <Popup closeButton={false} className="route-popup" offset={[0, -5]}>
-        <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', alignItems: 'center', gap: 10, whiteSpace: 'nowrap' }}>
-          <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</span>
-          <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>{time}</span>
-          <span style={{ fontSize: 12, color: '#9ca3af' }}>{dist}</span>
-          {trafficLabel && trafficDot && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: trafficDot, background: `${trafficDot}15`, padding: '2px 8px', borderRadius: 10 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: trafficDot }} />
-              {trafficLabel}
-            </span>
-          )}
-        </div>
-      </Popup>
-    </Marker>
-  );
+  return <Marker position={position} icon={icon} zIndexOffset={1000} />;
 }
 
 function CombinedRouteLabel({ position, driveRoute, walkRoute }: {
@@ -390,38 +380,23 @@ function CombinedRouteLabel({ position, driveRoute, walkRoute }: {
   walkRoute: RouteResult;
 }) {
   const driveTime = formatDuration(parseDurationSecs(driveRoute.duration));
-  const driveDist = formatDistance(driveRoute.distanceMeters);
   const walkTime = formatDuration(parseDurationSecs(walkRoute.duration));
-  const walkDist = formatDistance(walkRoute.distanceMeters);
-  const trafficLabel = TRAFFIC_LABELS[driveRoute.trafficCondition] || '';
-  const trafficDot = TRAFFIC_DOT[driveRoute.trafficCondition] || '';
 
   const icon = makeCombinedPill(driveTime, walkTime);
 
-  return (
-    <Marker position={position} icon={icon} zIndexOffset={1000}>
-      <Popup closeButton={false} className="route-popup" offset={[0, -5]}>
-        <div style={{ fontFamily: 'system-ui, sans-serif', display: 'flex', flexDirection: 'column', gap: 6, whiteSpace: 'nowrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Drive</span>
-            <span style={{ fontSize: 16, fontWeight: 900, color: '#111827' }}>{driveTime}</span>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>{driveDist}</span>
-            {trafficLabel && trafficDot && (
-              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11, fontWeight: 700, color: trafficDot, background: `${trafficDot}15`, padding: '2px 8px', borderRadius: 10 }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: trafficDot }} />
-                {trafficLabel}
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', letterSpacing: 0.5 }}>Walk</span>
-            <span style={{ fontSize: 16, fontWeight: 900, color: '#1e40af' }}>{walkTime}</span>
-            <span style={{ fontSize: 12, color: '#9ca3af' }}>{walkDist}</span>
-          </div>
-        </div>
-      </Popup>
-    </Marker>
-  );
+  return <Marker position={position} icon={icon} zIndexOffset={1000} />;
+}
+
+// Each pill is roughly this size on screen; half these values are used to test for overlap.
+const PILL_HALF_W = 52;
+const PILL_HALF_H = 16;
+
+// Merge on the slightest touch, so add a small margin to the "just touching" distance.
+function pillsOverlap(map: L.Map, a: [number, number], b: [number, number]) {
+  const pa = map.latLngToContainerPoint(a);
+  const pb = map.latLngToContainerPoint(b);
+  return Math.abs(pa.x - pb.x) < PILL_HALF_W * 2 + 4
+    && Math.abs(pa.y - pb.y) < PILL_HALF_H * 2 + 4;
 }
 
 function RouteLabels({ drivePolyline, driveRoute, walkPolyline, walkRoute }: {
@@ -431,31 +406,31 @@ function RouteLabels({ drivePolyline, driveRoute, walkPolyline, walkRoute }: {
   walkRoute: RouteResult | null;
 }) {
   const map = useMap();
-  const [zoomed, setZoomed] = useState(map.getZoom() >= 15);
-
-  useEffect(() => {
-    const onZoom = () => setZoomed(map.getZoom() >= 15);
-    map.on('zoomend', onZoom);
-    return () => { map.off('zoomend', onZoom); };
-  }, [map]);
-
   const hasDrive = drivePolyline && driveRoute && drivePolyline.length > 1;
   const hasWalk = walkPolyline && walkRoute && walkPolyline.length > 1;
 
-  if (!zoomed && hasDrive && hasWalk) {
-    return (
-      <CombinedRouteLabel
-        position={midpoint(drivePolyline)}
-        driveRoute={driveRoute}
-        walkRoute={walkRoute}
-      />
-    );
+  const driveMid = hasDrive ? midpoint(drivePolyline) : null;
+  const walkMid = hasWalk ? midpoint(walkPolyline) : null;
+
+  const [overlap, setOverlap] = useState(false);
+
+  useEffect(() => {
+    const update = () => setOverlap(!!driveMid && !!walkMid && pillsOverlap(map, driveMid, walkMid));
+    update();
+    map.on('zoomend', update);
+    map.on('moveend', update);
+    return () => { map.off('zoomend', update); map.off('moveend', update); };
+  }, [map, drivePolyline, walkPolyline]);
+
+  // Two separate pills that would collide read as one garbled label - show the combined pill instead.
+  if (overlap && driveMid && driveRoute && walkRoute) {
+    return <CombinedRouteLabel position={driveMid} driveRoute={driveRoute} walkRoute={walkRoute} />;
   }
 
   return (
     <>
-      {hasDrive && <RouteLabel position={midpoint(drivePolyline)} route={driveRoute} type="drive" />}
-      {hasWalk && <RouteLabel position={midpoint(walkPolyline)} route={walkRoute} type="walk" />}
+      {hasDrive && driveMid && <RouteLabel position={driveMid} route={driveRoute} type="drive" />}
+      {hasWalk && walkMid && <RouteLabel position={walkMid} route={walkRoute} type="walk" />}
     </>
   );
 }
@@ -596,13 +571,32 @@ function DraggableDestination({
   return null;
 }
 
-export function MapView({
+export const MapView = memo(function MapView({
   carparks, backgroundCarparks, selectedId, destinationPoint, hasSearched,
   onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
-  nearbyParking, incident, darkMode,
+  nearbyParking, layout = 'desktop', hideSwitcher, darkMode, focusPoint, vehicleType, recommendedId, onMapReady, incident,
 }: Props) {
-  const [tileId, setTileId] = useState(DEFAULT_TILE);
+  const [tileId, setTileId] = useState(darkMode ? DARK_TILE : DEFAULT_TILE);
+  const [buildings3D, setBuildings3D] = useState(false);
+  const [buildingStatus, setBuildingStatus] = useState<BuildingStatus>({ state: 'ready', count: 0 });
+  const [buildingRetry, setBuildingRetry] = useState(0);
+
+  const toggleBuildings = useCallback((on: boolean) => {
+    setBuildings3D(on);
+    if (on) setBuildingStatus({ state: 'loading', count: 0 });
+  }, []);
+  const tilePickedByUser = useRef(false);
+
+  useEffect(() => {
+    if (tilePickedByUser.current) return;
+    setTileId(darkMode ? DARK_TILE : DEFAULT_TILE);
+  }, [darkMode]);
+
+  const chooseTile = useCallback((id: string) => {
+    tilePickedByUser.current = true;
+    setTileId(id);
+  }, []);
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 1.3521, lng: 103.8198 });
   const [mapZoom, setMapZoom] = useState(12);
@@ -652,10 +646,19 @@ export function MapView({
     })),
   [carparks, selectedId]);
 
+  const darkBasemap = tileId === DARK_TILE || tileId === 'google-hybrid' || mode3D === 'HYBRID';
+
+  const selected = carparks.find(cp => cp.id === selectedId);
+  const camera3D = useMemo(() => {
+    if (selected) return { center: { lat: selected.lat, lng: selected.lng }, zoom: 17 };
+    if (dest3D) return { center: dest3D, zoom: 16 };
+    return { center: mapCenter, zoom: mapZoom };
+  }, [selected?.id, selected?.lat, selected?.lng, dest3D, mapCenter, mapZoom]);
+
   return (
     <div className="h-full w-full relative">
       <MapContainer
-        center={[1.3521, 103.8198]} zoom={12} className="h-full w-full z-0"
+        center={[1.3521, 103.8198]} zoom={layout === 'desktop' ? 12 : 13} className="h-full w-full z-0"
         zoomSnap={0} zoomDelta={1} wheelPxPerZoomLevel={60} zoomAnimation={true}
         doubleClickZoom={false}
         zoomControl={false} minZoom={11} maxZoom={19}
@@ -663,16 +666,22 @@ export function MapView({
       >
         <MapResizer sidebarOpen={sidebarOpen} />
         <PositionTracker onMove={handlePositionChange} />
-        <ZoomControl position="bottomright" />
+        <FocusFlyer point={focusPoint ?? null} />
+        <MapHandle onReady={onMapReady} />
         <TileLayer key={tile.id} url={tile.url} attribution={tile.attribution}
           maxZoom={tile.maxZoom} subdomains={tile.subdomains ?? []}
           tileSize={tile.tileSize ?? 256} zoomOffset={tile.zoomOffset ?? 0} />
 
         <CameraFlyer selectedId={selectedId} results={carparks} hasSearched={hasSearched}
-          destinationPoint={destinationPoint} userLocation={userLocation} />
+          destinationPoint={destinationPoint} userLocation={userLocation} compact={layout !== 'desktop'}
+          routePolyline={drivePolyline && drivePolyline.length > 1 ? drivePolyline : walkPolyline}
+          sidebarOpen={sidebarOpen} />
 
         <SingaporeBoundary />
         {uraConfigured && showUraLots && <UraLiveLotsLayer />}
+        {buildings3D && (
+          <OSMBuildingLayer darkMode={!!darkMode} retryToken={buildingRetry} onStatus={setBuildingStatus} />
+        )}
         {eventHandlers && <EventHandler {...eventHandlers} />}
 
         {destinationPoint && (
@@ -705,7 +714,7 @@ export function MapView({
         {nearbyParking && <NearbyParkingMarkers spots={nearbyParking} />}
         {incident && <IncidentMarker incident={incident} />}
 
-        <MarkerCluster carparks={carparks} backgroundCarparks={backgroundCarparks} selectedId={selectedId} onSelect={onSelectCarpark} hasSearched={hasSearched} />
+        <MarkerCluster carparks={carparks} backgroundCarparks={backgroundCarparks} selectedId={selectedId} recommendedId={recommendedId} onSelect={onSelectCarpark} hasSearched={hasSearched} darkBasemap={darkBasemap} vehicleType={vehicleType} />
 
         {drivePolyline && drivePolyline.length > 0 && (
           <>
@@ -732,20 +741,24 @@ export function MapView({
       {mode3D && (
         <Google3DMap
           mode={mode3D}
-          center={dest3D || mapCenter}
-          zoom={dest3D ? 16 : mapZoom}
+          center={camera3D.center}
+          zoom={camera3D.zoom}
           routes={routes3D}
           markers={markers3D}
           destination={dest3D}
         />
       )}
 
-      <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
-        mode3D={mode3D} onMode3DChange={setMode3D}
-        mapCenter={mapCenter} mapZoom={mapZoom}
-        uraOverlayAvailable={uraConfigured} uraOverlayEnabled={showUraLots}
-        onUraOverlayToggle={() => setShowUraLots((prev) => !prev)}
-        darkMode={darkMode} sidebarOpen={sidebarOpen} />
+      {!hideSwitcher && (
+        <TileLayerSwitcher currentTile={tileId} onTileChange={chooseTile}
+          mode3D={mode3D} onMode3DChange={setMode3D}
+          buildings3D={buildings3D} onBuildings3DChange={toggleBuildings}
+          buildingStatus={buildingStatus} onRetryBuildings={() => setBuildingRetry(t => t + 1)}
+          mapZoomLive={mapZoom}
+          uraOverlayAvailable={uraConfigured} uraOverlayEnabled={showUraLots}
+          onUraOverlayToggle={() => setShowUraLots((prev) => !prev)}
+          mapCenter={mapCenter} mapZoom={mapZoom} layout={layout} darkMode={!!darkMode} />
+      )}
     </div>
   );
-}
+});
