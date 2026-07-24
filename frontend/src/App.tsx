@@ -166,6 +166,21 @@ export default function GoParkApp() {
   const destinationSeq = useRef(0);
   const startSeq = useRef(0);
   const focusSeq = useRef(0);
+  const didMountStart = useRef(false);
+
+  useEffect(() => {
+    if (!didMountStart.current) { didMountStart.current = true; return; }
+    if (!selectedId) return;
+    const cp = searchResults.find(c => c.id === selectedId) || allCarparks.find(c => c.id === selectedId);
+    if (!cp) return;
+    const dest = destinationRef.current;
+    if (dest) {
+      routes.fetchRoutes(cp, dest);
+    } else {
+      const origin = startCoords || loc.userLocation;
+      if (origin) routes.fetchDriveOnly(origin, cp);
+    }
+  }, [startCoords]);
 
   auth.onLogin.current = (ids: string[]) => loadFavorites(ids);
 
