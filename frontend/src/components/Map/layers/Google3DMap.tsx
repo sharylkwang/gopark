@@ -181,9 +181,25 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
   useEffect(() => { if (mapRef.current) mapRef.current.mode = mode; }, [mode]);
 
   useEffect(() => {
-    if (!mapRef.current) return;
-    mapRef.current.center = { lat: center.lat, lng: center.lng, altitude: 0 };
-    mapRef.current.range = zoomToRange(zoom);
+    const map = mapRef.current;
+    if (!map) return;
+
+    const endCamera = {
+      center: { lat: center.lat, lng: center.lng, altitude: 0 },
+      range: zoomToRange(zoom),
+      tilt: 55,
+      heading: 0,
+    };
+
+    if (typeof map.flyCameraTo === 'function') {
+      try {
+        map.flyCameraTo({ endCamera, durationMillis: 1200 });
+        return;
+      } catch {}
+    }
+
+    map.center = endCamera.center;
+    map.range = endCamera.range;
   }, [center.lat, center.lng, zoom]);
 
   const clearOverlays = useCallback(() => {
@@ -237,5 +253,17 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
     );
   }
 
-  return <div ref={containerRef} className="absolute inset-0 z-10" />;
+  return (
+    <>
+      <div ref={containerRef} className="absolute inset-0 z-10" />
+      {!ready && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-900">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-white/10 backdrop-blur-md">
+            <span className="h-4 w-4 rounded-full border-2 border-white/25 border-t-yellow-400 animate-spin" />
+            <span className="text-white text-[13px] font-bold">Loading 3D map…</span>
+          </div>
+        </div>
+      )}
+    </>
+  );
 }

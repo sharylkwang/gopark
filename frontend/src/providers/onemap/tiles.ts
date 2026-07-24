@@ -10,5 +10,6 @@ export const ONEMAP_TILES: TileProviderConfig[] = [
     category: 'onemap',
     proxy: false,
     preview: '#dce8d4',
+    theme: 'light',
   },
 ];

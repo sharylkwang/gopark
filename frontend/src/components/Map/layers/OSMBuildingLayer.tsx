@@ -4,157 +4,246 @@ import { fetchBuildingTile, getTilesForBounds } from '../../../providers/osm';
 import type { BuildingFeature } from '../../../providers/osm';
 
 declare global {
-  interface Window {
-    OSMBuildings: any;
-  }
+  interface Window { OSMBuildings: any }
 }
 
 const CDN_URL = 'https://cdn.jsdelivr.net/npm/osmbuildings@0.2.0-b/dist/OSMBuildings-Leaflet.js';
 const MIN_ZOOM = 16;
+const ZOOM_EPSILON = 0.5;
+const FAIL_COOLDOWN_MS = 60000;
+const VIEWPORT_PAD = 0.2;
+const KEEP_TILES = 12;
 
-const DEFAULT_COLOR = '#ececec';
-const DEFAULT_ROOF = '#dedede';
-const HIGHLIGHT_COLOR = '#ef4444';
-const HIGHLIGHT_ROOF = '#b91c1c';
+const PALETTE = { light: { wall: '#ececec', roof: '#dedede' }, dark: { wall: '#3a424c', roof: '#2b323a' } };
+const HIGHLIGHT_COLOR = '#facc15';
+const HIGHLIGHT_ROOF = '#eab308';
+
+type Bounds = { north: number; south: number; east: number; west: number };
+type Cell = { feature: BuildingFeature; minLng: number; minLat: number; maxLng: number; maxLat: number };
+type Tile = { cells: Cell[]; touched: number };
+
+function cellOf(feature: BuildingFeature): Cell {
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  for (const ring of feature.geometry.coordinates) {
+    for (const [lng, lat] of ring) {
+      if (lng < minLng) minLng = lng;
+      if (lng > maxLng) maxLng = lng;
+      if (lat < minLat) minLat = lat;
+      if (lat > maxLat) maxLat = lat;
+    }
+  }
+  return { feature, minLng, minLat, maxLng, maxLat };
+}
+
+function inView(cell: Cell, b: Bounds): boolean {
+  return cell.minLng <= b.east && cell.maxLng >= b.west && cell.minLat <= b.north && cell.maxLat >= b.south;
+}
 
 function pointInPolygon(point: [number, number], ring: [number, number][]): boolean {
   const [px, py] = point;
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
 }
 
-export function OSMBuildingLayer() {
+export interface BuildingStatus {
+  state: 'loading' | 'ready' | 'error';
+  count: number;
+}
+
+export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }: {
+  darkMode?: boolean;
+  retryToken?: number;
+  onStatus?: (status: BuildingStatus) => void;
+}) {
   const map = useMap();
   const buildingsRef = useRef<any>(null);
   const [ready, setReady] = useState(!!window.OSMBuildings);
-  const featuresRef = useRef<BuildingFeature[]>([]);
-  const loadedTilesRef = useRef(new Set<string>());
+  const tilesRef = useRef<Map<string, Tile>>(new Map());
   const selectedIdRef = useRef<number | null>(null);
+  const palette = darkMode ? PALETTE.dark : PALETTE.light;
+  const paletteRef = useRef(palette);
+  paletteRef.current = palette;
+  const statusRef = useRef<(s: BuildingStatus) => void>(() => {});
+  statusRef.current = onStatus ?? (() => {});
+  const failedTilesRef = useRef<Map<string, number>>(new Map());
+  const circuitOpenRef = useRef(false);
 
   useEffect(() => {
-    if (window.OSMBuildings) {
-      setReady(true);
-      return;
-    }
+    if (window.OSMBuildings) { setReady(true); return; }
+    statusRef.current({ state: 'loading', count: 0 });
+
     const script = document.createElement('script');
     script.src = CDN_URL;
     script.onload = () => setReady(true);
+    script.onerror = () => statusRef.current({ state: 'error', count: 0 });
     document.head.appendChild(script);
   }, []);
 
   useEffect(() => {
     if (!ready) return;
 
+    const anyMap = map as unknown as { _zoomAnimated: boolean };
+    const prevAnimation = map.options.zoomAnimation;
+    const prevAnimated = anyMap._zoomAnimated;
+    const prevSnap = map.options.zoomSnap;
+    map.options.zoomAnimation = false;
+    anyMap._zoomAnimated = false;
+    map.options.zoomSnap = 1;
+    if (!Number.isInteger(map.getZoom())) map.setZoom(Math.round(map.getZoom()), { animate: false });
+
     const osm = new window.OSMBuildings(map);
-    osm.style({
-      color: DEFAULT_COLOR,
-      roofColor: DEFAULT_ROOF,
-      shadows: true,
-      height: 'height',
-    });
+    osm.style({ color: paletteRef.current.wall, roofColor: paletteRef.current.roof, shadows: true, height: 'height' });
     buildingsRef.current = osm;
 
     return () => {
-      if (buildingsRef.current) {
-        map.removeLayer(buildingsRef.current);
-        buildingsRef.current = null;
-      }
+      map.options.zoomAnimation = prevAnimation;
+      anyMap._zoomAnimated = prevAnimated;
+      map.options.zoomSnap = prevSnap;
+      if (buildingsRef.current) { map.removeLayer(buildingsRef.current); buildingsRef.current = null; }
     };
   }, [ready, map]);
 
-  const renderBuildings = useCallback(() => {
-    if (!buildingsRef.current || featuresRef.current.length === 0) return;
+  const renderViewport = useCallback(() => {
+    if (!buildingsRef.current) return;
+
+    const raw = map.getBounds().pad(VIEWPORT_PAD);
+    const view: Bounds = { north: raw.getNorth(), south: raw.getSouth(), east: raw.getEast(), west: raw.getWest() };
     const selectedId = selectedIdRef.current;
-    const colored = featuresRef.current.map((f: BuildingFeature) => {
-      const isSelected = selectedId !== null && f.properties.id === selectedId;
-      return {
-        ...f,
-        properties: {
-          ...f.properties,
-          color: isSelected ? HIGHLIGHT_COLOR : DEFAULT_COLOR,
-          roofColor: isSelected ? HIGHLIGHT_ROOF : DEFAULT_ROOF,
-        },
-      };
-    });
+    const { wall, roof } = paletteRef.current;
 
-    buildingsRef.current.set({
-      type: 'FeatureCollection',
-      features: colored,
-    });
-  }, []);
-
-  const loadVisibleBuildings = useCallback(async () => {
-    if (!buildingsRef.current || Math.floor(map.getZoom()) < MIN_ZOOM) return;
-
-    const bounds = map.getBounds();
-    const { z, tiles } = getTilesForBounds({
-      north: bounds.getNorth(),
-      south: bounds.getSouth(),
-      east: bounds.getEast(),
-      west: bounds.getWest(),
-    });
-
-    let hasNew = false;
-
-    for (const { x, y } of tiles) {
-      const key = `${z}/${x}/${y}`;
-      if (loadedTilesRef.current.has(key)) continue;
-      loadedTilesRef.current.add(key);
-
-      try {
-        const features = await fetchBuildingTile(z, x, y);
-        if (features.length > 0) {
-          const existingIds = new Set(featuresRef.current.map((f: BuildingFeature) => f.properties.id));
-          for (const f of features) {
-            if (!existingIds.has(f.properties.id)) {
-              featuresRef.current.push(f);
-            }
-          }
-          hasNew = true;
-        }
-      } catch {
-        loadedTilesRef.current.delete(key);
+    const seen = new Set<number>();
+    const features: BuildingFeature[] = [];
+    for (const tile of tilesRef.current.values()) {
+      for (const cell of tile.cells) {
+        if (!inView(cell, view)) continue;
+        const id = cell.feature.properties.id;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const isSelected = selectedId !== null && id === selectedId;
+        features.push({
+          ...cell.feature,
+          properties: { ...cell.feature.properties, color: isSelected ? HIGHLIGHT_COLOR : wall, roofColor: isSelected ? HIGHLIGHT_ROOF : roof },
+        });
       }
     }
 
-    if (hasNew) renderBuildings();
-  }, [map, renderBuildings]);
+    buildingsRef.current.set({ type: 'FeatureCollection', features });
+    return features.length;
+  }, [map]);
 
   useEffect(() => {
-    if (ready && buildingsRef.current) {
-      loadVisibleBuildings();
+    if (!buildingsRef.current) return;
+    buildingsRef.current.style({ color: palette.wall, roofColor: palette.roof, shadows: true, height: 'height' });
+    renderViewport();
+  }, [palette.wall, palette.roof, renderViewport]);
+
+  const loadViewport = useCallback(async () => {
+    if (!buildingsRef.current || circuitOpenRef.current || map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) return;
+
+    const bounds = map.getBounds();
+    const { z, tiles } = getTilesForBounds({ north: bounds.getNorth(), south: bounds.getSouth(), east: bounds.getEast(), west: bounds.getWest() });
+
+    const now = Date.now();
+    const visibleKeys = new Set(tiles.map(({ x, y }) => `${z}/${x}/${y}`));
+
+    for (const key of visibleKeys) {
+      const tile = tilesRef.current.get(key);
+      if (tile) tile.touched = now;
     }
-  }, [ready, loadVisibleBuildings]);
+
+    const pending = tiles.filter(({ x, y }) => {
+      const key = `${z}/${x}/${y}`;
+      if (tilesRef.current.has(key)) return false;
+      const failedAt = failedTilesRef.current.get(key);
+      return !(failedAt && now - failedAt < FAIL_COOLDOWN_MS);
+    });
+
+    renderViewport();
+
+    if (!pending.length) { statusRef.current({ state: 'ready', count: tilesRef.current.size }); return; }
+    statusRef.current({ state: 'loading', count: tilesRef.current.size });
+
+    let hasNew = false, failed = 0;
+
+    for (const { x, y } of pending) {
+      const key = `${z}/${x}/${y}`;
+      tilesRef.current.set(key, { cells: [], touched: Date.now() });
+
+      try {
+        const features = await fetchBuildingTile(z, x, y);
+        failedTilesRef.current.delete(key);
+        tilesRef.current.set(key, { cells: features.map(cellOf), touched: Date.now() });
+        if (features.length > 0) hasNew = true;
+      } catch {
+        tilesRef.current.delete(key);
+        failedTilesRef.current.set(key, Date.now());
+        failed++;
+        if (failed >= 2 && !hasNew) break;
+      }
+    }
+
+    if (tilesRef.current.size > KEEP_TILES) {
+      const evictable = [...tilesRef.current.entries()]
+        .filter(([key]) => !visibleKeys.has(key))
+        .sort((a, b) => a[1].touched - b[1].touched);
+      let excess = tilesRef.current.size - KEEP_TILES;
+      for (const [key] of evictable) { if (excess-- <= 0) break; tilesRef.current.delete(key); }
+    }
+
+    const shown = renderViewport() ?? 0;
+
+    if (failed > 0 && shown === 0 && tilesRef.current.size === 0) {
+      circuitOpenRef.current = true;
+      statusRef.current({ state: 'error', count: 0 });
+    } else {
+      statusRef.current({ state: 'ready', count: shown });
+    }
+  }, [map, renderViewport]);
+
+  useEffect(() => {
+    if (!ready || !buildingsRef.current) return;
+    if (map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) {
+      map.flyTo(map.getCenter(), MIN_ZOOM, { duration: 0.8 });
+      return;
+    }
+    loadViewport();
+  }, [ready, map, loadViewport]);
+
+  useEffect(() => {
+    if (!retryToken || !ready) return;
+    failedTilesRef.current.clear();
+    circuitOpenRef.current = false;
+    loadViewport();
+  }, [retryToken, ready, loadViewport]);
 
   useMapEvents({
     zoomend: () => {
       if (!buildingsRef.current) return;
-      if (Math.floor(map.getZoom()) > MIN_ZOOM) {
-        loadVisibleBuildings();
-      }
+      if (map.getZoom() >= MIN_ZOOM - ZOOM_EPSILON) loadViewport();
     },
     moveend: () => {
-      if (Math.floor(map.getZoom()) > MIN_ZOOM) loadVisibleBuildings();
+      if (map.getZoom() >= MIN_ZOOM - ZOOM_EPSILON) loadViewport();
     },
     click: (e) => {
-      if (Math.floor(map.getZoom()) < MIN_ZOOM) return;
+      if (map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) return;
 
       const clicked: [number, number] = [e.latlng.lng, e.latlng.lat];
-      const found = featuresRef.current.find((feature: BuildingFeature) => {
-        const rings = feature.geometry?.coordinates;
-        if (!rings?.[0]) return false;
-        return pointInPolygon(clicked, rings[0] as [number, number][]);
-      });
+      let hit: number | null = null;
+      outer:
+      for (const tile of tilesRef.current.values()) {
+        for (const cell of tile.cells) {
+          if (clicked[0] < cell.minLng || clicked[0] > cell.maxLng || clicked[1] < cell.minLat || clicked[1] > cell.maxLat) continue;
+          const ring = cell.feature.geometry?.coordinates?.[0];
+          if (ring && pointInPolygon(clicked, ring as [number, number][])) { hit = cell.feature.properties.id; break outer; }
+        }
+      }
 
-      selectedIdRef.current = found ? found.properties.id : null;
-      renderBuildings();
+      selectedIdRef.current = hit;
+      renderViewport();
     },
   });
 
