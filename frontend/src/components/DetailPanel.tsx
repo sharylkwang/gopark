@@ -20,7 +20,11 @@ interface Props {
 export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil, setParkUntil, durationHours, vehicleType }: Props) {
   const vAvail = detail.availability[vehicleType];
   const dt = vAvail
-    ? { available: Math.min(vAvail.available ?? 0, vAvail.total ?? 0), total: vAvail.total ?? 0, pct: (vAvail.total ?? 0) > 0 ? Math.min(((vAvail.available ?? 0) / (vAvail.total ?? 1)) * 100, 100) : 0 }
+    ? {
+        available: vAvail.available != null ? Math.min(vAvail.available, vAvail.total ?? vAvail.available) : null,
+        total: vAvail.total ?? 0,
+        pct: vAvail.available != null && (vAvail.total ?? 0) > 0 ? Math.min((vAvail.available / (vAvail.total ?? 1)) * 100, 100) : 0,
+      }
     : totals(detail.availability);
   const dm = darkMode;
   const cost = detail.rates?.length ? estimateCost(detail.rates, durationHours, vehicleType, arrivalTime) : null;
@@ -97,7 +101,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
           )}
         </div>
 
-        {vAvail && dt.total > 0 ? (
+        {vAvail && dt.available != null && dt.total > 0 ? (
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${dm ? 'bg-neutral-800/50 border-neutral-700/50' : 'bg-gray-50 border-gray-200'}`}>
             <CircularProgress percentage={dt.pct} size={64} stroke={8} darkMode={dm} />
             <div>
