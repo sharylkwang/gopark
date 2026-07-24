@@ -60,6 +60,7 @@ docker compose --profile gpu up --build
 | `DATAGOVSG_KEY` | Yes | HDB carpark data + live availability |
 | `DATAMALL_API` | Yes | Commercial / URA carparks |
 | `GOOGLE_MAPS_KEY` | No | Google map tiles |
+| `URA_ACCESS_KEY` | No | URA live car park lots overlay |
 | `ZHIPUAI_API_KEY` | No | Cloud LLM for rate scraping |
 | `JWT_SECRET` | Yes | Auth token signing |
 | `EMAIL_USER` / `EMAIL_APP_PASSWORD` | Yes | Sending OTP verification emails |
