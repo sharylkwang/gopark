@@ -213,6 +213,7 @@ function IncidentMarker({ incident }: { incident: TrafficIncident }) {
       </Popup>
     </Marker>
   );
+  darkMode?: boolean;
 }
 
 function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {
@@ -599,7 +600,7 @@ export function MapView({
   carparks, backgroundCarparks, selectedId, destinationPoint, hasSearched,
   onSelectCarpark, eventHandlers, onDestinationDrag, userLocation,
   drivePolyline, driveRoute, walkPolyline, walkRoute, startCoords, sidebarOpen,
-  nearbyParking, incident,
+  nearbyParking, incident, darkMode,
 }: Props) {
   const [tileId, setTileId] = useState(DEFAULT_TILE);
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
@@ -743,7 +744,8 @@ export function MapView({
         mode3D={mode3D} onMode3DChange={setMode3D}
         mapCenter={mapCenter} mapZoom={mapZoom}
         uraOverlayAvailable={uraConfigured} uraOverlayEnabled={showUraLots}
-        onUraOverlayToggle={() => setShowUraLots((prev) => !prev)} />
+        onUraOverlayToggle={() => setShowUraLots((prev) => !prev)}
+        darkMode={darkMode} sidebarOpen={sidebarOpen} />
     </div>
   );
 }
