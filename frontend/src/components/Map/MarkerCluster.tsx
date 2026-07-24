@@ -2,104 +2,77 @@ import { useEffect, useRef } from 'react';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet.markercluster';
+import { vehicleTotals } from '../../utils/format';
 import type { CarparkSummary } from '../../types';
 
-function distanceColor(cp: CarparkSummary, maxDist: number) {
-  if (cp.distance == null || !maxDist) return '#15803d';
+const AVAILABILITY = { plenty: '#16a34a', filling: '#f59e0b', scarce: '#ef4444', full: '#991b1b', unknown: '#64748b' };
 
-  const ratio = Math.min(cp.distance / maxDist, 1);
-  const r = Math.round(5 + ratio * (200 - 5));
-  const g = Math.round(80 + ratio * (240 - 80));
-  const b = Math.round(20 + ratio * (210 - 20));
+function availabilityColor(cp: CarparkSummary, vehicleType: string) {
+  const t = vehicleTotals(cp.availability, vehicleType);
 
-  return `rgb(${r},${g},${b})`;
+  if (t.total <= 0 || t.available == null) return AVAILABILITY.unknown;
+  if (t.available <= 0) return AVAILABILITY.full;
+
+  const pct = (t.available / t.total) * 100;
+  if (pct > 30) return AVAILABILITY.plenty;
+  if (pct > 10) return AVAILABILITY.filling;
+  return AVAILABILITY.scarce;
 }
 
-const P_ICON = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><rect x='4' y='3' width='16' height='18' rx='2'/><path d='M9 17V7h4a3 3 0 0 1 0 6H9'/></svg>`;
+const INK = '#0d1013';
+const BRAND = '#facc15';
 
-function pin(color: string, size: number, selected: boolean, dimOthers: boolean) {
-  const opacity = selected ? '1' : dimOthers ? '0.8' : '1';
-  const border = selected
-    ? '3px solid white'
-    : '2.5px solid white';
-  const hit = size + 12;
-  const iconSz = Math.round(size * 0.5);
+function badge({ body, glyph, ring, size, selected = false, faded = false, dashed = false, bob = false }: {
+  body: string; glyph: string; ring: string; size: number;
+  selected?: boolean; faded?: boolean; dashed?: boolean; bob?: boolean;
+}) {
+  const hit = size + 14;
+  const stem = Math.round(size * 0.34);
+  const outline = selected ? 3 : 2.5;
 
   const shadow = selected
-    ? 'drop-shadow(0 3px 8px rgba(0,0,0,0.5))'
-    : 'drop-shadow(0 2px 6px rgba(0,0,0,0.45))';
+    ? 'drop-shadow(0 4px 10px rgba(0,0,0,0.55))'
+    : 'drop-shadow(0 2px 6px rgba(0,0,0,0.4))';
 
-  const inner = [
-    `width:${size}px`,
-    `height:${size}px`,
-    `background:${color}`,
-    `border-radius:50% 50% 50% 0`,
-    `transform:rotate(-45deg)`,
-    `border:${border}`,
-    `opacity:${opacity}`,
-    `pointer-events:none`,
-    `position:relative`,
+  const wrap = [
+    `width:${hit}px`,
+    `height:${hit}px`,
+    `display:flex`,
+    `flex-direction:column`,
+    `align-items:center`,
+    `justify-content:center`,
+    `cursor:pointer`,
     `filter:${shadow}`,
+    `opacity:${faded ? 0.75 : 1}`,
   ].join(';');
 
-  const iconStyle = [
-    `position:absolute`,
-    `inset:0`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
-    `transform:rotate(45deg)`,
-  ].join(';');
-
-  const outer = [
-    `width:${hit}px`,
-    `height:${hit}px`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
-    `cursor:pointer`,
-  ].join(';');
-
-  return L.divIcon({
-    className: '',
-    iconSize: [hit, hit],
-    iconAnchor: [hit / 2, hit],
-    popupAnchor: [0, -hit],
-    html: `<div style="${outer}"><div style="${inner}"><div style="${iconStyle}"><span style="width:${iconSz}px;height:${iconSz}px;display:flex">${P_ICON}</span></div></div></div>`,
-  });
-}
-
-function bgPin(size: number) {
-  const hit = size + 12;
-  const iconSz = Math.round(size * 0.5);
-
-  const inner = [
+  const box = [
     `width:${size}px`,
     `height:${size}px`,
-    `background:rgba(100,116,139,0.6)`,
-    `border-radius:50% 50% 50% 0`,
-    `transform:rotate(-45deg)`,
-    `border:2px solid rgba(255,255,255,0.6)`,
+    `background:${body}`,
+    `border-radius:${Math.round(size * 0.3)}px`,
+    `border:${outline}px ${dashed ? 'dashed' : 'solid'} ${ring}`,
+    `display:flex`,
+    `align-items:center`,
+    `justify-content:center`,
+    `color:${glyph}`,
+    `font-weight:900`,
+    `font-size:${Math.round(size * 0.55)}px`,
+    `line-height:1`,
+    `font-family:Inter,system-ui,sans-serif`,
     `pointer-events:none`,
-    `position:relative`,
   ].join(';');
 
-  const iconStyle = [
-    `position:absolute`,
-    `inset:0`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
+  const tip = [
+    `width:${stem}px`,
+    `height:${stem}px`,
+    `margin-top:-${Math.round(stem * 0.6)}px`,
+    `background:${body}`,
+    `border-right:${outline}px solid ${ring}`,
+    `border-bottom:${outline}px solid ${ring}`,
+    `border-bottom-right-radius:3px`,
     `transform:rotate(45deg)`,
-  ].join(';');
-
-  const outer = [
-    `width:${hit}px`,
-    `height:${hit}px`,
-    `display:flex`,
-    `align-items:center`,
-    `justify-content:center`,
-    `cursor:pointer`,
+    `pointer-events:none`,
   ].join(';');
 
   return L.divIcon({
@@ -107,20 +80,29 @@ function bgPin(size: number) {
     iconSize: [hit, hit],
     iconAnchor: [hit / 2, hit],
     popupAnchor: [0, -hit],
-    html: `<div style="${outer}"><div style="${inner}"><div style="${iconStyle}"><span style="width:${iconSz}px;height:${iconSz}px;display:flex">${P_ICON}</span></div></div></div>`,
+    html: `<div class="${bob ? 'gp-bob' : ''}" style="${wrap}"><div style="${box}">P</div><div style="${tip}"></div></div>`,
   });
 }
 
-function clusterIcon(count: number, zoom: number) {
+function pin(color: string, size: number, selected: boolean, dimOthers: boolean, _darkBasemap: boolean, bob = false) {
+  return selected
+    ? badge({ body: color, glyph: '#ffffff', ring: BRAND, size: size + 4, selected: true, bob })
+    : badge({ body: color, glyph: '#ffffff', ring: '#ffffff', size, faded: dimOthers, bob });
+}
+
+function bgPin(size: number, darkBasemap: boolean) {
+  return darkBasemap
+    ? badge({ body: 'rgba(30,41,59,0.9)', glyph: '#cbd5e1', ring: '#64748b', size: size - 2, faded: true })
+    : badge({ body: '#ffffff', glyph: '#64748b', ring: '#94a3b8', size: size - 2, faded: true });
+}
+
+function clusterIcon(count: number, zoom: number, darkBasemap: boolean) {
   const base = zoom < 13 ? 52 : zoom < 15 ? 46 : zoom < 17 ? 40 : 36;
   const scale = Math.min(1 + Math.log10(count) * 0.15, 1.4);
   const size = Math.round(base * scale);
   const fontSize = size < 40 ? 11 : 13;
 
-  let bg = '#4ade80';
-  if (count > 100) bg = '#15803d';
-  else if (count > 30) bg = '#16a34a';
-  else if (count > 10) bg = '#22c55e';
+  const ring = count > 100 ? '#facc15' : count > 30 ? '#fbbf24' : '#fde047';
 
   const label = count >= 1000
     ? `${(count / 1000).toFixed(1)}k`
@@ -133,11 +115,12 @@ function clusterIcon(count: number, zoom: number) {
     `width:${size}px`,
     `height:${size}px`,
     `border-radius:50%`,
-    `background:${bg}`,
-    `color:white`,
+    `background:${darkBasemap ? BRAND : INK}`,
+    `color:${darkBasemap ? INK : '#ffffff'}`,
     `font-weight:900`,
     `font-size:${fontSize}px`,
-    `border:3px solid white`,
+    `border:3px solid ${ring}`,
+    `box-shadow:0 2px 8px rgba(0,0,0,0.45), 0 0 0 1.5px rgba(255,255,255,0.85)`,
     `cursor:pointer`,
   ].join(';');
 
@@ -148,7 +131,7 @@ function clusterIcon(count: number, zoom: number) {
   });
 }
 
-function bgClusterIcon(count: number, zoom: number) {
+function bgClusterIcon(count: number, zoom: number, darkBasemap: boolean) {
   const base = zoom < 13 ? 40 : zoom < 15 ? 36 : zoom < 17 ? 32 : 28;
   const scale = Math.min(1 + Math.log10(count) * 0.12, 1.3);
   const size = Math.round(base * scale);
@@ -165,11 +148,12 @@ function bgClusterIcon(count: number, zoom: number) {
     `width:${size}px`,
     `height:${size}px`,
     `border-radius:50%`,
-    `background:rgba(100,116,139,0.65)`,
-    `color:white`,
+    `background:${darkBasemap ? 'rgba(30,41,59,0.92)' : 'rgba(255,255,255,0.92)'}`,
+    `color:${darkBasemap ? '#cbd5e1' : '#475569'}`,
     `font-weight:800`,
     `font-size:${fontSize}px`,
-    `border:2px solid rgba(255,255,255,0.5)`,
+    `border:2px solid #94a3b8`,
+    `box-shadow:0 1px 4px rgba(0,0,0,0.3)`,
     `cursor:pointer`,
   ].join(';');
 
@@ -181,14 +165,17 @@ function bgClusterIcon(count: number, zoom: number) {
 }
 
 interface Props {
+  darkBasemap?: boolean;
+  vehicleType?: string;
   carparks: CarparkSummary[];
   backgroundCarparks?: CarparkSummary[];
   selectedId: string | null;
+  recommendedId?: string | null;
   onSelect: (id: string) => void;
   hasSearched?: boolean;
 }
 
-export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSelect, hasSearched }: Props) {
+export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recommendedId = null, onSelect, hasSearched, darkBasemap = false, vehicleType = 'C' }: Props) {
   const map = useMap();
   const clusterRef = useRef<L.MarkerClusterGroup | null>(null);
   const bgClusterRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -227,10 +214,10 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
       chunkedLoading: true,
       animate: false,
       animateAddingMarkers: false,
-      iconCreateFunction: (c) => bgClusterIcon(c.getChildCount(), map.getZoom()),
+      iconCreateFunction: (c) => bgClusterIcon(c.getChildCount(), map.getZoom(), darkBasemap),
     });
 
-    const icon = bgPin(28);
+    const icon = bgPin(28, darkBasemap);
     for (const cp of bgCarparks) {
       const marker = L.marker([cp.lat, cp.lng], { icon, zIndexOffset: -100 });
       marker.on('click', () => onSelectRef.current(cp.id));
@@ -246,7 +233,7 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
         bgClusterRef.current = null;
       }
     };
-  }, [bgKey]);
+  }, [bgKey, darkBasemap]);
 
   useEffect(() => {
     if (clusterRef.current) {
@@ -255,8 +242,6 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
     markersRef.current.clear();
 
     const cps = carparksRef.current;
-    const distances = cps.map(c => c.distance ?? 0);
-    const maxDist = hasSearched ? Math.max(...distances, 1) : 0;
 
     const cluster = L.markerClusterGroup({
       maxClusterRadius: hasSearched
@@ -274,16 +259,15 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
       chunkedLoading: true,
       animate: false,
       animateAddingMarkers: false,
-      iconCreateFunction: (c) => clusterIcon(c.getChildCount(), map.getZoom()),
+      iconCreateFunction: (c) => clusterIcon(c.getChildCount(), map.getZoom(), darkBasemap),
     });
 
     for (const cp of cps) {
-      const color = hasSearched
-        ? distanceColor(cp, maxDist)
-        : '#3b82f6';
+      const color = availabilityColor(cp, vehicleType);
+      const bob = cp.id === recommendedId;
 
       const marker = L.marker([cp.lat, cp.lng], {
-        icon: pin(color, 26, false, false),
+        icon: pin(color, 26, false, false, darkBasemap, bob),
       });
 
       marker.on('click', () => onSelectRef.current(cp.id));
@@ -298,12 +282,10 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
       map.removeLayer(cluster);
       clusterRef.current = null;
     };
-  }, [carparkKey, hasSearched]);
+  }, [carparkKey, hasSearched, darkBasemap, vehicleType, recommendedId]);
 
   useEffect(() => {
     const cps = carparksRef.current;
-    const distances = cps.map(c => c.distance ?? 0);
-    const maxDist = hasSearched ? Math.max(...distances, 1) : 0;
 
     for (const cp of cps) {
       const marker = markersRef.current.get(cp.id);
@@ -311,19 +293,13 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, onSele
 
       const isSelected = cp.id === selectedId;
       const dimOthers = !!hasSearched && selectedId !== null;
-
-      let color = '#3b82f6';
-      if (isSelected) {
-        color = '#2563eb';
-      } else if (hasSearched) {
-        color = distanceColor(cp, maxDist);
-      }
-
+      const color = availabilityColor(cp, vehicleType);
       const size = isSelected ? 34 : 26;
-      marker.setIcon(pin(color, size, isSelected, dimOthers));
-      marker.setZIndexOffset(isSelected ? 1000 : 0);
+      const bob = cp.id === recommendedId;
+      marker.setIcon(pin(color, size, isSelected, dimOthers, darkBasemap, bob));
+      marker.setZIndexOffset(isSelected ? 1000 : cp.id === recommendedId ? 500 : 0);
     }
-  }, [selectedId, carparkKey, hasSearched]);
+  }, [selectedId, recommendedId, carparkKey, hasSearched, darkBasemap, vehicleType]);
 
   return null;
 }

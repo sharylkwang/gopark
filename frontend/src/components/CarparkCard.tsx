@@ -7,6 +7,7 @@ interface Props {
   cp: CarparkSummary & { estimatedCost?: number | null };
   selected: boolean;
   isFav: boolean;
+  canFavorite?: boolean;
   darkMode: boolean;
   vehicleType?: string;
   recommended?: boolean;
@@ -14,12 +15,12 @@ interface Props {
   onToggleFav: (e: React.MouseEvent) => void;
 }
 
-export function CarparkCard({ cp, selected, isFav, darkMode, vehicleType, recommended, onSelect, onToggleFav }: Props) {
+export function CarparkCard({ cp, selected, isFav, canFavorite = true, darkMode, vehicleType, recommended, onSelect, onToggleFav }: Props) {
   const t = vehicleTotals(cp.availability, vehicleType);
 
   return (
     <div onClick={onSelect}
-      className={`rounded-2xl p-2.5 cursor-pointer transition-all duration-200 ${
+      className={`press rounded-2xl p-2.5 cursor-pointer transition-all duration-200 ${
         recommended ? 'recommended-card border-2 ' : 'border '
       }${
         selected
@@ -40,10 +41,12 @@ export function CarparkCard({ cp, selected, isFav, darkMode, vehicleType, recomm
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0 ml-2">
-          <button onClick={onToggleFav} className={`transition hover:scale-110 ${isFav ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}>
-            <Heart size={16} fill={isFav ? 'currentColor' : 'none'} strokeWidth={2.5} />
-          </button>
-          {t.available != null && t.total > 0 && (
+           {canFavorite && (
+            <button onClick={onToggleFav} className={`p-1.5 -m-1.5 transition hover:scale-110 ${isFav ? 'text-red-500' : 'text-gray-300 hover:text-red-400'}`}>
+              <Heart size={16} fill={isFav ? 'currentColor' : 'none'} strokeWidth={2.5} />
+            </button>
+           )}
+           {t.total > 0 && (
             <div className={`text-[10px] font-black px-1.5 py-0.5 rounded ${t.pct > 30 ? (darkMode ? 'bg-green-900/50 text-green-400' : 'bg-green-100 text-green-700') : t.pct > 10 ? (darkMode ? 'bg-amber-900/50 text-amber-400' : 'bg-amber-100 text-amber-700') : (darkMode ? 'bg-red-900/50 text-red-400' : 'bg-red-100 text-red-700')}`}>
               {t.available}
             </div>

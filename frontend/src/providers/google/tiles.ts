@@ -10,15 +10,17 @@ export const GOOGLE_TILES: TileProviderConfig[] = [
     category: 'google',
     proxy: true,
     preview: '#f0ede8',
+    theme: 'light',
   },
   {
     id: 'google-hybrid',
-    name: 'Hybrid',
+    name: 'Satellite',
     url: '/api/google/tiles/hybrid/{z}/{x}/{y}',
     attribution: '&copy; Google Maps',
     maxZoom: 20,
     category: 'google',
     proxy: true,
     preview: '#1a2e1a',
+    theme: 'any',
   },
 ];

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { loginUser, sendVerificationCode, verifyAndRegister, requestPasswordReset, resetPassword } from '../providers/auth';
 import { fetchFavorites } from '../providers/favorites';
 import { verifyCaptcha } from '../providers/auth/captcha';
+import { captchaEnabled } from '../utils/env';
 import { PASSWORD_REGEX, PASSWORD_ERROR } from '../utils/constants';
 import type { AppState } from '../types';
 
@@ -61,6 +62,16 @@ export function useAuth() {
     finally { setIsLoggingIn(false); }
   };
 
+  const requestCaptcha = async (action: PendingAction) => {
+    setPendingAction(action);
+    if (!captchaEnabled) {
+      await executePendingAction(action);
+      setPendingAction(null);
+      return;
+    }
+    setShowCaptcha(true);
+  };
+
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError('');
@@ -68,9 +79,7 @@ export function useAuth() {
       setAuthError(PASSWORD_ERROR);
       return;
     }
-    const action = isLoginView ? 'login' : 'signup';
-    setPendingAction(action);
-    setShowCaptcha(true);
+    await requestCaptcha(isLoginView ? 'login' : 'signup');
   };
 
   const handleCaptchaToken = async (token: string) => {
@@ -137,8 +146,10 @@ export function useAuth() {
     setAuthError('');
     setResetLoading(true);
     try {
-      const result = await verifyCaptcha(token);
-      if (!result.success) { setAuthError('Captcha verification failed'); setResetLoading(false); return; }
+      if (captchaEnabled) {
+        const result = await verifyCaptcha(token);
+        if (!result.success) { setAuthError('Captcha verification failed'); setResetLoading(false); return; }
+      }
       await resetPassword(email, otp, newPassword);
       alert('Password updated successfully!');
       setIsResetView(false); setIsLinkSent(false); setIsLoginView(true); setOtp(''); setNewPassword('');
@@ -148,8 +159,7 @@ export function useAuth() {
 
   const enterGuest = () => {
     setAuthError('');
-    setPendingAction('guest');
-    setShowCaptcha(true);
+    requestCaptcha('guest');
   };
 
   useEffect(() => {
