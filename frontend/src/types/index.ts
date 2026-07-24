@@ -1,6 +1,7 @@
 export interface CarparkAvailability {
   available: number | null;
   total: number | null;
+  updatedAt?: string;
 }
 
 export interface CarparkRate {

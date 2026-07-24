@@ -163,9 +163,9 @@ describe('Carparks Router', () => {
       const res = await request(app).get('/carparks/availability');
 
       expect(res.status).toBe(200);
-      expect(res.body.carparks.CP1.C).toEqual({ available: 50, total: 100 });
-      expect(res.body.carparks.CP1.Y).toEqual({ available: 10, total: 20 });
-      expect(res.body.carparks.CP2.C).toEqual({ available: 30, total: 60 });
+      expect(res.body.carparks.CP1.C).toEqual({ available: 50, total: 100, updatedAt: updatedAt.toISOString() });
+      expect(res.body.carparks.CP1.Y).toEqual({ available: 10, total: 20, updatedAt: updatedAt.toISOString() });
+      expect(res.body.carparks.CP2.C).toEqual({ available: 30, total: 60, updatedAt: updatedAt.toISOString() });
       expect(res.body.updatedAt).toBeDefined();
     });
 
