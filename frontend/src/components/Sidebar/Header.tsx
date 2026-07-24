@@ -17,7 +17,7 @@ export function SidebarHeader({
   return (
     <div className="bg-neutral-900/90 md:rounded-t-2xl p-3 flex items-center gap-2 border-b-4 border-yellow-400 shrink-0">
       <h1 className="text-lg font-black italic text-white flex items-center uppercase cursor-pointer shrink-0" onClick={onReset}>
-        GoPark <Zap className="text-yellow-400 fill-yellow-400 h-4 w-4 ml-1" />
+        GoPark <Zap className="bolt-idle text-yellow-400 fill-yellow-400 h-4 w-4 ml-1" />
       </h1>
       {!locationShared && (
         <button onClick={onShareLocation}

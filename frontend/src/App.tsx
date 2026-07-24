@@ -388,7 +388,7 @@ export default function GoParkApp() {
         onCaptchaToken={auth.handleCaptchaToken}
         onAuth={auth.handleAuth} onVerify={auth.handleVerify}
         onRequestReset={auth.handleRequestResetCode} onResetCaptchaToken={auth.handleResetCaptchaToken}
-        onGuest={auth.enterGuest}
+        onGuest={auth.enterGuest} darkMode={darkMode} toggleDarkMode={toggleDarkMode}
       />
     );
   }
@@ -433,11 +433,11 @@ export default function GoParkApp() {
                 darkMode={darkMode}
                 destination={destination} onDestinationChange={handleDestinationChange}
                 suggestions={suggestions} isDropdownOpen={isDropdownOpen}
-                setIsDropdownOpen={setIsDropdownOpen} onSelectSuggestion={selectSuggestion}
+                closeDropdown={() => setIsDropdownOpen(false)} onSelectSuggestion={selectSuggestion}
                 startPoint={startPoint} onStartChange={handleStartChange}
                 startCoords={startCoords} clearStart={() => { setStartPoint(''); setStartCoords(null); }}
                 startSuggestions={startSuggestions} startDropdownOpen={startDropdownOpen}
-                setStartDropdownOpen={setStartDropdownOpen} onSelectStart={selectStart}
+                closeStartDropdown={() => setStartDropdownOpen(false)} onSelectStart={selectStart}
                 locationShared={loc.locationShared}
                 arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil}
                 vehicleType={vehicleType} setVehicleType={setVehicleType}
@@ -471,7 +471,7 @@ export default function GoParkApp() {
                 ) : (
                   <ResultsList darkMode={darkMode} hasSearched={hasSearched} searchResults={searchResults}
                     selectedId={selectedId} favorites={favorites} vehicleType={vehicleType}
-                    durationHours={durationHours}
+                    durationHours={durationHours} recommendedId={searchResults[0]?.id ?? null}
                     onSelectCarpark={selectAndClose} onToggleFav={toggleFav} />
                 )}
               </div>

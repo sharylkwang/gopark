@@ -169,6 +169,7 @@ interface Props {
   sidebarOpen?: boolean;
   nearbyParking?: NearbyParking[];
   incident?: TrafficIncident | null;
+  darkMode?: boolean;
 }
 
 function getIncidentIcon(type: string) {
@@ -213,7 +214,6 @@ function IncidentMarker({ incident }: { incident: TrafficIncident }) {
       </Popup>
     </Marker>
   );
-  darkMode?: boolean;
 }
 
 function MapResizer({ sidebarOpen }: { sidebarOpen?: boolean }) {

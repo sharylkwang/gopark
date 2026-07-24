@@ -1,5 +1,5 @@
-import { useRef, useState, useCallback } from 'react';
-import { Navigation, Search, Clock, MapPin, X, Crosshair } from 'lucide-react';
+import { Navigation, Search, Clock, X, Crosshair } from 'lucide-react';
+import { SuggestionList, useSuggestionKeys } from '../SuggestionList';
 import { VEHICLE_OPTIONS } from '../../utils/constants';
 import { formatClockTime, formatTime12, parseClockTime } from '../../utils/format';
 import type { PlaceSuggestion } from '../../types';
@@ -10,7 +10,7 @@ interface Props {
   onDestinationChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   suggestions: PlaceSuggestion[];
   isDropdownOpen: boolean;
-  setIsDropdownOpen: (v: boolean) => void;
+  closeDropdown: () => void;
   onSelectSuggestion: (s: PlaceSuggestion) => void;
   startPoint: string;
   onStartChange: (val: string) => void;
@@ -18,7 +18,7 @@ interface Props {
   clearStart: () => void;
   startSuggestions: PlaceSuggestion[];
   startDropdownOpen: boolean;
-  setStartDropdownOpen: (v: boolean) => void;
+  closeStartDropdown: () => void;
   onSelectStart: (s: PlaceSuggestion) => void;
   locationShared: boolean;
   arrivalTime: Date;
@@ -37,9 +37,9 @@ interface Props {
 
 export function SearchForm({
   darkMode, destination, onDestinationChange,
-  suggestions, isDropdownOpen, setIsDropdownOpen, onSelectSuggestion,
+  suggestions, isDropdownOpen, closeDropdown, onSelectSuggestion,
   startPoint, onStartChange, startCoords, clearStart,
-  startSuggestions, startDropdownOpen, setStartDropdownOpen, onSelectStart,
+  startSuggestions, startDropdownOpen, closeStartDropdown, onSelectStart,
   locationShared, arrivalTime, parkUntil, setParkUntil,
   vehicleType, setVehicleType, maxPrice, setMaxPrice, costRange,
   loading, onSubmit, onPickStart, onPickDestination,
@@ -48,22 +48,30 @@ export function SearchForm({
   const inputBg = dm ? 'bg-neutral-800/60 border border-neutral-600/50' : 'bg-white/60 border border-gray-300';
   const inputText = dm ? 'text-gray-100' : 'text-gray-800';
   const labelClass = `text-[11px] font-black uppercase tracking-widest mb-1 block ${dm ? 'text-gray-500' : 'text-gray-400'}`;
-  const pickBtn = `shrink-0 p-1.5 rounded-lg transition ${dm ? 'text-gray-400 hover:text-blue-400 hover:bg-neutral-700/50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50/60'}`;
-  const submitted = useRef(false);
+  const pickBtn = `shrink-0 p-2 -my-1 rounded-lg transition ${dm ? 'text-gray-400 hover:text-blue-400 hover:bg-neutral-700/50' : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50/60'}`;
+
+  const submitTyped = () => {
+    closeDropdown();
+    closeStartDropdown();
+    onSubmit(destination);
+  };
+
+  const destKeys = useSuggestionKeys(suggestions, isDropdownOpen, onSelectSuggestion, submitTyped, closeDropdown);
+  const startKeys = useSuggestionKeys(startSuggestions, startDropdownOpen, onSelectStart, () => closeStartDropdown(), closeStartDropdown);
 
   return (
     <div className={`px-3 py-3 border-b shrink-0 ${dm ? 'bg-neutral-900 border-neutral-700/40' : 'bg-white border-gray-200/30'}`}>
-      <form onSubmit={e => { e.preventDefault(); submitted.current = true; setIsDropdownOpen(false); setStartDropdownOpen(false); (document.activeElement as HTMLElement)?.blur(); if (isDropdownOpen && suggestions.length > 0) { onSelectSuggestion(suggestions[0]); } else { onSubmit(destination); } setTimeout(() => { submitted.current = false; }, 500); }} className="space-y-2.5">
+      <form onSubmit={e => { e.preventDefault(); submitTyped(); }} className="space-y-2.5">
         <div className="relative">
           <label className={labelClass}>Start</label>
           <div className={`flex items-center rounded-xl px-2.5 py-2 transition ${inputBg} ${startCoords ? 'border-green-500/50' : 'focus-within:border-blue-500/50'}`}>
             <Navigation className={`mr-2 shrink-0 ${startCoords ? 'text-green-500' : 'text-blue-500'}`} size={15} />
             <input type="text" value={startPoint}
               onChange={e => onStartChange(e.target.value)}
-              onFocus={() => !submitted.current && startPoint.length > 2 && setStartDropdownOpen(true)}
-              onBlur={() => setTimeout(() => setStartDropdownOpen(false), 200)}
+              onKeyDown={startKeys.onKeyDown}
+              onBlur={() => setTimeout(closeStartDropdown, 150)}
               placeholder={locationShared ? 'Current location' : 'Current location (allow GPS)'}
-              className={`bg-transparent w-full outline-none text-sm font-bold placeholder-gray-400 ${inputText}`} />
+              className={`bg-transparent w-full outline-none text-base md:text-sm font-bold placeholder-gray-400 ${inputText}`} />
             <button type="button" onClick={onPickStart} className={pickBtn} title="Pick from map">
               <Crosshair size={14} />
             </button>
@@ -72,7 +80,8 @@ export function SearchForm({
             )}
           </div>
           {startDropdownOpen && startSuggestions.length > 0 && (
-            <SuggestionList items={startSuggestions} onSelect={onSelectStart} darkMode={dm} />
+            <SuggestionList items={startSuggestions} onSelect={onSelectStart} darkMode={dm}
+              activeIndex={startKeys.activeIndex} onHover={startKeys.setActiveIndex} />
           )}
         </div>
 
@@ -82,16 +91,17 @@ export function SearchForm({
             <Search className="text-gray-400 mr-2 shrink-0" size={15} />
             <input required type="text" value={destination}
               onChange={onDestinationChange}
-              onFocus={() => !submitted.current && destination.length > 2 && setIsDropdownOpen(true)}
-              onBlur={() => setTimeout(() => setIsDropdownOpen(false), 200)}
+              onKeyDown={destKeys.onKeyDown}
+              onBlur={() => setTimeout(closeDropdown, 150)}
               placeholder="e.g. Orchard Gateway"
-              className={`bg-transparent w-full outline-none text-sm font-bold placeholder-gray-400 ${inputText}`} />
+              className={`bg-transparent w-full outline-none text-base md:text-sm font-bold placeholder-gray-400 ${inputText}`} />
             <button type="button" onClick={onPickDestination} className={pickBtn} title="Pick from map">
               <Crosshair size={14} />
             </button>
           </div>
           {isDropdownOpen && suggestions.length > 0 && (
-            <SuggestionList items={suggestions} onSelect={onSelectSuggestion} darkMode={dm} />
+            <SuggestionList items={suggestions} onSelect={onSelectSuggestion} darkMode={dm}
+              activeIndex={destKeys.activeIndex} onHover={destKeys.setActiveIndex} />
           )}
         </div>
 
@@ -163,46 +173,5 @@ export function SearchForm({
         </button>
       </form>
     </div>
-  );
-}
-
-const PAGE_SIZE = 10;
-
-function SuggestionList({ items, onSelect, darkMode }: {
-  items: PlaceSuggestion[]; onSelect: (s: PlaceSuggestion) => void; darkMode: boolean;
-}) {
-  const [hovered, setHovered] = useState(-1);
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const listRef = useRef<HTMLUListElement>(null);
-
-  const handleScroll = useCallback(() => {
-    const el = listRef.current;
-    if (!el || visibleCount >= items.length) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
-      setVisibleCount(v => Math.min(v + PAGE_SIZE, items.length));
-    }
-  }, [visibleCount, items.length]);
-
-  const visible = items.slice(0, visibleCount);
-  const active = hovered >= 0 ? hovered : 0;
-
-  return (
-    <ul ref={listRef} onScroll={handleScroll}
-      className={`absolute top-full left-0 w-full mt-1 rounded-xl shadow-2xl z-50 max-h-48 overflow-y-auto sidebar-scroll ${darkMode ? 'bg-neutral-800/95 backdrop-blur-xl border border-neutral-600/50' : 'bg-white/95 backdrop-blur-xl border border-gray-200/50'}`}>
-      {visible.map((s, i) => (
-        <li key={i}
-          onClick={() => onSelect(s)}
-          onMouseEnter={() => setHovered(i)}
-          onMouseLeave={() => setHovered(-1)}
-          className={`px-3 py-2.5 cursor-pointer last:border-0 text-sm font-bold flex items-center gap-2 ${
-            i === active
-              ? darkMode ? 'bg-neutral-700/70 text-white' : 'bg-blue-50 text-gray-900'
-              : darkMode ? 'border-b border-neutral-700/50 text-gray-200' : 'border-b border-gray-100/50 text-gray-700'
-          }`}>
-          <MapPin size={13} className={`flex-shrink-0 ${i === active ? 'text-blue-500' : 'text-gray-400'}`} />
-          <span className="truncate">{s.formatted || s.name}</span>
-        </li>
-      ))}
-    </ul>
   );
 }
