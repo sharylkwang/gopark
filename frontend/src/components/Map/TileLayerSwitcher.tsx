@@ -24,6 +24,9 @@ interface Props {
   onMode3DChange: (mode: Map3DMode | null) => void;
   mapCenter?: { lat: number; lng: number };
   mapZoom?: number;
+  uraOverlayAvailable?: boolean;
+  uraOverlayEnabled?: boolean;
+  onUraOverlayToggle?: () => void;
 }
 
 function TileCard({ tile, active, disabled, onClick, lat, lng, zoom }: {
@@ -65,7 +68,7 @@ const MAP_3D_MODES: { id: Map3DMode; label: string; preview: string }[] = [
   { id: 'HYBRID', label: 'Hybrid', preview: '#1a3a2a' },
 ];
 
-export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, mapCenter, mapZoom }: Props) {
+export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, mapCenter, mapZoom, uraOverlayAvailable, uraOverlayEnabled, onUraOverlayToggle }: Props) {
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const gpuOk = useMemo(() => hasGpu(), []);
@@ -106,6 +109,27 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
               ))}
             </div>
           </div>
+
+          {uraOverlayAvailable && (
+            <div className="border-t border-gray-200/40 pt-2 mb-2">
+              <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1.5 block">Overlays</span>
+              <div className="grid grid-cols-4 gap-1.5">
+                <button onClick={onUraOverlayToggle}
+                  className={`flex flex-col items-center gap-1 transition-all ${
+                    uraOverlayEnabled ? 'scale-105' : 'opacity-70 hover:opacity-100'
+                  }`}>
+                  <div className={`relative w-12 h-12 rounded-xl border-2 shadow-sm transition-all overflow-hidden flex items-center justify-center ${
+                    uraOverlayEnabled ? 'border-red-500 ring-2 ring-red-200' : 'border-gray-200 hover:border-gray-400'
+                  }`} style={{ background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>
+                    <span className="w-6 h-6 rounded-full bg-green-600 border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-black">P</span>
+                  </div>
+                  <span className={`text-[9px] leading-tight text-center max-w-14 ${
+                    uraOverlayEnabled ? 'font-black text-red-600' : 'font-semibold text-gray-500'
+                  }`}>URA Live</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {gpuOk ? (
             <div className="border-t border-gray-200/40 pt-2">

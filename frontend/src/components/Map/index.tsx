@@ -5,11 +5,13 @@ import { CameraFlyer } from './CameraFlyer';
 import { EventHandler } from './EventHandler';
 import { MarkerCluster } from './MarkerCluster';
 import { SingaporeBoundary } from './layers/SingaporeBoundary';
+import { UraLiveLotsLayer } from './layers/UraLiveLotsLayer';
 import { TileLayerSwitcher } from './TileLayerSwitcher';
 import { Google3DMap } from './layers/Google3DMap';
 import type { Map3DMode } from './layers/Google3DMap';
 import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import { reverseGeocode } from '../../providers/geoapify';
+import { fetchUraStatus } from '../../providers/ura';
 import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../types';
 import type { TrafficIncident } from '../../providers/traffic';
 import type { MapEventHandlers } from '../../types/map';
@@ -603,7 +605,13 @@ export function MapView({
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 1.3521, lng: 103.8198 });
   const [mapZoom, setMapZoom] = useState(12);
+  const [uraConfigured, setUraConfigured] = useState(false);
+  const [showUraLots, setShowUraLots] = useState(false);
   const tile = getTileProvider(tileId) ?? getTileProvider(DEFAULT_TILE)!;
+
+  useEffect(() => {
+    fetchUraStatus().then(setUraConfigured);
+  }, []);
 
   const handlePositionChange = useCallback((c: { lat: number; lng: number }, z: number) => {
     setMapCenter(c);
@@ -663,6 +671,7 @@ export function MapView({
           destinationPoint={destinationPoint} userLocation={userLocation} />
 
         <SingaporeBoundary />
+        {uraConfigured && showUraLots && <UraLiveLotsLayer />}
         {eventHandlers && <EventHandler {...eventHandlers} />}
 
         {destinationPoint && (
@@ -732,7 +741,9 @@ export function MapView({
 
       <TileLayerSwitcher currentTile={tileId} onTileChange={setTileId}
         mode3D={mode3D} onMode3DChange={setMode3D}
-        mapCenter={mapCenter} mapZoom={mapZoom} />
+        mapCenter={mapCenter} mapZoom={mapZoom}
+        uraOverlayAvailable={uraConfigured} uraOverlayEnabled={showUraLots}
+        onUraOverlayToggle={() => setShowUraLots((prev) => !prev)} />
     </div>
   );
 }
