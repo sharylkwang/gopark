@@ -139,6 +139,7 @@ export function mergeAll(
     if (govAvail[r.id]) mergeAvailability(cp, govAvail[r.id]);
   }
 
+  const datamallTargets: Record<string, MergedCarpark> = {};
   for (const r of datamall.records) {
     const existing = findExisting(map, r.id, r.name, r.lat, r.lng);
     if (existing) {
@@ -146,18 +147,22 @@ export function mergeAll(
       existing.agency = existing.agency || (r.metadata.agency as string) || '';
       addSource(existing, 'datamall', r.id);
       Object.assign(existing.metadata, r.metadata);
+      datamallTargets[r.id] = existing;
     } else {
       const cp = touch(r.id, r.name, r.lat, r.lng);
       cp.address = r.address;
       cp.agency = (r.metadata.agency as string) || '';
       addSource(cp, 'datamall', r.id);
       Object.assign(cp.metadata, r.metadata);
+      datamallTargets[r.id] = cp;
     }
   }
   for (const [id, lots] of Object.entries(datamall.availability)) {
-    if (map[id]) mergeAvailability(map[id], lots);
+    const target = map[id] ?? datamallTargets[id];
+    if (!target) continue;
+    mergeAvailability(target, lots);
     const a = datamall.agencies[id];
-    if (a && map[id]) { map[id].agency = map[id].agency || a.agency; if (a.area) map[id].metadata.area = a.area; }
+    if (a) { target.agency = target.agency || a.agency; if (a.area) target.metadata.area = a.area; }
   }
 
   for (const r of parkLocs) {
