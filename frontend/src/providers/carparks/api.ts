@@ -20,6 +20,7 @@ export async function fetchDetail(id: string): Promise<CarparkDetail> {
 
 export type AvailabilityMap = Record<string, Record<string, { available: number | null; total: number | null; updatedAt?: string }>>;
 
+// Pass ids to ask only for the carparks on screen; omit them for the whole set.
 export async function fetchAvailability(ids?: string[]): Promise<{
   updatedAt: string;
   carparks: AvailabilityMap;

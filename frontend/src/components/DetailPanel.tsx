@@ -95,7 +95,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
           )}
         </div>
 
-        {dt.hasVehicleData && dt.total > 0 && dt.available != null ? (
+        {dt.hasVehicleData && dt.available != null && dt.total > 0 ? (
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${dm ? 'bg-neutral-800/50 border-neutral-700/50' : 'bg-gray-50 border-gray-200'}`}>
             <CircularProgress percentage={dt.pct} size={64} stroke={8} darkMode={dm} />
             <div>

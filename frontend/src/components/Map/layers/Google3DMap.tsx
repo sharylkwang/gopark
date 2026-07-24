@@ -195,7 +195,7 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
       try {
         map.flyCameraTo({ endCamera, durationMillis: 1200 });
         return;
-      } catch {}
+      } catch { /* fall through to a direct set */ }
     }
 
     map.center = endCamera.center;

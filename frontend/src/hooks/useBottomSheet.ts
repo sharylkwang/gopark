@@ -5,7 +5,8 @@ export type SheetSnap = 'closed' | 'peek' | 'half' | 'full';
 const PEEK_VISIBLE_PX = 126;
 const FLING_VELOCITY = 0.5;
 
-const safeAreaTop = () => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
+const safeAreaTop = () =>
+  parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--safe-top')) || 0;
 
 export function useBottomSheet(topInset = 0) {
   const [snap, setSnap] = useState<SheetSnap>('half');
@@ -26,7 +27,13 @@ export function useBottomSheet(topInset = 0) {
   }, []);
 
   const height = Math.max(viewportH - topInset - safeTop, 240);
-  const offsets: Record<SheetSnap, number> = { full: 0, half: Math.round(height * 0.52), peek: height - PEEK_VISIBLE_PX, closed: height };
+  const offsets: Record<SheetSnap, number> = {
+    full: 0,
+    half: Math.round(height * 0.52),
+    peek: height - PEEK_VISIBLE_PX,
+    closed: height,
+  };
+
   const order: SheetSnap[] = ['full', 'half', 'peek', 'closed'];
 
   const onTouchStart = (e: React.TouchEvent) => {
@@ -49,20 +56,36 @@ export function useBottomSheet(topInset = 0) {
   };
 
   const onTouchEnd = (e: React.TouchEvent) => {
-    if (frame.current !== null) { cancelAnimationFrame(frame.current); frame.current = null; }
+    if (frame.current !== null) {
+      cancelAnimationFrame(frame.current);
+      frame.current = null;
+    }
     const settled = pending.current ?? dragY;
     pending.current = null;
     if (settled === null) return;
 
     const elapsed = Math.max(e.timeStamp - drag.current.t, 1);
     const velocity = (drag.current.lastY - drag.current.y) / elapsed;
+    const flung = Math.abs(velocity) > FLING_VELOCITY && e.timeStamp - drag.current.lastT < 250;
 
-    if (Math.abs(velocity) > FLING_VELOCITY && e.timeStamp - drag.current.lastT < 250) {
+    if (flung) {
       const step = velocity > 0 ? 1 : -1;
-      setSnap(order[Math.min(Math.max(order.indexOf(snap) + step, 0), order.length - 1)]);
-    } else setSnap(order.reduce((best, s) => Math.abs(settled - offsets[s]) < Math.abs(settled - offsets[best]) ? s : best));
+      const next = order[Math.min(Math.max(order.indexOf(snap) + step, 0), order.length - 1)];
+      setSnap(next);
+    } else {
+      setSnap(order.reduce((best, s) =>
+        Math.abs(settled - offsets[s]) < Math.abs(settled - offsets[best]) ? s : best
+      ));
+    }
     setDragY(null);
   };
 
-  return { snap, setSnap, height, translateY: dragY ?? offsets[snap], dragging: dragY !== null, handleProps: { onTouchStart, onTouchMove, onTouchEnd } };
+  return {
+    snap,
+    setSnap,
+    height,
+    translateY: dragY ?? offsets[snap],
+    dragging: dragY !== null,
+    handleProps: { onTouchStart, onTouchMove, onTouchEnd },
+  };
 }
