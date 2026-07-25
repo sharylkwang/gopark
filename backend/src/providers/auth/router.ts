@@ -274,8 +274,6 @@ router.post('/auth/login', loginLimiter, async (req: Request, res: Response) => 
 
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
-      // Run a comparison against a throwaway hash so a missing account costs the same time as a
-      // wrong password; otherwise the fast 401 leaks which emails are registered.
       await bcrypt.compare(password, DUMMY_HASH);
       return res.status(401).json({ error: 'Invalid email or password' });
     }

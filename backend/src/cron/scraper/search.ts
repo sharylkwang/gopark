@@ -21,8 +21,6 @@ export function isSearchAvailable(): boolean {
 const BACKOFF_CODES = new Set(['ECONNREFUSED', 'ECONNABORTED', 'ETIMEDOUT', 'ENOTFOUND']);
 const BACKOFF_STATUSES = new Set([403, 429, 500, 502, 503]);
 
-// DuckDuckGo blocks/rate-limits with an HTTP status (403/429), not a socket error, so the old
-// code-only check kept hammering it across every domain in the loop. Treat both as "down".
 export function shouldBackOff(e: unknown): boolean {
   const err = e as { code?: string; response?: { status?: number } };
   if (err.code && BACKOFF_CODES.has(err.code)) return true;
@@ -36,10 +34,6 @@ function describeSearchError(e: unknown): string {
 
 const REDIRECT_HOSTS = ['duckduckgo.com', 'google.com/url', 'bing.com'];
 
-// DuckDuckGo's HTML results wrap every target in a redirect link:
-//   href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fx&rut=..."
-// so the real URL is the url-encoded `uddg` parameter, not a bare href. Pull those out first,
-// then fall back to any direct external https links the page might also carry.
 export function extractResultUrls(html: string): string[] {
   const urls: string[] = [];
 
@@ -47,7 +41,7 @@ export function extractResultUrls(html: string): string[] {
     try {
       const decoded = decodeURIComponent(m[1]);
       if (decoded.startsWith('http')) urls.push(decoded);
-    } catch { /* skip malformed escape sequences */ }
+    } catch {}
   }
 
   for (const m of html.matchAll(/href="(https?:\/\/[^"]+)"/g)) {

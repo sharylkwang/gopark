@@ -13,8 +13,6 @@ const OVERPASS_MIRRORS = [
 
 const MIRROR_TIMEOUT_MS = 12000;
 
-// The public instances go down or rate-limit regularly, and they answer with an HTML error
-// page rather than a failed request, so a bad body has to count as a failure too.
 async function overpassQuery(query: string): Promise<any> {
   let lastError: unknown = null;
 
@@ -90,7 +88,6 @@ const AMENITY_TYPES: Record<string, [string, boolean, string]> = {
   conference_centre: ['Convention Centre', true, 'Venue parking available'],
 };
 
-// Tags that identify a real venue, as opposed to a plain building outline.
 const VENUE_KEYS = ['amenity', 'shop', 'tourism', 'leisure', 'office', 'healthcare', 'aeroway'];
 
 function toResult(tuple: [string, boolean, string]): PlaceClassification {
@@ -119,8 +116,6 @@ function classifyTags(tags: Record<string, string>): PlaceClassification | null 
 
   if (landuse === 'residential') return { type: 'Residential Area', hasParking: true, parkingHint: 'HDB / street parking nearby' };
 
-  // Big venues carry shop tags too (an airport terminal or a hospital full of retail), so the
-  // specific venue type has to win over the generic shopping one.
   if (tags['aeroway'] === 'terminal' || building === 'terminal')
     return { type: 'Airport Terminal', hasParking: true, parkingHint: 'Terminal carpark available' };
 
@@ -174,8 +169,6 @@ function elementDistance(el: any, lat: number, lng: number): number {
   return distanceM(lat, lng, elLat, elLng);
 }
 
-// An enclosing venue beats a neighbour, a named venue beats a bare building outline, and among
-// neighbours the closer one wins — otherwise a big landmark down the road hijacks the answer.
 function elementScore(el: any, lat?: number, lng?: number): number {
   const tags = el?.tags ?? {};
   let score = 0;
@@ -213,8 +206,6 @@ export async function findNearbyParking(lat: number, lng: number, radius = NEARB
   const cached = parkingCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-  // nwr picks up multipolygon carparks that node/way alone miss, and parking entrances are
-  // often the only mapped feature for a hospital or hotel's underground carpark.
   const query = `
     [out:json][timeout:25];
     (
@@ -278,10 +269,6 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
   const cached = classifyCache.get(cacheKey);
   if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-  // `around` measures distance to a way's geometry, so a pin dropped in the middle of a large
-  // hospital or hotel sits further from its walls than the radius and never matches it. `is_in`
-  // returns the areas that enclose the point regardless of their size, so it is tried first;
-  // the radial search is only needed when the point falls outside any mapped area.
   const containing = `
     [out:json][timeout:25];
     is_in(${lat},${lng})->.here;
@@ -312,8 +299,6 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
     out tags center;
   `;
 
-  // A landuse polygon says nothing about the venue standing on it, so a match found only from
-  // landuse is provisional: a named venue from the radial search should still beat it.
   const pick = (elements: any[]): { result: PlaceClassification; strong: boolean; distance: number } | null => {
     elements.sort((a, b) => elementScore(b, lat, lng) - elementScore(a, lat, lng));
     for (const el of elements) {
@@ -331,8 +316,6 @@ export async function classifyPlace(lat: number, lng: number): Promise<PlaceClas
     const enclosing = pick((await overpassQuery(containing)).elements ?? []);
     let best = enclosing;
 
-    // Only let the radial search override an enclosing landuse when the venue it found is close
-    // enough to be the thing the pin is actually on.
     if (!enclosing?.strong) {
       const around = pick((await overpassQuery(nearby)).elements ?? []);
       const closeEnough = around?.strong && around.distance <= OVERRIDE_RADIUS_M;

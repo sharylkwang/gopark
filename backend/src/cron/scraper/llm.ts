@@ -12,9 +12,6 @@ const VLLM_MODEL = process.env.VLLM_MODEL || 'Qwen/Qwen3.5-4B';
 
 export type Backend = 'zhipuai' | 'vllm' | 'none';
 
-// A present ZHIPUAI_KEY does not mean the account can actually answer — an expired balance or a
-// wrong model name still returns a body without `choices`. Probe with a 1-token call so a dead
-// cloud backend falls through to the local model instead of silently failing every extraction.
 export async function canComplete(backend: Backend): Promise<boolean> {
   try {
     const { url, key, model } = endpoint(backend);

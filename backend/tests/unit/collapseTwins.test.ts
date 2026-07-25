@@ -19,8 +19,8 @@ describe('collapsePrefixTwins', () => {
     const survivor = map['J0122'];
     expect(survivor.sources.sort()).toEqual(['datamall', 'parkaholic']);
     expect(survivor.source_ids).toEqual({ parkaholic: 'J0122', datamall: 'URA-J0122' });
-    expect(survivor.availability.C).toEqual({ available: 42, total: 100 }); // live count + known total
-    expect(survivor.availability.Y).toEqual({ available: 5, total: 10 });   // moto carried over
+    expect(survivor.availability.C).toEqual({ available: 42, total: 100 });
+    expect(survivor.availability.Y).toEqual({ available: 5, total: 10 });
   });
 
   it('does not merge when the coordinates differ (id collision, different place)', () => {

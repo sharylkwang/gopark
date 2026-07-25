@@ -197,7 +197,6 @@ export default function GoParkApp() {
     return () => window.removeEventListener('keydown', handler);
   }, [detail]);
 
-  // Only the carparks actually on screen are watched: the results, plus whatever is open.
   const watchedIds = useMemo(() => {
     const ids = new Set(searchResults.map(cp => cp.id));
     if (detail) ids.add(detail.id);
@@ -645,8 +644,6 @@ export default function GoParkApp() {
   const sheetLift = sheetVisible + 12;
   const mapRoom = window.innerHeight - sheetVisible;
 
-  // The map controls float in the strip between the top bar and the sheet, so they can only be
-  // shown when that strip is actually clear of the top bar.
   const topStack = SHEET_TOP_INSET + (showParkingHint ? PARKING_HINT_H : 0);
   const floatingVisible = mapRoom > topStack + 56;
 
@@ -722,8 +719,6 @@ export default function GoParkApp() {
       onSelect={incident => { setActiveIncident(incident); if (isSheet) sheet.setSnap('peek'); }} />
   );
 
-  // Docked under the top bar on mobile: floating it over the map put it on top of the layers
-  // button and the sheet.
   const parkingHintPill = showParkingHint && destinationPoint?.classification && (
     <button onClick={toggleNearbyParking}
       className={`press flex items-center gap-1.5 w-full h-8 px-3 rounded-full border backdrop-blur-lg shadow-sm ${

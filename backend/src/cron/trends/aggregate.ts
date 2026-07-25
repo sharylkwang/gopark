@@ -25,8 +25,6 @@ export function occupancyPct(available: number | null, total: number | null): nu
   return Math.round(Math.min(100, (used / total) * 100));
 }
 
-// A generic Singapore-carpark shape when there is not enough history: quiet overnight, a morning
-// commute bump, a midday plateau, an evening peak. Values are occupancy percentages.
 const DEFAULT_CURVE: HourlyProfile = [
   20, 15, 12, 10, 10, 12, 25, 45, 62, 68, 66, 70,
   74, 70, 66, 64, 68, 78, 82, 76, 64, 52, 40, 28,
@@ -48,7 +46,6 @@ function averageByHour(snapshots: Snapshot[]): { profile: HourlyProfile; counts:
   return { profile, counts };
 }
 
-// Fills hours with too few samples from the default curve so a sparse day still reads sensibly.
 function fillGaps(profile: HourlyProfile, counts: number[]): HourlyProfile {
   return profile.map((v, h) => (counts[h] >= MIN_SAMPLES_PER_HOUR && v >= 0 ? v : DEFAULT_CURVE[h]));
 }
@@ -66,9 +63,6 @@ export function buildWeekdayProfile(snapshots: Snapshot[]): { weekday: WeekdayPr
   return { weekday, sampleCount: snapshots.length };
 }
 
-// Resolves the profile to show for `today`: on a public holiday, prefer the same calendar date one
-// year ago (which was typically the same holiday); if that has no history, fall back to the default
-// curve. On a normal day, use the observed weekday profile when it has real samples, else default.
 export function resolveTrend(snapshots: Snapshot[], today: Date): Trend {
   const { weekday, sampleCount } = buildWeekdayProfile(snapshots);
   const holiday = isPublicHoliday(today);

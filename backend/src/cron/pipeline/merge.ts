@@ -42,9 +42,6 @@ function isSamePlace(a: MergedCarpark, b: MergedCarpark): boolean {
   return Math.abs(a.lat - b.lat) <= MERGE.proximityThreshold && Math.abs(a.lng - b.lng) <= MERGE.proximityThreshold;
 }
 
-// DataMall keys URA/LTA carparks as `URA-J0122` while parkaholic/gov use the bare `J0122`, so the
-// same carpark can end up as two records (two pins). Fold the prefixed twin into the bare id -
-// keeping both source ids so the availability refresh still resolves either - and drop the twin.
 export function collapsePrefixTwins(map: Record<string, MergedCarpark>): number {
   let merged = 0;
   for (const id of Object.keys(map)) {

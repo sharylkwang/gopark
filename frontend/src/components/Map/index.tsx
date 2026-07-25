@@ -387,11 +387,9 @@ function CombinedRouteLabel({ position, driveRoute, walkRoute }: {
   return <Marker position={position} icon={icon} zIndexOffset={1000} />;
 }
 
-// Each pill is roughly this size on screen; half these values are used to test for overlap.
 const PILL_HALF_W = 52;
 const PILL_HALF_H = 16;
 
-// Merge on the slightest touch, so add a small margin to the "just touching" distance.
 function pillsOverlap(map: L.Map, a: [number, number], b: [number, number]) {
   const pa = map.latLngToContainerPoint(a);
   const pb = map.latLngToContainerPoint(b);
@@ -422,7 +420,6 @@ function RouteLabels({ drivePolyline, driveRoute, walkPolyline, walkRoute }: {
     return () => { map.off('zoomend', update); map.off('moveend', update); };
   }, [map, drivePolyline, walkPolyline]);
 
-  // Two separate pills that would collide read as one garbled label - show the combined pill instead.
   if (overlap && driveMid && driveRoute && walkRoute) {
     return <CombinedRouteLabel position={driveMid} driveRoute={driveRoute} walkRoute={walkRoute} />;
   }

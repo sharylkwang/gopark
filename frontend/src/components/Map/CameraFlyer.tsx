@@ -13,8 +13,6 @@ interface Props {
   sidebarOpen?: boolean;
 }
 
-// A phone shows a fraction of the map a desktop does, so the same zoom leaves it feeling lost:
-// every camera move goes a step closer on mobile.
 const ZOOM = {
   desktop: { user: 16, carpark: 16, destination: 15, threshold: 15 },
   compact: { user: 17, carpark: 17, destination: 16, threshold: 16 },

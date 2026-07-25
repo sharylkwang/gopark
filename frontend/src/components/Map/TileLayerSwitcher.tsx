@@ -271,9 +271,6 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
         </div>
   );
 
-  // The map sits in its own stacking context, so a panel rendered inside it can never rise above
-  // the search bar, the filter chips or the map hints. On mobile it is portalled to the body and
-  // shown as a modal instead, where nothing can cover it.
   const overlay = open && isCompact
     ? createPortal(
         <div className="fixed inset-0 z-[3000] flex flex-col justify-end p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]">

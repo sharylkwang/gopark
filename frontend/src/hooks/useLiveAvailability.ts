@@ -8,14 +8,6 @@ const FALLBACK_POLL_MS = 30000;
 
 export type LiveState = 'connecting' | 'live' | 'polling';
 
-/**
- * Subscribes to live availability for a specific set of carparks.
- *
- * The server pushes only the carparks whose numbers actually changed, so a screen full of
- * results costs one message per change rather than a refetch of all ~3.6k carparks. If the
- * socket cannot be established (an old proxy, a captive network), it falls back to polling the
- * same ids over REST rather than silently going stale.
- */
 export function useLiveAvailability(ids: string[], onUpdate: (carparks: AvailabilityMap) => void) {
   const [state, setState] = useState<LiveState>('connecting');
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
@@ -73,14 +65,13 @@ export function useLiveAvailability(ids: string[], onUpdate: (carparks: Availabi
         try {
           const msg = JSON.parse(event.data);
           if (msg?.type === 'availability' && msg.carparks) apply(msg.carparks);
-        } catch { /* ignore malformed frames */ }
+        } catch {}
       };
 
       socket.onclose = () => {
         if (closed) return;
         socket = null;
 
-        // Keep the numbers moving over REST while we wait to get the socket back.
         startPolling();
 
         const delay = RECONNECT_MS[Math.min(attempt, RECONNECT_MS.length - 1)];

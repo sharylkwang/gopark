@@ -5,8 +5,6 @@ import 'leaflet.markercluster';
 import { vehicleTotals } from '../../utils/format';
 import type { CarparkSummary } from '../../types';
 
-// Availability is the thing a driver actually needs off the map, so it owns the badge body:
-// green = plenty, amber = filling, red = nearly full, dark red = full, slate = no live data.
 const AVAILABILITY = {
   plenty: '#16a34a',
   filling: '#f59e0b',
@@ -302,8 +300,6 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
       const isSelected = cp.id === selectedId;
       const dimOthers = !!hasSearched && selectedId !== null;
 
-      // The selected marker keeps its availability colour and is marked out by the yellow ring
-      // instead: turning it blue threw away the one thing the driver is reading off the map.
       const color = availabilityColor(cp, vehicleType);
       const size = isSelected ? 34 : 26;
       const bob = cp.id === recommendedId;

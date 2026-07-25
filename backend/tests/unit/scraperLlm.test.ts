@@ -28,14 +28,14 @@ describe('scraper LLM backend selection', () => {
   });
 
   it('falls back to the local vLLM when the cloud backend has no balance', async () => {
-    mockPost.mockResolvedValueOnce(noChoices); // zhipuai probe: dead
-    mockPost.mockResolvedValueOnce(ok);         // vllm probe: alive
+    mockPost.mockResolvedValueOnce(noChoices);
+    mockPost.mockResolvedValueOnce(ok);
     expect(await detect()).toBe('vllm');
   });
 
   it('returns none when neither backend can complete', async () => {
-    mockPost.mockRejectedValueOnce(new Error('balance')); // zhipuai
-    mockPost.mockRejectedValueOnce(new Error('ECONNREFUSED')); // vllm
+    mockPost.mockRejectedValueOnce(new Error('balance'));
+    mockPost.mockRejectedValueOnce(new Error('ECONNREFUSED'));
     expect(await detect()).toBe('none');
   });
 });

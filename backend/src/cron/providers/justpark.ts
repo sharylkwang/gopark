@@ -9,8 +9,6 @@ const coordCache = new Map<string, { lat: number; lng: number } | null>();
 
 type GeocodeFn = (query: string) => Promise<{ lat: number; lng: number } | null>;
 
-// CapitaLand's feed ships every site at 0,0, so 62 of 91 malls were dropped by the Singapore
-// geofence. Geocode the mall name (cached — malls don't move) so unmatched sites still land.
 export async function resolveJustparkCoords(records: CarparkRecord[], geocodeFn: GeocodeFn = geocode): Promise<number> {
   let resolved = 0;
   for (const r of records) {
