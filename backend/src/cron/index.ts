@@ -28,7 +28,7 @@ async function upsert(carparks: MergedCarpark[]) {
   for (const cp of carparks) {
     await prisma.carpark.upsert({
       where: { id: cp.id },
-      update: { name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency, sources: cp.sources, sourceIds: cp.source_ids, lotTypes: cp.lot_types, metadata: cp.metadata, detailsUpdatedAt: now },
+      update: { name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency, sources: cp.sources, sourceIds: cp.source_ids, lotTypes: cp.lot_types, metadata: cp.metadata, detailsUpdatedAt: now, active: true },
       create: { id: cp.id, name: cp.name, lat: cp.lat, lng: cp.lng, address: cp.address, agency: cp.agency, sources: cp.sources, sourceIds: cp.source_ids, lotTypes: cp.lot_types, metadata: cp.metadata, detailsUpdatedAt: now, availabilityUpdatedAt: now },
     });
 
@@ -169,19 +169,16 @@ async function fullMerge(): Promise<MergedCarpark[]> {
   return merged;
 }
 
-// The merge folds a `URA-X`/`LTA-X` twin into the bare `X`, but upsert never deletes, so the
-// pre-existing prefixed row lingers as a second pin. Retire it once its bare, co-located twin is live.
 async function deactivateCollapsedTwins(): Promise<void> {
   const result = await prisma.$executeRawUnsafe(`
-    UPDATE carparks t SET active = false
-    WHERE t.active
-      AND (t.id LIKE 'URA-%' OR t.id LIKE 'LTA-%')
+    UPDATE carparks b SET active = false
+    WHERE b.active
       AND EXISTS (
-        SELECT 1 FROM carparks b
-        WHERE b.id = substring(t.id from 5) AND b.active
-          AND abs(b.lat - t.lat) <= 0.001 AND abs(b.lng - t.lng) <= 0.001
+        SELECT 1 FROM carparks t
+        WHERE (t.id = 'URA-' || b.id OR t.id = 'LTA-' || b.id) AND t.active
+          AND abs(t.lat - b.lat) <= 0.001 AND abs(t.lng - b.lng) <= 0.001
       )`);
-  if (result) log.info(`retired ${result} duplicate URA/LTA prefix-twin pins`);
+  if (result) log.info(`retired ${result} stale bare-id twin pins`);
 }
 
 async function dbHasData(): Promise<boolean> {
