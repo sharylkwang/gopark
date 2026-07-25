@@ -1,7 +1,7 @@
 import { describe, it, expect } from '@jest/globals';
 
 const REQUIRED_KEYS = ['GEOAPIFY_KEY', 'DATAGOVSG_KEY', 'DATAMALL_API'] as const;
-const OPTIONAL_KEYS = ['ZHIPUAI_API_KEY'] as const;
+const OPTIONAL_KEYS = ['ZHIPUAI_API_KEY', 'URA_ACCESS_KEY', 'GOOGLE_MAPS_KEY', 'TURNSTILE_SECRET_KEY', 'ONEMAP_EMAIL'] as const;
 
 describe('API Key Verification', () => {
   describe('required keys are set', () => {
@@ -78,5 +78,52 @@ describe('API Key Verification', () => {
       });
       expect(res.status).not.toBe(401);
     }, 15000);
+
+    it('URA_ACCESS_KEY can fetch a daily token if set', async () => {
+      const key = process.env.URA_ACCESS_KEY;
+      if (!key) return;
+      const res = await fetch('https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1', {
+        headers: { AccessKey: key, 'User-Agent': 'GoPark/1.0' },
+      });
+      expect(res.ok).toBe(true);
+      const body = await res.json();
+      expect(body.Status).toBe('Success');
+      expect(typeof body.Result).toBe('string');
+    }, 15000);
+
+    it('ONEMAP credentials can fetch an access token if set', async () => {
+      const email = process.env.ONEMAP_EMAIL;
+      const password = process.env.ONEMAP_EMAIL_PASSWORD;
+      if (!email || !password) return;
+      const res = await fetch('https://www.onemap.gov.sg/api/auth/post/getToken', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      expect(res.ok).toBe(true);
+      const body = await res.json();
+      expect(typeof body.access_token).toBe('string');
+      expect(body.access_token.length).toBeGreaterThan(0);
+    }, 15000);
+
+    it('TURNSTILE_SECRET_KEY is accepted by the siteverify endpoint if set', async () => {
+      const secret = process.env.TURNSTILE_SECRET_KEY;
+      if (!secret) return;
+      const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({ secret, response: 'integration-test-dummy-token' }),
+      });
+      expect(res.ok).toBe(true);
+      const body = await res.json();
+      expect(body.success).toBe(false);
+      expect(body['error-codes']).not.toContain('invalid-input-secret');
+    }, 15000);
+
+    it('GOOGLE_MAPS_KEY is non-empty if set', () => {
+      const key = process.env.GOOGLE_MAPS_KEY;
+      if (key === undefined) return;
+      expect(key.trim().length).toBeGreaterThan(0);
+    });
   });
 });
