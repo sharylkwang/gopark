@@ -57,7 +57,7 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
         easeLinearity: 0.25,
       });
     }
-  }, [selectedId, map, hasSearched, destinationPoint?.lat, destinationPoint?.lng, zoom, routeKey]);
+  }, [selectedId, map, hasSearched, destinationPoint?.lat, destinationPoint?.lng, compact, routeKey]);
 
   return null;
 }
