@@ -92,6 +92,7 @@ export function mergeAll(
   scraped: ScrapedResult[],
   justpark?: JustParkResult,
   uraCap?: Record<string, { cars: number; motorcycles: number; heavyVehicles: number; lat: number; lng: number; name: string }>,
+  uraLive?: CarparkRecord[],
 ): MergedCarpark[] {
   const map: Record<string, MergedCarpark> = {};
   const ts = new Date().toISOString();
@@ -164,6 +165,16 @@ export function mergeAll(
     mergeAvailability(target, lots);
     const a = datamall.agencies[id];
     if (a) { target.agency = target.agency || a.agency; if (a.area) target.metadata.area = a.area; }
+  }
+
+  if (uraLive) {
+    for (const r of uraLive) {
+      const existing = findExisting(map, r.id, r.name, r.lat, r.lng);
+      const cp = existing || touch(r.id, r.name, r.lat, r.lng);
+      addSource(cp, 'ura', r.id.replace('URA-', ''));
+      cp.agency = cp.agency || 'URA';
+      mergeAvailability(cp, r.availability);
+    }
   }
 
   for (const r of parkLocs) {

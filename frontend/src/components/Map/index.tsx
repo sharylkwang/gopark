@@ -5,7 +5,6 @@ import { CameraFlyer } from './CameraFlyer';
 import { EventHandler } from './EventHandler';
 import { MarkerCluster } from './MarkerCluster';
 import { SingaporeBoundary } from './layers/SingaporeBoundary';
-import { UraLiveLotsLayer } from './layers/UraLiveLotsLayer';
 import { OSMBuildingLayer } from './layers/OSMBuildingLayer';
 import type { BuildingStatus } from './layers/OSMBuildingLayer';
 import { TileLayerSwitcher } from './TileLayerSwitcher';
@@ -13,7 +12,6 @@ import { Google3DMap } from './layers/Google3DMap';
 import type { Map3DMode } from './layers/Google3DMap';
 import { getTileProvider, DEFAULT_TILE } from '../../providers/tiles';
 import { reverseGeocode } from '../../providers/geoapify';
-import { fetchUraStatus } from '../../providers/ura';
 import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../types';
 import type { TrafficIncident } from '../../providers/traffic';
 import type { LayoutMode } from '../../hooks/useLayoutMode';
@@ -571,10 +569,6 @@ export const MapView = memo(function MapView({
   const [buildings3D, setBuildings3D] = useState(false);
   const [buildingStatus, setBuildingStatus] = useState<BuildingStatus>({ state: 'ready', count: 0 });
   const [buildingRetry, setBuildingRetry] = useState(0);
-  const [uraConfigured, setUraConfigured] = useState(false);
-  const [showUraLots, setShowUraLots] = useState(false);
-
-  useEffect(() => { fetchUraStatus().then(setUraConfigured); }, []);
 
   const toggleBuildings = useCallback((on: boolean) => {
     setBuildings3D(on);
@@ -666,7 +660,6 @@ export const MapView = memo(function MapView({
           sidebarOpen={sidebarOpen} />
 
         <SingaporeBoundary />
-        {uraConfigured && showUraLots && <UraLiveLotsLayer />}
         {buildings3D && (
           <OSMBuildingLayer darkMode={!!darkMode} retryToken={buildingRetry} onStatus={setBuildingStatus} />
         )}
@@ -743,9 +736,7 @@ export const MapView = memo(function MapView({
           buildings3D={buildings3D} onBuildings3DChange={toggleBuildings}
           buildingStatus={buildingStatus} onRetryBuildings={() => setBuildingRetry(t => t + 1)}
           mapZoomLive={mapZoom}
-          mapCenter={mapCenter} mapZoom={mapZoom} layout={layout} darkMode={!!darkMode}
-          uraOverlayAvailable={uraConfigured} uraOverlayEnabled={showUraLots}
-          onUraOverlayToggle={() => setShowUraLots((prev) => !prev)} />
+          mapCenter={mapCenter} mapZoom={mapZoom} layout={layout} darkMode={!!darkMode} />
       )}
     </div>
   );

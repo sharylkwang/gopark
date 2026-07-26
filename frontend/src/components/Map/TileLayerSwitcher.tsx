@@ -35,9 +35,6 @@ interface Props {
   layout?: LayoutMode;
   darkMode?: boolean;
   sidebarOpen?: boolean;
-  uraOverlayAvailable?: boolean;
-  uraOverlayEnabled?: boolean;
-  onUraOverlayToggle?: () => void;
 }
 
 const SWITCHER_POSITION: Record<LayoutMode, string> = {
@@ -89,7 +86,7 @@ const MAP_3D_MODES: { id: Map3DMode; label: string; preview: string }[] = [
   { id: 'HYBRID', label: 'Satellite', preview: '#1a3a2a' },
 ];
 
-export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, buildings3D, onBuildings3DChange, buildingStatus, onRetryBuildings, mapZoomLive, mapCenter, mapZoom, layout = 'desktop', darkMode = false, sidebarOpen = true, uraOverlayAvailable, uraOverlayEnabled, onUraOverlayToggle }: Props) {
+export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, buildings3D, onBuildings3DChange, buildingStatus, onRetryBuildings, mapZoomLive, mapCenter, mapZoom, layout = 'desktop', darkMode = false, sidebarOpen = true }: Props) {
   const belowMinZoom = (mapZoomLive ?? 20) < 16;
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -157,27 +154,6 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
               ))}
             </div>
           </div>
-
-          {uraOverlayAvailable && (
-            <div className={`border-t pt-2 mb-2 ${divider}`}>
-              <span className={`text-[9px] font-black uppercase tracking-widest mb-1.5 block ${subtle}`}>Overlays</span>
-              <div className="grid grid-cols-4 gap-1.5">
-                <button onClick={onUraOverlayToggle}
-                  className={`flex flex-col items-center gap-1 transition-all ${
-                    uraOverlayEnabled ? 'scale-105' : 'opacity-70 hover:opacity-100'
-                  }`}>
-                  <div className={`relative w-12 h-12 rounded-xl border-2 shadow-sm transition-all overflow-hidden flex items-center justify-center ${
-                    uraOverlayEnabled ? 'border-yellow-400 ring-2 ring-yellow-400/30' : darkMode ? 'border-white/15 hover:border-white/40' : 'border-gray-200 hover:border-gray-400'
-                  }`} style={{ background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)' }}>
-                    <span className="w-6 h-6 rounded-full bg-green-600 border-2 border-white shadow flex items-center justify-center text-white text-[11px] font-black">P</span>
-                  </div>
-                  <span className={`text-[9px] leading-tight text-center max-w-14 ${
-                    uraOverlayEnabled ? 'font-black text-yellow-500' : `font-semibold ${subtle}`
-                  }`}>URA Live</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           <div className={`border-t pt-2 mb-2 ${divider}`}>
             <div className={`rounded-xl border p-2.5 transition-colors ${

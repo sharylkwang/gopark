@@ -56,7 +56,7 @@ export function PopularTimes({ carparkId, darkMode }: { carparkId: string; darkM
     ? hours.find(h => h.hour === nowHour)?.pct ?? null
     : null;
 
-  const estimated = trend.todaySource === 'default' || trend.sampleCount === 0;
+  const estimated = trend.todaySource !== 'observed' && trend.todaySource !== 'holiday-last-year';
 
   return (
     <div className="space-y-2">

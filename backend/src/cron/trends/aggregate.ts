@@ -11,7 +11,7 @@ export type WeekdayProfile = Record<number, HourlyProfile>;
 export interface Trend {
   weekday: WeekdayProfile;
   today: HourlyProfile;
-  todaySource: 'observed' | 'holiday-last-year' | 'default';
+  todaySource: 'observed' | 'holiday-last-year' | 'own-average' | 'default';
   isHoliday: boolean;
   sampleCount: number;
 }
@@ -32,6 +32,12 @@ const DEFAULT_CURVE: HourlyProfile = [
 
 export function defaultTrend(): HourlyProfile {
   return [...DEFAULT_CURVE];
+}
+
+function ownAverage(snapshots: Snapshot[]): HourlyProfile | null {
+  if (!snapshots.length) return null;
+  const { profile, counts } = averageByHour(snapshots);
+  return fillGaps(profile, counts);
 }
 
 function averageByHour(snapshots: Snapshot[]): { profile: HourlyProfile; counts: number[] } {
@@ -74,15 +80,16 @@ export function resolveTrend(snapshots: Snapshot[], today: Date): Trend {
       const { profile, counts } = averageByHour(lastYear);
       return { weekday, today: fillGaps(profile, counts), todaySource: 'holiday-last-year', isHoliday: true, sampleCount };
     }
-    return { weekday, today: defaultTrend(), todaySource: 'default', isHoliday: true, sampleCount };
+    return { weekday, today: ownAverage(snapshots) ?? defaultTrend(), todaySource: snapshots.length ? 'own-average' : 'default', isHoliday: true, sampleCount };
   }
 
   const observed = weekday[today.getDay()];
   const hasRealData = snapshots.some(s => s.recordedAt.getDay() === today.getDay());
+  const fallback = ownAverage(snapshots);
   return {
     weekday,
-    today: hasRealData ? observed : defaultTrend(),
-    todaySource: hasRealData ? 'observed' : 'default',
+    today: hasRealData ? observed : fallback ?? defaultTrend(),
+    todaySource: hasRealData ? 'observed' : fallback ? 'own-average' : 'default',
     isHoliday: false,
     sampleCount,
   };

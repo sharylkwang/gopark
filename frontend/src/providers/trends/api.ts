@@ -2,7 +2,7 @@ export interface CarparkTrend {
   carparkId: string;
   weekday: Record<string, number[]> | null;
   today: number[];
-  todaySource: 'observed' | 'holiday-last-year' | 'default';
+  todaySource: 'observed' | 'holiday-last-year' | 'own-average' | 'default';
   isHoliday: boolean;
   holidayName: string | null;
   sampleCount: number;

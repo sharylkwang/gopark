@@ -11,6 +11,7 @@ import { fetchLocations, fetchDump, fetchRates } from './providers/parkaholic.js
 import { fetchSgcarmart } from './providers/sgcarmart.js';
 import { fetchJustpark, fetchJustparkAvailability } from './providers/justpark.js';
 import { fetchUraCapacity } from './providers/uraCapacity.js';
+import { fetchUraLive } from './providers/uraLive.js';
 import { runScraper, smartSearch } from './scraper/index.js';
 import { recordSnapshots, runDailyTrends } from './trends/index.js';
 import { applyScraped } from './scraper/apply.js';
@@ -89,11 +90,12 @@ async function refreshAvailability() {
   if (refreshing) return;
   refreshing = true;
   try {
-    const [govR, dmR, pkR, jpR] = await Promise.allSettled([fetchAvailability(), fetchDatamall(), fetchDump(), fetchJustparkAvailability()]);
+    const [govR, dmR, pkR, jpR, uraR] = await Promise.allSettled([fetchAvailability(), fetchDatamall(), fetchDump(), fetchJustparkAvailability(), fetchUraLive()]);
     const gov = govR.status === 'fulfilled' ? govR.value : {};
     const dm = dmR.status === 'fulfilled' ? dmR.value : { availability: {} };
     const pk = pkR.status === 'fulfilled' ? pkR.value : {};
     const jp = jpR.status === 'fulfilled' ? jpR.value : {};
+    const ura = uraR.status === 'fulfilled' ? uraR.value : { records: [], availability: {} };
     const now = new Date();
     const touched = new Set<string>();
 
@@ -126,9 +128,12 @@ async function refreshAvailability() {
     for (const [jpId, lots] of Object.entries(jp)) {
       for (const [lt, e] of Object.entries(lots)) await updateAvail('justpark', jpId, lt, e.available, e.total);
     }
+    for (const [id, lots] of Object.entries(ura.availability)) {
+      for (const [lt, e] of Object.entries(lots)) await updateAvail('ura', id, lt, e.available, e.total);
+    }
 
     if (touched.size) await prisma.carpark.updateMany({ where: { id: { in: [...touched] } }, data: { availabilityUpdatedAt: now } });
-    const fails = [govR, dmR, pkR, jpR].filter(r => r.status === 'rejected').length;
+    const fails = [govR, dmR, pkR, jpR, uraR].filter(r => r.status === 'rejected').length;
     log.info(`availability: ${touched.size} carparks${fails ? ` (${fails} failed)` : ''}`);
   } catch (e) { log.error('availability refresh failed', e); }
   finally { refreshing = false; }
@@ -138,7 +143,7 @@ async function fullMerge(): Promise<MergedCarpark[]> {
   log.info('full merge starting');
   const t0 = Date.now();
 
-  const results = await Promise.allSettled([fetchMapping(), fetchAvailability(), fetchDatamall(), fetchLocations(), fetchDump(), fetchSgcarmart(), fetchJustpark(), fetchUraCapacity()]);
+  const results = await Promise.allSettled([fetchMapping(), fetchAvailability(), fetchDatamall(), fetchLocations(), fetchDump(), fetchSgcarmart(), fetchJustpark(), fetchUraCapacity(), fetchUraLive()]);
   const val = <T>(r: PromiseSettledResult<T>, fallback: T) => r.status === 'fulfilled' ? r.value : fallback;
 
   const gov = val(results[0], [] as Awaited<ReturnType<typeof fetchMapping>>);
@@ -149,13 +154,14 @@ async function fullMerge(): Promise<MergedCarpark[]> {
   const sgc = val(results[5], [] as Awaited<ReturnType<typeof fetchSgcarmart>>);
   const jp = val(results[6], { records: [], availability: {} } as Awaited<ReturnType<typeof fetchJustpark>>);
   const uraCap = val(results[7], {} as Awaited<ReturnType<typeof fetchUraCapacity>>);
+  const uraLive = val(results[8], { records: [], availability: {} } as Awaited<ReturnType<typeof fetchUraLive>>);
 
   const fails = results.filter(r => r.status === 'rejected');
   if (fails.length) for (const f of fails) if (f.status === 'rejected') log.warn(`source failed: ${f.reason}`);
 
   const ids = new Set([...gov.map(r => r.id), ...parkLocs.map(r => r.id)]);
   const parkRates = ids.size ? await fetchRates([...ids]) : {};
-  const merged = mergeAll(gov, govAvail, dm, parkLocs, parkDump, parkRates, sgc, [], jp, uraCap);
+  const merged = mergeAll(gov, govAvail, dm, parkLocs, parkDump, parkRates, sgc, [], jp, uraCap, uraLive.records);
 
   if (await dbHasData()) {
     await upsert(merged);

@@ -66,9 +66,15 @@ describe('resolveTrend', () => {
     expect(t.today[12]).toBe(15);
   });
 
-  it('falls back to default on a holiday with no matching last-year data', () => {
+  it('falls back to the carpark own average on a holiday with no matching last-year data', () => {
     const t = resolveTrend([snap('2026-07-06T09:00:00', 60)], new Date('2026-08-09T12:00:00'));
     expect(t.isHoliday).toBe(true);
+    expect(t.todaySource).toBe('own-average');
+    expect(t.today[9]).toBe(60);
+  });
+
+  it('falls back to default when a carpark has no snapshots at all', () => {
+    const t = resolveTrend([], new Date('2026-08-09T12:00:00'));
     expect(t.todaySource).toBe('default');
     expect(t.today).toEqual(defaultTrend());
   });
