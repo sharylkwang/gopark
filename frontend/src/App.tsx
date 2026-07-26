@@ -41,21 +41,17 @@ const SHEET_TOP_INSET = 172;
 const PARKING_HINT_H = 44;
 const EMPTY_CARPARKS: CarparkSummary[] = [];
 
-const strippedName = (name: string | null | undefined) =>
-  (name || '')
-    .toLowerCase()
-    .replace(/\b(car\s?parks?|parking|off\s?street|multi[- ]?storey|basement)\b/g, '')
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+const strippedName = (name: string | null | undefined) => (name || '').toLowerCase()
+  .replace(/\b(car\s?parks?|parking|off\s?street|multi[- ]?storey|basement)\b/g, '')
+  .replace(/[^a-z0-9]+/g, ' ')
+  .trim();
 
 const isAlreadyPlotted = (p: NearbyParking, plotted: CarparkSummary[]) =>
   plotted.some(cp => {
-    const dLat = Math.abs(cp.lat - p.lat);
-    const dLng = Math.abs(cp.lng - p.lng);
+    const dLat = Math.abs(cp.lat - p.lat), dLng = Math.abs(cp.lng - p.lng);
     if (dLat < 0.0008 && dLng < 0.0008) return true;
     if (dLat > 0.003 || dLng > 0.003) return false;
-    const a = strippedName(cp.name);
-    const b = strippedName(p.name);
+    const a = strippedName(cp.name), b = strippedName(p.name);
     return a.length > 3 && b.length > 3 && (a.includes(b) || b.includes(a));
   });
 
@@ -82,11 +78,8 @@ export default function GoParkApp() {
   const sheet = useBottomSheet(SHEET_TOP_INSET + (showParkingHint ? PARKING_HINT_H : 0));
 
   useEffect(() => {
-    if (destinationPoint) {
-      updateForCoords(destinationPoint.lat, destinationPoint.lng);
-    } else if (loc.userLocation) {
-      updateForCoords(loc.userLocation[0], loc.userLocation[1]);
-    }
+    if (destinationPoint) updateForCoords(destinationPoint.lat, destinationPoint.lng);
+    else if (loc.userLocation) updateForCoords(loc.userLocation[0], loc.userLocation[1]);
   }, [loc.userLocation, destinationPoint?.lat, destinationPoint?.lng]);
   const [now, setNow] = useState(() => new Date());
   usePricingTick(setNow);
@@ -133,12 +126,9 @@ export default function GoParkApp() {
     }
   }, [now, travelMins]);
 
-  const recommendedId = useMemo(
-    () => (searchResults[0] && hasFreeLots(searchResults[0].availability, vehicleType)
-      ? searchResults[0].id
-      : null),
-    [searchResults, vehicleType],
-  );
+  const recommendedId = useMemo(() =>
+    searchResults[0] && hasFreeLots(searchResults[0].availability, vehicleType) ? searchResults[0].id : null,
+    [searchResults, vehicleType]);
 
   const mapCarparks = useMemo(() => (hasSearched ? searchResults : EMPTY_CARPARKS), [hasSearched, searchResults]);
   const mapBackgroundCarparks = useMemo(() => (hasSearched ? nearbyRaw : EMPTY_CARPARKS), [hasSearched, nearbyRaw]);
@@ -183,10 +173,7 @@ export default function GoParkApp() {
   useEffect(() => { fetchAll().then(setAllCarparks).catch(() => {}); }, []);
 
   useEffect(() => {
-    if (sheet.snap === 'closed' && detail) {
-      setDetail(null);
-      setSelectedId(null);
-    }
+    if (sheet.snap === 'closed' && detail) { setDetail(null); setSelectedId(null); }
   }, [sheet.snap, detail]);
 
   useEffect(() => {
@@ -330,6 +317,7 @@ export default function GoParkApp() {
         const resolved = await resolveStart();
         if (resolved) startOrigin = resolved;
       }
+
       let lat = 0, lng = 0, placeName = query, formatted = query;
 
       const picked = destinationRef.current;
@@ -612,7 +600,6 @@ export default function GoParkApp() {
     const m = mapApiRef.current;
     if (m) m.flyTo([lat, lng], Math.max(m.getZoom(), 15), { duration: 0.8 });
   };
-
   const hasRoute = !!(routes.drivePolyline?.length || routes.walkPolyline?.length);
   const mapControlProps = {
     darkMode,
@@ -809,7 +796,7 @@ export default function GoParkApp() {
                 ) : (
                   <ResultsList darkMode={darkMode} hasSearched={hasSearched} searchResults={searchResults}
                     selectedId={selectedId} favorites={favorites} vehicleType={vehicleType}
-                    durationHours={durationHours} recommendedId={recommendedId} canFavorite={auth.appState === 'user'}
+                    recommendedId={recommendedId} canFavorite={auth.appState === 'user'}
                     onSelectCarpark={selectAndClose} onToggleFav={toggleFav} />
                 )}
               </div>
@@ -952,7 +939,7 @@ export default function GoParkApp() {
               <button onClick={toggleNearbyParking}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-lg border cursor-pointer transition max-md:max-w-[min(calc(100vw-140px),22rem)] ${nearbyParking.length ? 'bg-green-600/80 border-green-400/30' : 'bg-blue-600/80 border-blue-400/30'} text-white`}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                <span className="text-[11px] font-bold whitespace-nowrap max-md:whitespace-normal max-md:text-left">{destinationPoint.classification.type} — {nearbyParking.length ? `${nearbyParking.length} parking locations nearby` : destinationPoint.classification.parkingHint}</span>
+                <span className="text-[11px] font-bold whitespace-nowrap max-md:whitespace-normal max-md:text-left">{destinationPoint.classification.type} - {nearbyParking.length ? `${nearbyParking.length} parking locations nearby` : destinationPoint.classification.parkingHint}</span>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className="ml-0.5 opacity-60"><path d={nearbyParking.length ? 'M18 6L6 18M6 6l12 12' : 'M9 18l6-6-6-6'}/></svg>
               </button>
             )}

@@ -4,24 +4,10 @@ import { fetchBuildingTile, getTilesForBounds } from '../../../providers/osm';
 import type { BuildingFeature } from '../../../providers/osm';
 
 declare global {
-  interface Window {
-    OSMBuildings: any;
-  }
+  interface Window { OSMBuildings: any }
 }
 
-const CDN_URL = 'https://cdn.jsdelivr.net/npm/osmbuildings@0.2.0-b/dist/OSMBuildings-Leaflet.js';
-const MIN_ZOOM = 16;
-const ZOOM_EPSILON = 0.5;
-const FAIL_COOLDOWN_MS = 60000;
-const VIEWPORT_PAD = 0.2;
-const KEEP_TILES = 12;
-
-const PALETTE = {
-  light: { wall: '#ececec', roof: '#dedede' },
-  dark: { wall: '#3a424c', roof: '#2b323a' },
-};
-const HIGHLIGHT_COLOR = '#facc15';
-const HIGHLIGHT_ROOF = '#eab308';
+const minZoom = 16, zoomEps = 0.5;
 
 type Bounds = { north: number; south: number; east: number; west: number };
 type Cell = { feature: BuildingFeature; minLng: number; minLat: number; maxLng: number; maxLat: number };
@@ -48,11 +34,8 @@ function pointInPolygon(point: [number, number], ring: [number, number][]): bool
   const [px, py] = point;
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
-    const [xi, yi] = ring[i];
-    const [xj, yj] = ring[j];
-    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
-      inside = !inside;
-    }
+    const [xi, yi] = ring[i], [xj, yj] = ring[j];
+    if (yi > py !== yj > py && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) inside = !inside;
   }
   return inside;
 }
@@ -72,7 +55,7 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
   const [ready, setReady] = useState(!!window.OSMBuildings);
   const tilesRef = useRef<Map<string, Tile>>(new Map());
   const selectedIdRef = useRef<number | null>(null);
-  const palette = darkMode ? PALETTE.dark : PALETTE.light;
+  const palette = darkMode ? { wall: '#3a424c', roof: '#2b323a' } : { wall: '#ececec', roof: '#dedede' };
   const paletteRef = useRef(palette);
   paletteRef.current = palette;
   const statusRef = useRef<(s: BuildingStatus) => void>(() => {});
@@ -81,14 +64,11 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
   const circuitOpenRef = useRef(false);
 
   useEffect(() => {
-    if (window.OSMBuildings) {
-      setReady(true);
-      return;
-    }
+    if (window.OSMBuildings) { setReady(true); return; }
     statusRef.current({ state: 'loading', count: 0 });
 
     const script = document.createElement('script');
-    script.src = CDN_URL;
+    script.src = 'https://cdn.jsdelivr.net/npm/osmbuildings@0.2.0-b/dist/OSMBuildings-Leaflet.js';
     script.onload = () => setReady(true);
     script.onerror = () => statusRef.current({ state: 'error', count: 0 });
     document.head.appendChild(script);
@@ -107,29 +87,21 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
     if (!Number.isInteger(map.getZoom())) map.setZoom(Math.round(map.getZoom()), { animate: false });
 
     const osm = new window.OSMBuildings(map);
-    osm.style({
-      color: paletteRef.current.wall,
-      roofColor: paletteRef.current.roof,
-      shadows: true,
-      height: 'height',
-    });
+    osm.style({ color: paletteRef.current.wall, roofColor: paletteRef.current.roof, shadows: true, height: 'height' });
     buildingsRef.current = osm;
 
     return () => {
       map.options.zoomAnimation = prevAnimation;
       anyMap._zoomAnimated = prevAnimated;
       map.options.zoomSnap = prevSnap;
-      if (buildingsRef.current) {
-        map.removeLayer(buildingsRef.current);
-        buildingsRef.current = null;
-      }
+      if (buildingsRef.current) { map.removeLayer(buildingsRef.current); buildingsRef.current = null; }
     };
   }, [ready, map]);
 
   const renderViewport = useCallback(() => {
     if (!buildingsRef.current) return;
 
-    const raw = map.getBounds().pad(VIEWPORT_PAD);
+    const raw = map.getBounds().pad(0.2);
     const view: Bounds = { north: raw.getNorth(), south: raw.getSouth(), east: raw.getEast(), west: raw.getWest() };
     const selectedId = selectedIdRef.current;
     const { wall, roof } = paletteRef.current;
@@ -145,11 +117,7 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
         const isSelected = selectedId !== null && id === selectedId;
         features.push({
           ...cell.feature,
-          properties: {
-            ...cell.feature.properties,
-            color: isSelected ? HIGHLIGHT_COLOR : wall,
-            roofColor: isSelected ? HIGHLIGHT_ROOF : roof,
-          },
+          properties: { ...cell.feature.properties, color: isSelected ? '#facc15' : wall, roofColor: isSelected ? '#eab308' : roof },
         });
       }
     }
@@ -165,15 +133,10 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
   }, [palette.wall, palette.roof, renderViewport]);
 
   const loadViewport = useCallback(async () => {
-    if (!buildingsRef.current || circuitOpenRef.current || map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) return;
+    if (!buildingsRef.current || circuitOpenRef.current || map.getZoom() < minZoom - zoomEps) return;
 
     const bounds = map.getBounds();
-    const { z, tiles } = getTilesForBounds({
-      north: bounds.getNorth(),
-      south: bounds.getSouth(),
-      east: bounds.getEast(),
-      west: bounds.getWest(),
-    });
+    const { z, tiles } = getTilesForBounds({ north: bounds.getNorth(), south: bounds.getSouth(), east: bounds.getEast(), west: bounds.getWest() });
 
     const now = Date.now();
     const visibleKeys = new Set(tiles.map(({ x, y }) => `${z}/${x}/${y}`));
@@ -187,20 +150,15 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
       const key = `${z}/${x}/${y}`;
       if (tilesRef.current.has(key)) return false;
       const failedAt = failedTilesRef.current.get(key);
-      return !(failedAt && now - failedAt < FAIL_COOLDOWN_MS);
+      return !(failedAt && now - failedAt < 60000);
     });
 
     renderViewport();
 
-    if (!pending.length) {
-      statusRef.current({ state: 'ready', count: tilesRef.current.size });
-      return;
-    }
-
+    if (!pending.length) { statusRef.current({ state: 'ready', count: tilesRef.current.size }); return; }
     statusRef.current({ state: 'loading', count: tilesRef.current.size });
 
-    let hasNew = false;
-    let failed = 0;
+    let hasNew = false, failed = 0;
 
     for (const { x, y } of pending) {
       const key = `${z}/${x}/${y}`;
@@ -219,15 +177,12 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
       }
     }
 
-    if (tilesRef.current.size > KEEP_TILES) {
+    if (tilesRef.current.size > 12) {
       const evictable = [...tilesRef.current.entries()]
         .filter(([key]) => !visibleKeys.has(key))
         .sort((a, b) => a[1].touched - b[1].touched);
-      let excess = tilesRef.current.size - KEEP_TILES;
-      for (const [key] of evictable) {
-        if (excess-- <= 0) break;
-        tilesRef.current.delete(key);
-      }
+      let excess = tilesRef.current.size - 12;
+      for (const [key] of evictable) { if (excess-- <= 0) break; tilesRef.current.delete(key); }
     }
 
     const shown = renderViewport() ?? 0;
@@ -242,8 +197,8 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
 
   useEffect(() => {
     if (!ready || !buildingsRef.current) return;
-    if (map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) {
-      map.flyTo(map.getCenter(), MIN_ZOOM, { duration: 0.8 });
+    if (map.getZoom() < minZoom - zoomEps) {
+      map.flyTo(map.getCenter(), minZoom, { duration: 0.8 });
       return;
     }
     loadViewport();
@@ -259,13 +214,13 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
   useMapEvents({
     zoomend: () => {
       if (!buildingsRef.current) return;
-      if (map.getZoom() >= MIN_ZOOM - ZOOM_EPSILON) loadViewport();
+      if (map.getZoom() >= minZoom - zoomEps) loadViewport();
     },
     moveend: () => {
-      if (map.getZoom() >= MIN_ZOOM - ZOOM_EPSILON) loadViewport();
+      if (map.getZoom() >= minZoom - zoomEps) loadViewport();
     },
     click: (e) => {
-      if (map.getZoom() < MIN_ZOOM - ZOOM_EPSILON) return;
+      if (map.getZoom() < minZoom - zoomEps) return;
 
       const clicked: [number, number] = [e.latlng.lng, e.latlng.lat];
       let hit: number | null = null;
@@ -274,10 +229,7 @@ export function OSMBuildingLayer({ darkMode = false, retryToken = 0, onStatus }:
         for (const cell of tile.cells) {
           if (clicked[0] < cell.minLng || clicked[0] > cell.maxLng || clicked[1] < cell.minLat || clicked[1] > cell.maxLat) continue;
           const ring = cell.feature.geometry?.coordinates?.[0];
-          if (ring && pointInPolygon(clicked, ring as [number, number][])) {
-            hit = cell.feature.properties.id;
-            break outer;
-          }
+          if (ring && pointInPolygon(clicked, ring as [number, number][])) { hit = cell.feature.properties.id; break outer; }
         }
       }
 

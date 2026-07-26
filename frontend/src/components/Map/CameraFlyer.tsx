@@ -13,17 +13,14 @@ interface Props {
   sidebarOpen?: boolean;
 }
 
-const ZOOM = {
-  desktop: { user: 16, carpark: 16, destination: 15, threshold: 15 },
-  compact: { user: 17, carpark: 17, destination: 16, threshold: 16 },
-};
-
 export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint, userLocation, compact = false, routePolyline }: Props) {
   const map = useMap();
   const hasFlownToUser = useRef(false);
   const resultsRef = useRef(results);
   resultsRef.current = results;
-  const zoom = compact ? ZOOM.compact : ZOOM.desktop;
+  const zoom = compact
+    ? { user: 17, carpark: 17, destination: 16, threshold: 16 }
+    : { user: 16, carpark: 16, destination: 15, threshold: 15 };
 
   const routeKey = routePolyline && routePolyline.length > 1
     ? `${routePolyline.length}:${routePolyline[0].join()}:${routePolyline[routePolyline.length - 1].join()}`

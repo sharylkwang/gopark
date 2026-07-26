@@ -1,8 +1,9 @@
 import { ChevronLeft, Map, Navigation, Clock } from 'lucide-react';
 import { CircularProgress } from './CircularProgress';
-import { PopularTimes } from './PopularTimes';
 import { AvailabilityBar } from './AvailabilityBar';
-import { timeAgo, vehicleTotals, formatParkDuration, formatClockTime, formatTime12, parseClockTime } from '../utils/format';
+import { PopularTimes } from './PopularTimes';
+import { DurationChips } from './DurationChips';
+import { timeAgo, vehicleTotals, formatParkDuration, formatTime12, parseClockTime } from '../utils/format';
 import { estimateCost } from '../utils/estimateCost';
 import { LOT_LABELS, LOT_ICONS, DAY_LABELS } from '../utils/constants';
 import type { CarparkDetail } from '../types';
@@ -63,30 +64,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
             </div>
             <span className={`text-sm font-black ${dm ? 'text-blue-400' : 'text-blue-700'}`}>{formatParkDuration(durationHours)}</span>
           </div>
-          <div className="flex gap-1.5">
-            {[0.5, 1, 2, 3, 4, 6].map(h => {
-              const target = new Date(arrivalTime.getTime() + h * 3600000);
-              const val = formatClockTime(target);
-              const active = parkUntil === val;
-              return (
-                <button key={h} type="button" onClick={() => setParkUntil(val)}
-                  className={`flex-1 py-1.5 rounded-lg border text-[10px] font-black transition ${
-                    active
-                      ? dm ? 'bg-blue-600/80 border-blue-500 text-white' : 'bg-gray-900 border-gray-900 text-white'
-                      : dm ? 'bg-neutral-700/60 border-neutral-600/50 text-gray-400 hover:border-gray-400' : 'bg-white/50 border-gray-200/50 text-gray-500 hover:border-gray-400'
-                  }`}>
-                  {h < 1 ? '30m' : `${h}h`}
-                </button>
-              );
-            })}
-            <div className={`flex-1 relative rounded-lg border text-[10px] font-black ${dm ? 'bg-neutral-700/60 border-neutral-600/50 text-gray-400' : 'bg-white/50 border-gray-200/50 text-gray-500'}`}>
-              <span className="flex items-center justify-center h-full pointer-events-none">
-                <Clock size={10} className="mr-0.5" />Set
-              </span>
-              <input type="time" value={parkUntil} onChange={e => setParkUntil(e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer" />
-            </div>
-          </div>
+          <DurationChips arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil} dm={dm} small />
           {cost != null && (
             <div className={`mt-2 flex items-center justify-between rounded-xl px-3 py-2 ${dm ? 'bg-green-900/30 border border-green-700/40' : 'bg-green-50 border border-green-200'}`}>
               <span className={`text-[11px] font-black uppercase tracking-widest ${dm ? 'text-green-400' : 'text-green-700'}`}>Estimated Cost</span>
@@ -95,7 +73,7 @@ export function DetailPanel({ detail, darkMode, onClose, arrivalTime, parkUntil,
           )}
         </div>
 
-        {dt.hasVehicleData && dt.available != null && dt.total > 0 ? (
+        {dt.hasVehicleData && dt.total > 0 && dt.available != null ? (
           <div className={`flex items-center gap-3 p-3 rounded-xl border ${dm ? 'bg-neutral-800/50 border-neutral-700/50' : 'bg-gray-50 border-gray-200'}`}>
             <CircularProgress percentage={dt.pct} size={64} stroke={8} darkMode={dm} />
             <div>

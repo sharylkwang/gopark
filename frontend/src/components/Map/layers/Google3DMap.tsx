@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
+import { SPEED_COLORS } from '../../../providers/google/routing';
 import type { SpeedInterval } from '../../../providers/google/routing';
 
-export type Map3DMode = 'ROADMAP' | 'SATELLITE' | 'HYBRID';
+export type Map3DMode = 'ROADMAP' | 'HYBRID';
 
 interface RouteOverlay {
   polyline: [number, number][];
@@ -28,12 +29,6 @@ interface Props {
   markers?: MarkerOverlay[];
   destination?: { lat: number; lng: number } | null;
 }
-
-const SPEED_COLORS: Record<string, string> = {
-  NORMAL: '#22c55e',
-  SLOW: '#f59e0b',
-  TRAFFIC_JAM: '#dc2626',
-};
 
 let apiLoading: Promise<void> | null = null;
 
@@ -61,7 +56,7 @@ async function loadMapsApi(): Promise<void> {
         }, 100);
         setTimeout(() => { clearInterval(poll); reject(new Error('Maps 3D timed out')); }, 15000);
       };
-      s.onerror = () => reject(new Error('Failed to load Google Maps'));
+      s.onerror = () => reject(new Error('google maps script did not load'));
       document.head.appendChild(s);
     });
   })();
@@ -203,7 +198,7 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
   }, [center.lat, center.lng, zoom]);
 
   const clearOverlays = useCallback(() => {
-    overlaysRef.current.forEach(el => { try { el.remove(); } catch {} });
+    try { overlaysRef.current.forEach(el => el.remove()); } catch {}
     overlaysRef.current = [];
   }, []);
 
@@ -216,10 +211,10 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
     clearOverlays();
     const ov = overlaysRef.current;
 
-    if (routes) {
-      for (const r of routes) {
-        if (r.polyline.length < 2) continue;
-        try {
+    try {
+      if (routes) {
+        for (const r of routes) {
+          if (r.polyline.length < 2) continue;
           if (r.speedIntervals?.length) {
             for (const seg of makeTrafficSegs(r.polyline, r.speedIntervals))
               appendPoly(map, m3d, seg.coords, seg.color, r.width ?? 8, ov);
@@ -230,19 +225,15 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
             const coords = r.polyline.map(([lat, lng]) => ({ lat, lng, altitude: 30 }));
             appendPoly(map, m3d, coords, r.color, r.width ?? 8, ov);
           }
-        } catch {}
+        }
       }
-    }
 
-    if (destination && m3d.Marker3DElement) {
-      try { appendMarker(map, m3d, destination.lat, destination.lng, DEST_PIN, ov); } catch {}
-    }
+      if (destination && m3d.Marker3DElement) appendMarker(map, m3d, destination.lat, destination.lng, DEST_PIN, ov);
 
-    if (markers?.length && m3d.Marker3DElement) {
-      for (const mk of markers) {
-        try { appendMarker(map, m3d, mk.lat, mk.lng, carparkPin(mk.color, !!mk.selected, mk.label), ov); } catch {}
+      if (markers?.length && m3d.Marker3DElement) {
+        for (const mk of markers) appendMarker(map, m3d, mk.lat, mk.lng, carparkPin(mk.color, !!mk.selected, mk.label), ov);
       }
-    }
+    } catch {}
   }, [ready, routes, markers, destination, clearOverlays]);
 
   if (error) {
@@ -260,7 +251,7 @@ export function Google3DMap({ mode, center, zoom, routes, markers, destination }
         <div className="absolute inset-0 z-10 flex items-center justify-center bg-neutral-900">
           <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-full bg-white/10 backdrop-blur-md">
             <span className="h-4 w-4 rounded-full border-2 border-white/25 border-t-yellow-400 animate-spin" />
-            <span className="text-white text-[13px] font-bold">Loading 3D map…</span>
+            <span className="text-white text-[13px] font-bold">Loading 3D map...</span>
           </div>
         </div>
       )}

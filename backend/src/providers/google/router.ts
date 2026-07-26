@@ -15,10 +15,7 @@ router.get('/google/maps-key', (_req: Request, res: Response) => {
 router.get('/google/tiles/:type/:z/:x/:y', async (req: Request, res: Response) => {
   const { type, z, x, y } = req.params;
 
-  if (!isValidTileType(type as string)) {
-    res.status(404).json({ error: 'Unknown tile type' });
-    return;
-  }
+  if (!isValidTileType(type as string)) { res.status(404).json({ error: 'no such tile type' }); return; }
 
   try {
     const { data, contentType } = await fetchTile(type as string, parseInt(z as string), parseInt(x as string), parseInt(y as string));
@@ -26,7 +23,7 @@ router.get('/google/tiles/:type/:z/:x/:y', async (req: Request, res: Response) =
     res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(data);
   } catch {
-    res.status(502).json({ error: 'Failed to fetch tile' });
+    res.status(502).json({ error: 'tile fetch failed' });
   }
 });
 
@@ -34,7 +31,7 @@ router.post('/google/route', async (req: Request, res: Response) => {
   const { origin, destination, travelMode } = req.body;
 
   if (!isLatLng(origin) || !isLatLng(destination)) {
-    res.status(400).json({ error: 'Missing origin or destination coordinates' });
+    res.status(400).json({ error: 'origin and destination required' });
     return;
   }
 

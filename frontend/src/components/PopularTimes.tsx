@@ -78,7 +78,7 @@ export function PopularTimes({ carparkId, darkMode }: { carparkId: string; darkM
         {hours.map(({ hour, pct }) => {
           const isNow = day === today && hour === nowHour;
           return (
-            <div key={hour} className={`flex-1 flex flex-col items-center justify-end h-full rounded-sm ${isNow ? tone('bg-yellow-400/15', 'bg-yellow-400/25') : ''}`} title={`${hour}:00 — ${pct}% full`}>
+            <div key={hour} className={`flex-1 flex flex-col items-center justify-end h-full rounded-sm ${isNow ? tone('bg-yellow-400/15', 'bg-yellow-400/25') : ''}`} title={`${hour}:00 - ${pct}% full`}>
               <div className="w-full rounded-t-sm transition-all"
                 style={{ height: `${Math.max(4, pct)}%`, background: barColor(pct, isNow, darkMode) }} />
             </div>
@@ -105,7 +105,7 @@ export function PopularTimes({ carparkId, darkMode }: { carparkId: string; darkM
 
       {estimated && (
         <p className={`text-[9px] font-medium italic ${tone('text-gray-600', 'text-gray-400')}`}>
-          Estimated pattern — live data still accruing
+          estimated pattern, live data still building up
         </p>
       )}
     </div>

@@ -4,35 +4,28 @@ import createLogger from '../../lib/logger.js';
 
 const log = createLogger('search');
 
-let searchDown = false;
-let searchDownSince = 0;
-const COOLDOWN = 6 * 60 * 60 * 1000;
+let downUntil = 0;
 
 export function isSearchAvailable(): boolean {
-  if (!searchDown) return true;
-  if (Date.now() - searchDownSince > COOLDOWN) {
-    searchDown = false;
-    log.info('search cooldown expired, retrying');
-    return true;
-  }
-  return false;
+  if (!downUntil) return true;
+  if (Date.now() < downUntil) return false;
+  downUntil = 0;
+  log.info('search cooldown over, trying again');
+  return true;
 }
 
-const BACKOFF_CODES = new Set(['ECONNREFUSED', 'ECONNABORTED', 'ETIMEDOUT', 'ENOTFOUND']);
-const BACKOFF_STATUSES = new Set([403, 429, 500, 502, 503]);
+const backoffCodes = ['ECONNREFUSED', 'ECONNABORTED', 'ETIMEDOUT', 'ENOTFOUND'], backoffStatuses = [403, 429, 500, 502, 503];
 
 export function shouldBackOff(e: unknown): boolean {
   const err = e as { code?: string; response?: { status?: number } };
-  if (err.code && BACKOFF_CODES.has(err.code)) return true;
-  return err.response?.status != null && BACKOFF_STATUSES.has(err.response.status);
+  if (err.code && backoffCodes.includes(err.code)) return true;
+  return err.response?.status != null && backoffStatuses.includes(err.response.status);
 }
 
-function describeSearchError(e: unknown): string {
+function describeError(e: unknown): string {
   const err = e as { code?: string; response?: { status?: number } };
   return err.code ?? (err.response?.status != null ? `HTTP ${err.response.status}` : 'unknown');
 }
-
-const REDIRECT_HOSTS = ['duckduckgo.com', 'google.com/url', 'bing.com'];
 
 export function extractResultUrls(html: string): string[] {
   const urls: string[] = [];
@@ -46,7 +39,7 @@ export function extractResultUrls(html: string): string[] {
 
   for (const m of html.matchAll(/href="(https?:\/\/[^"]+)"/g)) {
     const url = m[1];
-    if (!REDIRECT_HOSTS.some(h => url.includes(h))) urls.push(url);
+    if (!url.includes('duckduckgo.com') && !url.includes('google.com/url') && !url.includes('bing.com')) urls.push(url);
   }
 
   return [...new Set(urls)];
@@ -61,13 +54,12 @@ export async function searchWeb(query: string): Promise<string[]> {
       headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
       timeout: TIMEOUTS.scrapeSearch,
     });
-    searchDown = false;
+    downUntil = 0;
     return extractResultUrls(data as string).slice(0, SCRAPER.maxSearchResults);
   } catch (e) {
     if (shouldBackOff(e)) {
-      searchDown = true;
-      searchDownSince = Date.now();
-      log.warn(`search unavailable (${describeSearchError(e)}), backing off for 6 hours`);
+      downUntil = Date.now() + 6 * 60 * 60 * 1000;
+      log.warn(`search dead (${describeError(e)}), backing off 6h`);
     }
     throw e;
   }

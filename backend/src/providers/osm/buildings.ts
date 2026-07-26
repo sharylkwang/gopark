@@ -6,22 +6,12 @@ import createLogger from '../../lib/logger.js';
 
 const log = createLogger('osm-buildings');
 
-const OVERPASS_MIRRORS = [
+const MIRRORS = [
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass-api.de/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
   'https://overpass.osm.jp/api/interpreter',
 ];
-
-const OPENFREEMAP_TILEJSON = 'https://tiles.openfreemap.org/planet';
-const SOURCE_ZOOM = 14;
-
-const MIRROR_TIMEOUT_MS = 12000;
-const TILE_TIMEOUT_MS = 12000;
-const CACHE_TTL = 6 * 60 * 60 * 1000;
-const TEMPLATE_TTL = 60 * 60 * 1000;
-const MAX_CACHED_TILES = 400;
-const DEFAULT_HEIGHT = 10;
 
 interface BuildingFeature {
   type: 'Feature';
@@ -30,10 +20,10 @@ interface BuildingFeature {
 }
 
 const cache = new Map<string, { features: BuildingFeature[]; ts: number }>();
-const inFlight = new Map<string, Promise<BuildingFeature[]>>();
+const pending = new Map<string, Promise<BuildingFeature[]>>();
 
-let mirrorCursor = 0;
-let tileTemplate: { url: string; ts: number } | null = null;
+let mirrorIdx = 0;
+let tmpl: { url: string; ts: number } | null = null;
 
 function tileToBbox(z: number, x: number, y: number) {
   const n = 2 ** z;
@@ -43,23 +33,20 @@ function tileToBbox(z: number, x: number, y: number) {
   return { south, west, north, east };
 }
 
-async function openFreeMapTemplate(): Promise<string> {
-  if (tileTemplate && Date.now() - tileTemplate.ts < TEMPLATE_TTL) return tileTemplate.url;
-
-  const { data } = await axios.get(OPENFREEMAP_TILEJSON, { timeout: TILE_TIMEOUT_MS });
+async function getTemplate(): Promise<string> {
+  if (tmpl && Date.now() - tmpl.ts < 3600000) return tmpl.url;
+  const { data } = await axios.get('https://tiles.openfreemap.org/planet', { timeout: 12000 });
   const url = Array.isArray(data?.tiles) ? data.tiles[0] : null;
-  if (typeof url !== 'string') throw new Error('OpenFreeMap TileJSON has no tile template');
-
-  tileTemplate = { url, ts: Date.now() };
+  if (typeof url !== 'string') throw new Error('no tile template in openfreemap tilejson');
+  tmpl = { url, ts: Date.now() };
   return url;
 }
 
-function toFeaturesFromMvt(buf: ArrayBuffer, z: number, x: number, y: number): BuildingFeature[] {
+function fromMvt(buf: ArrayBuffer, z: number, x: number, y: number): BuildingFeature[] {
   const layer = new VectorTile(new PbfReader(new Uint8Array(buf))).layers.building;
   if (!layer) return [];
 
   const features: BuildingFeature[] = [];
-
   for (let i = 0; i < layer.length; i++) {
     const feat = layer.feature(i);
     if (feat.properties.hide_3d === true) continue;
@@ -68,8 +55,8 @@ function toFeaturesFromMvt(buf: ArrayBuffer, z: number, x: number, y: number): B
     const polygons = geojson.geometry.type === 'MultiPolygon' ? geojson.geometry.coordinates
       : geojson.geometry.type === 'Polygon' ? [geojson.geometry.coordinates] : [];
 
-    const rawHeight = Number(feat.properties.render_height), rawMin = Number(feat.properties.render_min_height);
-    const height = Number.isFinite(rawHeight) && rawHeight > 0 ? rawHeight : DEFAULT_HEIGHT;
+    const rawH = Number(feat.properties.render_height), rawMin = Number(feat.properties.render_min_height);
+    const height = Number.isFinite(rawH) && rawH > 0 ? rawH : 10;
     const minHeight = Number.isFinite(rawMin) && rawMin > 0 && rawMin < height ? rawMin : 0;
     const baseId = typeof feat.id === 'number' ? feat.id : i;
 
@@ -82,26 +69,22 @@ function toFeaturesFromMvt(buf: ArrayBuffer, z: number, x: number, y: number): B
       });
     });
   }
-
   return features;
 }
 
 async function queryOpenFreeMap(z: number, x: number, y: number): Promise<BuildingFeature[]> {
-  const template = await openFreeMapTemplate();
+  const template = await getTemplate();
   const url = template.replace('{z}', String(z)).replace('{x}', String(x)).replace('{y}', String(y));
-
   const { data } = await axios.get<ArrayBuffer>(url, {
     responseType: 'arraybuffer',
-    timeout: TILE_TIMEOUT_MS,
+    timeout: 12000,
     headers: { 'User-Agent': 'GoPark/1.0' },
   });
-
-  return toFeaturesFromMvt(data, z, x, y);
+  return fromMvt(data, z, x, y);
 }
 
-function toFeaturesFromOverpass(elements: any[]): BuildingFeature[] {
+function fromOverpass(elements: any[]): BuildingFeature[] {
   const features: BuildingFeature[] = [];
-
   for (const el of elements) {
     if (el.type !== 'way' || !el.geometry || !el.tags?.building) continue;
 
@@ -122,18 +105,16 @@ function toFeaturesFromOverpass(elements: any[]): BuildingFeature[] {
       geometry: { type: 'Polygon', coordinates: [coords] },
     });
   }
-
   return features;
 }
 
 async function queryOverpass(z: number, x: number, y: number): Promise<BuildingFeature[]> {
   const bbox = tileToBbox(z, x, y);
   const query = `[out:json][timeout:20];way["building"](${bbox.south},${bbox.west},${bbox.north},${bbox.east});out geom;`;
-  let lastError: unknown = null;
+  let lastErr: unknown = null;
 
-  for (let i = 0; i < OVERPASS_MIRRORS.length; i++) {
-    const mirror = OVERPASS_MIRRORS[(mirrorCursor + i) % OVERPASS_MIRRORS.length];
-
+  for (let i = 0; i < MIRRORS.length; i++) {
+    const mirror = MIRRORS[(mirrorIdx + i) % MIRRORS.length];
     try {
       const { data } = await axios.post(mirror, `data=${encodeURIComponent(query)}`, {
         headers: {
@@ -141,51 +122,49 @@ async function queryOverpass(z: number, x: number, y: number): Promise<BuildingF
           'Accept': 'application/json',
           'User-Agent': 'GoPark/1.0',
         },
-        timeout: MIRROR_TIMEOUT_MS,
+        timeout: 12000,
       });
-
       if (data && Array.isArray(data.elements)) {
-        mirrorCursor = (mirrorCursor + i) % OVERPASS_MIRRORS.length;
-        return toFeaturesFromOverpass(data.elements);
+        mirrorIdx = (mirrorIdx + i) % MIRRORS.length;
+        return fromOverpass(data.elements);
       }
-      lastError = new Error(`${mirror} returned a non-JSON body`);
-    } catch (e) { lastError = e; }
+      lastErr = new Error(`${mirror} gave non-json body`);
+    } catch (e) { lastErr = e; }
   }
 
-  throw lastError ?? new Error('All Overpass mirrors unreachable');
+  throw lastErr ?? new Error('overpass mirrors all failed');
 }
 
 async function loadTile(z: number, x: number, y: number): Promise<BuildingFeature[]> {
   const key = `${z}/${x}/${y}`;
-
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.features;
+  if (cached && Date.now() - cached.ts < 21600000) return cached.features;
 
-  const pending = inFlight.get(key);
-  if (pending) return pending;
+  const running = pending.get(key);
+  if (running) return running;
 
   const task = (async () => {
     try {
       let features: BuildingFeature[];
       try {
         features = await queryOpenFreeMap(z, x, y);
-      } catch (openFreeMapError) {
-        log.warn(`OpenFreeMap tile ${key} failed, trying Overpass: ${openFreeMapError instanceof Error ? openFreeMapError.message : openFreeMapError}`);
+      } catch (e) {
+        log.warn(`openfreemap tile ${key} failed, falling back to overpass: ${(e as Error).message}`);
         features = await queryOverpass(z, x, y);
       }
 
-      if (cache.size >= MAX_CACHED_TILES) {
+      if (cache.size >= 400) {
         const oldest = [...cache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
         if (oldest) cache.delete(oldest[0]);
       }
       cache.set(key, { features, ts: Date.now() });
       return features;
     } finally {
-      inFlight.delete(key);
+      pending.delete(key);
     }
   })();
 
-  inFlight.set(key, task);
+  pending.set(key, task);
   return task;
 }
 
@@ -195,7 +174,7 @@ router.get('/osm/buildings/:z/:x/:y', async (req: Request, res: Response) => {
   const z = Number(req.params.z), x = Number(req.params.x), y = Number(req.params.y);
   if (![z, x, y].every(Number.isInteger) || z < 14 || z > 18) return res.status(400).json({ error: 'Bad tile' });
 
-  const sourceZ = Math.min(z, SOURCE_ZOOM), shift = z - sourceZ;
+  const sourceZ = Math.min(z, 14), shift = z - sourceZ;
   const sx = x >> shift, sy = y >> shift;
 
   try {
@@ -209,8 +188,8 @@ router.get('/osm/buildings/:z/:x/:y', async (req: Request, res: Response) => {
       return res.json({ features: stale.features, stale: true });
     }
 
-    log.warn(`building tile ${sourceZ}/${sx}/${sy} failed: ${e instanceof Error ? e.message : e}`);
-    res.status(503).json({ error: 'Building data is not responding' });
+    log.warn(`building tile ${sourceZ}/${sx}/${sy} failed`, e);
+    res.status(503).json({ error: 'building data unavailable' });
   }
 });
 

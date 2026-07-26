@@ -5,4 +5,4 @@ export const LOT_ICONS: Record<string, typeof Car> = { C: Car, Y: Bike };
 export const DAY_LABELS: Record<string, string> = { weekday: 'Weekday', weekday_eve: 'Weekday Eve', saturday: 'Saturday', sunday: 'Sun / PH', all: 'All Days' };
 export const VEHICLE_OPTIONS = [['C', Car, 'Car'], ['Y', Bike, 'Motorcycle']] as const;
 export const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{}|;:'",.<>?/\\`~]).{8,}$/;
-export const PASSWORD_ERROR = 'Password needs 8+ characters with uppercase, lowercase, number, and special character.';
+export const PASSWORD_ERROR = 'Password needs 8+ chars with upper, lower, number and symbol';

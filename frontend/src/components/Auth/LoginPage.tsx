@@ -305,7 +305,7 @@ function ResetView({ email, setEmail, otp, setOtp, newPassword, setNewPassword, 
 
       {step === 'captcha' && (
         <div className="flex flex-col gap-3">
-          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">One last step — verify you're human.</p>
+          <p className="text-sm font-bold text-gray-500 dark:text-gray-400">One last step, verify you're human</p>
           <div className="flex justify-center">
             <Turnstile
               sitekey={import.meta.env.VITE_TURNSTILE_SITE_KEY || ''}

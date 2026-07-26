@@ -3,7 +3,7 @@ import { parseParkaholic, parseSgcarmart } from './rates.js';
 import { MERGE } from '../config.js';
 import { isInSingapore } from '../../lib/geofence.js';
 
-const VT_MAP: Record<string, string> = { car: 'C', motorcycle: 'Y', heavy_vehicle: 'H' };
+export const VT_MAP: Record<string, string> = { car: 'C', motorcycle: 'Y', heavy_vehicle: 'H' };
 
 function ratesMatch(a: RateEntry, b: RateEntry) {
   return a.amount === b.amount && a.duration_mins === b.duration_mins
@@ -11,7 +11,7 @@ function ratesMatch(a: RateEntry, b: RateEntry) {
     && a.period_start === b.period_start && a.period_end === b.period_end;
 }
 
-function normalize(s: string) {
+export function normalize(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 

@@ -4,11 +4,7 @@ import prisma from '../../db/index.js';
 import createLogger from '../../lib/logger.js';
 
 const log = createLogger('live');
-
-const PATH = '/api/carparks/live';
-const POLL_MS = 15000;
-const HEARTBEAT_MS = 30000;
-const MAX_SUBSCRIPTIONS = 200;
+const wsPath = '/api/carparks/live';
 
 type LotState = { available: number | null; total: number | null };
 type CarparkState = Record<string, LotState>;
@@ -43,9 +39,7 @@ async function readAvailability(ids: string[]): Promise<Map<string, CarparkState
 }
 
 function send(client: Client, carparks: Record<string, CarparkState>) {
-  if (client.socket.readyState !== WebSocket.OPEN) return;
-  if (!Object.keys(carparks).length) return;
-
+  if (client.socket.readyState !== WebSocket.OPEN || !Object.keys(carparks).length) return;
   client.socket.send(JSON.stringify({ type: 'availability', updatedAt: new Date().toISOString(), carparks }));
 }
 
@@ -73,27 +67,27 @@ async function pushUpdates() {
 
     log.debug(`pushed ${updated.size} carpark updates to ${clients.size} client(s)`);
   } catch (e) {
-    log.warn(`live availability poll failed: ${e instanceof Error ? e.message : e}`);
+    log.warn(`live poll failed: ${String(e)}`);
   }
 }
 
 export function startLiveAvailability(server: Server) {
-  const wss = new WebSocketServer({ server, path: PATH });
+  const wss = new WebSocketServer({ server, path: wsPath });
 
   wss.on('connection', socket => {
     const client: Client = { socket, ids: new Set(), alive: true };
     clients.add(client);
 
     socket.on('pong', () => { client.alive = true; });
+    socket.on('close', () => { clients.delete(client); });
+    socket.on('error', () => { clients.delete(client); });
 
     socket.on('message', async raw => {
       let msg: any;
       try { msg = JSON.parse(String(raw)); } catch { return; }
-
       if (msg?.type !== 'subscribe' || !Array.isArray(msg.ids)) return;
 
-      client.ids = new Set(msg.ids.filter((id: unknown) => typeof id === 'string').slice(0, MAX_SUBSCRIPTIONS));
-
+      client.ids = new Set(msg.ids.filter((id: unknown) => typeof id === 'string').slice(0, 200));
       if (client.ids.size) {
         const current = await readAvailability([...client.ids]);
         const initial: Record<string, CarparkState> = {};
@@ -101,23 +95,18 @@ export function startLiveAvailability(server: Server) {
         send(client, initial);
       }
     });
-
-    socket.on('close', () => { clients.delete(client); });
-    socket.on('error', () => { clients.delete(client); });
   });
 
-  const poll = setInterval(pushUpdates, POLL_MS);
-
+  const poll = setInterval(pushUpdates, 15000);
   const heartbeat = setInterval(() => {
     for (const client of clients) {
-      if (!client.alive) { client.socket.terminate(); clients.delete(client); continue; }
-      client.alive = false;
-      client.socket.ping();
+      if (client.alive) { client.alive = false; client.socket.ping(); }
+      else { client.socket.terminate(); clients.delete(client); }
     }
-  }, HEARTBEAT_MS);
+  }, 30000);
 
   wss.on('close', () => { clearInterval(poll); clearInterval(heartbeat); });
 
-  log.info(`live availability socket listening on ${PATH}`);
+  log.info(`live availability socket on ${wsPath}`);
   return wss;
 }

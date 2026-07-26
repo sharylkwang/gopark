@@ -5,13 +5,7 @@ import 'leaflet.markercluster';
 import { vehicleTotals } from '../../utils/format';
 import type { CarparkSummary } from '../../types';
 
-const AVAILABILITY = {
-  plenty: '#16a34a',
-  filling: '#f59e0b',
-  scarce: '#ef4444',
-  full: '#991b1b',
-  unknown: '#64748b',
-};
+const AVAILABILITY = { plenty: '#16a34a', filling: '#f59e0b', scarce: '#ef4444', full: '#991b1b', unknown: '#64748b' };
 
 function availabilityColor(cp: CarparkSummary, vehicleType: string) {
   const t = vehicleTotals(cp.availability, vehicleType);
@@ -90,7 +84,7 @@ function badge({ body, glyph, ring, size, selected = false, faded = false, dashe
   });
 }
 
-function pin(color: string, size: number, selected: boolean, dimOthers: boolean, _darkBasemap: boolean, bob = false) {
+function pin(color: string, size: number, selected: boolean, dimOthers: boolean, bob = false) {
   return selected
     ? badge({ body: color, glyph: '#ffffff', ring: BRAND, size: size + 4, selected: true, bob })
     : badge({ body: color, glyph: '#ffffff', ring: '#ffffff', size, faded: dimOthers, bob });
@@ -273,7 +267,7 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
       const bob = cp.id === recommendedId;
 
       const marker = L.marker([cp.lat, cp.lng], {
-        icon: pin(color, 26, false, false, darkBasemap, bob),
+        icon: pin(color, 26, false, false, bob),
       });
 
       marker.on('click', () => onSelectRef.current(cp.id));
@@ -299,11 +293,10 @@ export function MarkerCluster({ carparks, backgroundCarparks, selectedId, recomm
 
       const isSelected = cp.id === selectedId;
       const dimOthers = !!hasSearched && selectedId !== null;
-
       const color = availabilityColor(cp, vehicleType);
       const size = isSelected ? 34 : 26;
       const bob = cp.id === recommendedId;
-      marker.setIcon(pin(color, size, isSelected, dimOthers, darkBasemap, bob));
+      marker.setIcon(pin(color, size, isSelected, dimOthers, bob));
       marker.setZIndexOffset(isSelected ? 1000 : cp.id === recommendedId ? 500 : 0);
     }
   }, [selectedId, recommendedId, carparkKey, hasSearched, darkBasemap, vehicleType]);

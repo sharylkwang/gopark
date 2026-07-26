@@ -6,14 +6,17 @@ Most parking apps only cover HDB carparks. We wanted one app that pulls governme
 
 ## Features
 
-- Search any address or place name in Singapore and see the closest carparks ranked by walking distance
-- Compare rates, available lots, and walking time side by side
+- Search any address, place name, or 6-digit postal code in Singapore and see nearby carparks ranked by cost and walking distance
+- Compare rates, available lots, and walking time side by side, with the actual total price for your stay computed from your arrival time
 - Leaflet map with clustered markers so 3,500+ carparks don't become a mess of pins
-- Multiple map styles OneMap, OSM, Google Roads, Google Hybrid, and a 3D buildings layer from Overpass API
-- Live lot counts refreshed every couple minutes
+- Multiple map styles: OneMap, Roads, Satellite, dark basemap, a 3D buildings layer from Overpass API, and a full 3D view
+- Live lot counts refreshed every minute, with a URA feed covering 183 roadside and coupon carparks
+- Popular times graph per carpark built from hourly occupancy history, Google-style with the current hour highlighted
+- Live traffic ticker from LTA with roadworks, accidents and heavy traffic near your route
+- Car and motorcycle modes, each with its own lots, rates and ranking
 - User accounts with email verification, password reset, and account lockout after failed attempts
 - Save favorite carparks to user account
-- Estimated parking cost based on how long users plan to stay
+- Dark mode, and a proper mobile layout with a draggable bottom sheet instead of a shrunk desktop site
 
 ## Architecture
 
@@ -22,17 +25,18 @@ Docker Compose with four containers in production:
 **Frontend** - React 19, TypeScript, Tailwind v4, Vite, Leaflet via react-leaflet. 3D buildings use OSMBuildings reading Overpass tiles.
 
 **Backend** - Node 22, Express 5, TypeScript. Serves the API and runs cron jobs:
-- Availability refresh every 2 minutes (Gov, DataMall, Parkaholic)
+- Availability refresh every minute (Gov, DataMall, Parkaholic, JustPark)
 - Full multi-source carpark merge every 6 hours
-- Web scraper crawl every 30 days
+- Occupancy snapshot every hour, popular-times profiles computed at midnight
+- Web scraper sweep every 7 days, each page rechecked monthly
 
-**Database** - PostgreSQL 15 with PostGIS, managed through Prisma. Stores carparks, parsed rates, live availability, user accounts, favorites, password history, and scraper cache.
+**Database** - PostgreSQL 15 with PostGIS, managed through Prisma. Stores carparks, parsed rates, live availability, hourly snapshots, popular-times trends, user accounts, favorites, password history, and scraper cache.
 
 **nginx** reverse proxies everything. In prod, a Cloudflare Tunnel exposes it without opening host ports.
 
-The data engine merges carparks from 6+ sources and deduplicates by coordinates. It parses messy rate strings like "$1.20 per half hour, $2 entry after 6pm" into structured json records to be inserted in the db. An AI scraper handles carparks whose rates aren't in any public dataset it searches the web via DuckDuckGo and uses an LLM to extract rates from the pages it finds.
+The data engine merges carparks from 7 sources onto one shared ID per carpark, deduplicating by source ID, coordinates and name so two feeds never produce two pins. It parses messy rate strings like "$1.20 per half hour, $2 entry after 6pm" into structured json records to be inserted in the db. An AI scraper handles carparks whose rates aren't in any public dataset: it searches the web via DuckDuckGo and uses an LLM to extract rates from the pages it finds.
 
-The LLM backend is swappable use ZhipuAI's cloud API (no GPU needed) or run a local vLLM container with an NVIDIA card.
+The LLM backend is swappable, use ZhipuAI's cloud API (no GPU needed) or run a local vLLM container with an NVIDIA card.
 
 ## Setup
 
@@ -59,14 +63,15 @@ docker compose --profile gpu up --build
 | `GEOAPIFY_KEY` | Yes | Geocoding search queries |
 | `DATAGOVSG_KEY` | Yes | HDB carpark data + live availability |
 | `DATAMALL_API` | Yes | Commercial / URA carparks |
-| `GOOGLE_MAPS_KEY` | No | Google map tiles |
-| `URA_ACCESS_KEY` | No | URA live car park lots overlay |
+| `GOOGLE_MAPS_KEY` | No | Google map tiles, routes and 3D view |
+| `URA_ACCESS_KEY` | No | URA live lots, rates and season carparks |
+| `ONEMAP_EMAIL` / `ONEMAP_EMAIL_PASSWORD` | Yes | Postal code search and walking routes |
 | `ZHIPUAI_API_KEY` | No | Cloud LLM for rate scraping |
 | `JWT_SECRET` | Yes | Auth token signing |
 | `EMAIL_USER` / `EMAIL_APP_PASSWORD` | Yes | Sending OTP verification emails |
 | `TURNSTILE_SECRET_KEY` | Yes (prod) | Cloudflare Turnstile captcha |
 
-Without the optional keys the app still works  you just lose Google tile styles, and without an LLM the scraper only uses public datasets.
+Without the optional keys the app still works, you just lose Google tile styles and URA roadside live lots, and without an LLM the scraper only uses public datasets.
 
 ## Data sources
 
@@ -74,7 +79,12 @@ Without the optional keys the app still works  you just lose Google tile styles,
 |--------|--------|------------------|
 | data.gov.sg (mapping) | 2,000 | HDB locations, addresses, carpark type |
 | data.gov.sg (availability) | 2,000 | Live lot counts by vehicle type |
-| LTA DataMall | 500 | Malls and private developments |
-| Parkaholic | 4,700 | Locations, availability, rate text |
+| LTA DataMall | 500 | Malls, private developments, traffic incidents |
+| URA Data Service | 183 | Roadside and coupon carparks, live lots, rates |
+| Parkaholic | 4,000 | Locations, availability, rate text |
+| CapitaLand JustPark | 90 | Mall rates and live lot balance |
 | SGCarMart | 1,100 | Weekday/Saturday/Sunday rates |
 | OneMotoring, GetGo, SgBikes | varies | Official, CBD, and motorcycle rates (AI-scraped) |
+
+## Team
+NUS Orbital 2026

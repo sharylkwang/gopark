@@ -20,16 +20,10 @@ body {
 }
 
 @media (pointer: coarse) and (min-width: 768px) and (min-height: 600px) {
-  :root {
-    zoom: 1.18;
-    --zoom: 1.18;
-  }
+  :root { zoom: 1.18; --zoom: 1.18; }
 }
 @media (pointer: coarse) and (min-width: 1000px) and (min-height: 600px) {
-  :root {
-    zoom: 1.32;
-    --zoom: 1.32;
-  }
+  :root { zoom: 1.32; --zoom: 1.32; }
 }
 
 input:-webkit-autofill,
@@ -99,20 +93,19 @@ input:-webkit-autofill:active {
 }
 
 .animate-count-pop {
-  animation: countPop 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: countPop 0.35s ease-out;
 }
 
 .stagger > * {
-  animation: fadeUp 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: fadeUp 0.34s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
-.stagger > *:nth-child(1) { animation-delay: 0ms; }
-.stagger > *:nth-child(2) { animation-delay: 35ms; }
-.stagger > *:nth-child(3) { animation-delay: 70ms; }
-.stagger > *:nth-child(4) { animation-delay: 105ms; }
-.stagger > *:nth-child(5) { animation-delay: 140ms; }
-.stagger > *:nth-child(6) { animation-delay: 175ms; }
-.stagger > *:nth-child(7) { animation-delay: 210ms; }
+.stagger > *:nth-child(2) { animation-delay: 40ms; }
+.stagger > *:nth-child(3) { animation-delay: 75ms; }
+.stagger > *:nth-child(4) { animation-delay: 110ms; }
+.stagger > *:nth-child(5) { animation-delay: 150ms; }
+.stagger > *:nth-child(6) { animation-delay: 180ms; }
+.stagger > *:nth-child(7) { animation-delay: 220ms; }
 .stagger > *:nth-child(n + 8) { animation-delay: 240ms; }
 
 .skeleton {
@@ -234,54 +227,24 @@ input:-webkit-autofill:active {
   animation: boltCharge 3.5s ease-in-out infinite;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .intro-bolt-stroke,
-  .intro-bolt-fill,
-  .intro-bolt-glow,
-  .intro-arc,
-  .intro-spark,
-  .intro-charge,
-  .intro-flash,
-  .intro-wordmark,
-  .intro-leaving,
-  .bolt-idle {
-    animation: none;
-  }
-  .intro-bolt-fill {
-    fill-opacity: 1;
-  }
-}
-
 @keyframes dropIn {
   from { opacity: 0; transform: translateY(-8px) scale(0.97); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .animate-fade-scale {
-  animation: fadeScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: fadeScaleIn 0.18s ease-out;
 }
 
 .animate-drop-in {
-  animation: dropIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: dropIn 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.1);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .animate-fade-scale,
-  .animate-drop-in,
-  .animate-pop-in,
-  .animate-slide-in,
-  .animate-fade-up,
-  .animate-count-pop,
-  .stagger > *,
-  .skeleton,
-  .tap-hint,
-  .recommended-card,
-  .recommended-tag {
-    animation: none;
-  }
-  .press:active {
-    transform: none;
-  }
+  [class*='animate-'], [class*='intro-'], .bolt-idle, .gp-bob, .stagger > *, .skeleton, .tap-hint,
+  .recommended-card, .recommended-tag { animation: none; }
+  .intro-bolt-fill { fill-opacity: 1; }
+  .press:active { transform: none; }
 }
 
 .btn-gmaps {
@@ -404,7 +367,7 @@ input:-webkit-autofill:active {
 }
 
 .animate-pop-in {
-  animation: popIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: popIn 0.18s ease-out;
 }
 
 @keyframes locationPing {
@@ -543,11 +506,11 @@ input:-webkit-autofill:active {
 }
 
 .animate-slide-in {
-  animation: slideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .animate-slide-out {
-  animation: slideOut 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: slideOut 0.2s ease-in;
 }
 
 @keyframes destBounce {
@@ -608,15 +571,7 @@ input:-webkit-autofill:active {
   50% { transform: translateY(-7px); }
 }
 
-.gp-bob {
-  animation: markerBob 1s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .gp-bob {
-    animation: none;
-  }
-}
+.gp-bob { animation: markerBob 1s ease-in-out infinite; }
 
 .vAygCK-api-load-alpha-banner {
   display: none !important;
@@ -657,6 +612,4 @@ input:-webkit-autofill:active {
   from { transform: translateX(0); }
   to { transform: translateX(-50%); }
 }
-.news-ticker-track {
-  animation: ticker-scroll linear infinite;
-}
+.news-ticker-track { animation: ticker-scroll linear infinite; }

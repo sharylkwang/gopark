@@ -2,10 +2,6 @@ import { useEffect, useRef, useState } from 'react';
 import { fetchAvailability } from '../providers/carparks';
 import type { AvailabilityMap } from '../providers/carparks';
 
-const SOCKET_PATH = '/api/carparks/live';
-const RECONNECT_MS = [1000, 2000, 5000, 10000, 20000];
-const FALLBACK_POLL_MS = 30000;
-
 export type LiveState = 'connecting' | 'live' | 'polling';
 
 export function useLiveAvailability(ids: string[], onUpdate: (carparks: AvailabilityMap) => void) {
@@ -40,19 +36,16 @@ export function useLiveAvailability(ids: string[], onUpdate: (carparks: Availabi
       setState('polling');
       const tick = () => fetchAvailability(watched).then(r => apply(r.carparks)).catch(() => {});
       tick();
-      pollTimer = setInterval(tick, FALLBACK_POLL_MS);
+      pollTimer = setInterval(tick, 30000);
     };
 
-    const stopPolling = () => {
-      if (pollTimer) clearInterval(pollTimer);
-      pollTimer = null;
-    };
+    const stopPolling = () => { if (pollTimer) clearInterval(pollTimer); pollTimer = null; };
 
     const connect = () => {
       if (closed) return;
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      socket = new WebSocket(`${protocol}//${window.location.host}${SOCKET_PATH}`);
+      socket = new WebSocket(`${protocol}//${window.location.host}/api/carparks/live`);
 
       socket.onopen = () => {
         attempt = 0;
@@ -71,12 +64,8 @@ export function useLiveAvailability(ids: string[], onUpdate: (carparks: Availabi
       socket.onclose = () => {
         if (closed) return;
         socket = null;
-
         startPolling();
-
-        const delay = RECONNECT_MS[Math.min(attempt, RECONNECT_MS.length - 1)];
-        attempt++;
-        reconnectTimer = setTimeout(connect, delay);
+        reconnectTimer = setTimeout(connect, Math.min(1000 * 2 ** attempt++, 20000));
       };
 
       socket.onerror = () => socket?.close();
@@ -90,12 +79,9 @@ export function useLiveAvailability(ids: string[], onUpdate: (carparks: Availabi
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (socket) {
         socket.onclose = null;
-        if (socket.readyState === WebSocket.CONNECTING) {
-          const pending = socket;
-          pending.onopen = () => pending.close();
-        } else {
-          socket.close();
-        }
+        const s = socket;
+        if (s.readyState === 0) s.onopen = () => s.close();
+        else s.close();
       }
     };
   }, [key]);

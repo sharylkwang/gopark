@@ -3,9 +3,7 @@ export function timeAgo(iso: string) {
   if (diff < 60000) return 'just now';
   if (diff < 3600000) return `${Math.floor(diff / 60000)}m ago`;
   if (diff < 86400000) return `${Math.floor(diff / 3600000)}h ago`;
-  return new Date(iso).toLocaleDateString('en-SG', {
-    day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit',
-  });
+  return new Date(iso).toLocaleDateString('en-SG', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
 export function formatDuration(seconds: number) {
@@ -20,8 +18,7 @@ export function formatDistance(meters: number) {
 
 export function formatParkDuration(hours: number) {
   const totalMins = Math.round(hours * 60);
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
+  const h = Math.floor(totalMins / 60), m = totalMins % 60;
   if (h === 0) return `${m} mins`;
   return m > 0 ? `${h}h ${m} mins` : `${h}h`;
 }
@@ -49,10 +46,7 @@ export function parseDurationSecs(dur: string) {
   return parseInt(dur.replace('s', ''), 10) || 0;
 }
 
-export function hasFreeLots(
-  avail: Record<string, { available: number | null; total: number | null }>,
-  vehicleType: string,
-) {
+export function hasFreeLots(avail: Record<string, { available: number | null; total: number | null }>, vehicleType: string) {
   const forVehicle = avail[vehicleType];
   if (forVehicle) return (forVehicle.total ?? 0) > 0 && (forVehicle.available ?? 0) > 0;
   if (vehicleType !== 'C') return false;
@@ -62,19 +56,15 @@ export function hasFreeLots(
 
 export function totals(avail: Record<string, { available: number | null; total: number | null }>) {
   const entries = Object.values(avail);
-  const hasLive = entries.some(e => e.available != null);
   const total = entries.reduce((sum, e) => sum + (e.total ?? 0), 0);
-  if (!hasLive) return { available: null, total, pct: 0 };
+  if (!entries.some(e => e.available != null)) return { available: null, total, pct: 0 };
   const available = entries.reduce((sum, e) => sum + (e.available ?? 0), 0);
   const capped = total > 0 ? Math.min(available, total) : available;
   const pct = total > 0 ? Math.min((capped / total) * 100, 100) : 0;
   return { available: capped, total, pct };
 }
 
-export function vehicleTotals(
-  avail: Record<string, { available: number | null; total: number | null }>,
-  vehicleType?: string,
-) {
+export function vehicleTotals(avail: Record<string, { available: number | null; total: number | null }>, vehicleType?: string) {
   const forVehicle = vehicleType ? avail[vehicleType] : undefined;
   if (forVehicle) {
     const total = forVehicle.total ?? 0;

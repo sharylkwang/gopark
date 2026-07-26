@@ -1,6 +1,6 @@
 import { LocateFixed, Search, ChevronUp, Heart } from 'lucide-react';
 import { MobileResultRow } from './ResultRow';
-import { cockpit } from './theme';
+import { cockpit, lift } from './theme';
 import type { CarparkSummary } from '../../types';
 
 interface ResultsProps {
@@ -66,8 +66,8 @@ export function MobileResults({
         <div className={`h-11 w-11 rounded-xl grid place-items-center mb-3 ${c.panel}`}>
           <Heart size={19} className={c.muted} />
         </div>
-        <p className={`text-[13px] font-bold ${c.text}`}>No saved carparks yet</p>
-        <p className={`text-[11px] font-medium mt-0.5 ${c.muted}`}>Tap the heart on a carpark to save it here.</p>
+        <p className={`text-[13px] font-bold ${c.text}`}>Nothing saved yet</p>
+        <p className={`text-[11px] font-medium mt-0.5 ${c.muted}`}>tap the heart on a carpark</p>
       </div>
     );
   } else if (!hasSearched && !isFavoritesTab) {
@@ -77,13 +77,13 @@ export function MobileResults({
           <Search size={19} className={c.muted} />
         </div>
         <p className={`text-[13px] font-bold ${c.text}`}>Where are you parking?</p>
-        <p className={`text-[11px] font-medium mt-0.5 ${c.muted}`}>Search a destination to see nearby carparks.</p>
+        <p className={`text-[11px] font-medium mt-0.5 ${c.muted}`}>search somewhere to see carparks</p>
       </div>
     );
   } else if (results.length === 0) {
     body = (
       <p className={`animate-fade-up px-4 py-8 text-center text-[13px] font-semibold ${c.muted}`}>
-        No carparks match your filters.
+        no carparks match the filters
       </p>
     );
   } else {
@@ -151,7 +151,7 @@ export function SheetSummary({ darkMode, hasSearched, loading, count, destinatio
           </span>
           <div className="min-w-0 flex-1">
             <p className={`text-[15px] font-black leading-tight ${c.text}`}>
-              {loading ? 'Finding parking…' : `carpark${count === 1 ? '' : 's'} nearby`}
+              {loading ? 'Finding parking...' : `carpark${count === 1 ? '' : 's'} nearby`}
             </p>
             {destination && (
               <p className={`text-[11px] font-medium leading-tight truncate ${c.muted}`}>{destination}</p>
@@ -159,7 +159,7 @@ export function SheetSummary({ darkMode, hasSearched, loading, count, destinatio
           </div>
           {!loading && (
             <span className="shrink-0 flex items-center gap-1"
-              title={liveState === 'live' ? 'Availability is updating live' : 'Live connection unavailable — syncing periodically'}>
+              title={liveState === 'live' ? 'live updates on' : 'live feed down, polling instead'}>
               <span className={`h-1.5 w-1.5 rounded-full ${liveState === 'live' ? 'bg-[#22c55e] live-pulse' : 'bg-[#f59e0b]'}`} />
               <span className={`text-[10px] font-black uppercase tracking-wider ${liveState === 'live' ? 'text-[#22c55e]' : 'text-[#f59e0b]'}`}>
                 {liveState === 'live' ? 'Live' : 'Sync'}
@@ -188,17 +188,10 @@ export function LocateButton({ darkMode, className, offset, dragging, visible = 
   active: boolean; onClick: () => void;
 }) {
   const c = cockpit(darkMode);
-  const lifted = offset != null;
 
   return (
     <button onClick={onClick}
-      style={lifted ? {
-        transform: `translate3d(0, ${-offset}px, 0)`,
-        transition: dragging
-          ? 'opacity 0.2s linear'
-          : 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s linear',
-        willChange: 'transform',
-      } : undefined}
+      style={lift(offset, dragging)}
       className={`animate-fade-scale absolute z-30 h-11 w-11 grid place-items-center rounded-xl shadow-xl border ${c.raised} ${c.line} ${className} ${darkMode ? 'shadow-black/50' : 'shadow-black/15'} ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       <LocateFixed size={18} className={active ? 'text-[#4285f4]' : 'text-red-400 gps-blink'} />
     </button>

@@ -80,7 +80,7 @@ export function MobileSearchBar({
             className={`${input} h-full px-2.5`}
           />
           {startCoords ? (
-            <button onClick={clearStart} aria-label="Use my location" className={iconBtn}>
+            <button onClick={clearStart} className={iconBtn}>
               <X size={15} />
             </button>
           ) : (
@@ -89,7 +89,7 @@ export function MobileSearchBar({
               <LocateFixed size={15} />
             </button>
           )}
-          <button onClick={onPickStart} aria-label="Pick start on map" className={iconBtn}>
+          <button onClick={onPickStart} className={iconBtn}>
             <Crosshair size={15} />
           </button>
         </div>
@@ -117,7 +117,7 @@ export function MobileSearchBar({
             className={`${input} h-full px-2.5`}
           />
           {destination && (
-            <button onClick={onClear} aria-label="Clear destination" className={iconBtn}>
+            <button onClick={onClear} className={iconBtn}>
               <X size={15} />
             </button>
           )}
@@ -127,11 +127,11 @@ export function MobileSearchBar({
               <ArrowRight size={16} strokeWidth={3} />
             </button>
           ) : (
-            <button onClick={onPickDestination} aria-label="Pick destination on map" className={iconBtn}>
+            <button onClick={onPickDestination} className={iconBtn}>
               <Crosshair size={15} />
             </button>
           )}
-          <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu"
+          <button onClick={() => setMenuOpen(o => !o)}
             className={`shrink-0 h-9 w-9 grid place-items-center rounded-lg ${menuOpen ? 'text-yellow-400' : c.muted}`}>
             <MoreVertical size={16} />
           </button>

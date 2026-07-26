@@ -1,21 +1,31 @@
 import { describe, it, expect } from '@jest/globals';
 
-const REQUIRED_KEYS = ['GEOAPIFY_KEY', 'DATAGOVSG_KEY', 'DATAMALL_API'] as const;
-const OPTIONAL_KEYS = ['ZHIPUAI_API_KEY', 'URA_ACCESS_KEY', 'GOOGLE_MAPS_KEY', 'TURNSTILE_SECRET_KEY', 'ONEMAP_EMAIL'] as const;
+const zhipuKey = process.env.ZHIPUAI_API_KEY;
+if (!zhipuKey) console.warn('ZHIPUAI_API_KEY not set (optional), skipping its check');
+const uraKey = process.env.URA_ACCESS_KEY;
+if (!uraKey) console.warn('URA_ACCESS_KEY not set (optional), skipping its check');
+const onemapEmail = process.env.ONEMAP_EMAIL, onemapPassword = process.env.ONEMAP_EMAIL_PASSWORD;
+if (!onemapEmail || !onemapPassword) console.warn('ONEMAP credentials not set (optional), skipping their check');
+const turnstileSecret = process.env.TURNSTILE_SECRET_KEY;
+if (!turnstileSecret) console.warn('TURNSTILE_SECRET_KEY not set (optional), skipping its check');
+const gmapsKey = process.env.GOOGLE_MAPS_KEY;
+if (gmapsKey === undefined) console.warn('GOOGLE_MAPS_KEY not set (optional), skipping its check');
 
-describe('API Key Verification', () => {
-  describe('required keys are set', () => {
-    for (const key of REQUIRED_KEYS) {
-      it(`${key} is defined and non-empty`, () => {
-        const val = process.env[key];
-        expect(val).toBeDefined();
-        expect(val!.trim().length).toBeGreaterThan(0);
-      });
-    }
+function expectSet(key: string) {
+  const val = process.env[key];
+  expect(val).toBeDefined();
+  expect(val!.trim().length).toBeGreaterThan(0);
+}
+
+describe('api keys', () => {
+  describe('required keys present', () => {
+    it('GEOAPIFY_KEY set', () => expectSet('GEOAPIFY_KEY'));
+    it('DATAGOVSG_KEY set', () => expectSet('DATAGOVSG_KEY'));
+    it('DATAMALL_API set', () => expectSet('DATAMALL_API'));
   });
 
-  describe('required keys are valid', () => {
-    it('GEOAPIFY_KEY can geocode Singapore', async () => {
+  describe('required keys actually work', () => {
+    it('geoapify can geocode Singapore', async () => {
       const key = process.env.GEOAPIFY_KEY;
       if (!key) return;
       const url = `https://api.geoapify.com/v1/geocode/search?text=Singapore&limit=1&format=json&apiKey=${key}`;
@@ -26,7 +36,7 @@ describe('API Key Verification', () => {
       expect(body.results?.length).toBeGreaterThan(0);
     }, 15000);
 
-    it('DATAGOVSG_KEY can fetch carpark availability', async () => {
+    it('data.gov.sg returns carpark availability', async () => {
       const key = process.env.DATAGOVSG_KEY;
       if (!key) return;
       const res = await fetch('https://api.data.gov.sg/v1/transport/carpark-availability', {
@@ -39,7 +49,7 @@ describe('API Key Verification', () => {
       expect(body.items?.[0]?.carpark_data?.length).toBeGreaterThan(0);
     }, 15000);
 
-    it('DATAMALL_API can fetch LTA carpark data', async () => {
+    it('datamall responds with LTA carpark data', async () => {
       const key = process.env.DATAMALL_API;
       if (!key) return;
       const res = await fetch('https://datamall2.mytransport.sg/ltaodataservice/CarParkAvailabilityv2', {
@@ -54,22 +64,10 @@ describe('API Key Verification', () => {
   });
 
   describe('optional keys', () => {
-    for (const key of OPTIONAL_KEYS) {
-      it(`${key} is set or skipped`, () => {
-        const val = process.env[key];
-        if (!val) {
-          console.log(`  ⚠ ${key} not set (optional)`);
-        }
-        expect(true).toBe(true);
-      });
-    }
-
-    it('ZHIPUAI_API_KEY can reach chat endpoint if set', async () => {
-      const key = process.env.ZHIPUAI_API_KEY;
-      if (!key) return;
+    (zhipuKey ? it : it.skip)('zhipu chat endpoint accepts the key', async () => {
       const res = await fetch('https://api.z.ai/api/coding/paas/v4/chat/completions', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${zhipuKey}` },
         body: JSON.stringify({
           model: process.env.ZHIPUAI_MODEL || 'glm-4-flash',
           messages: [{ role: 'user', content: 'ping' }],
@@ -79,11 +77,9 @@ describe('API Key Verification', () => {
       expect(res.status).not.toBe(401);
     }, 15000);
 
-    it('URA_ACCESS_KEY can fetch a daily token if set', async () => {
-      const key = process.env.URA_ACCESS_KEY;
-      if (!key) return;
+    (uraKey ? it : it.skip)('ura hands out a daily token', async () => {
       const res = await fetch('https://eservice.ura.gov.sg/uraDataService/insertNewToken/v1', {
-        headers: { AccessKey: key, 'User-Agent': 'GoPark/1.0' },
+        headers: { AccessKey: uraKey!, 'User-Agent': 'GoPark/1.0' },
       });
       expect(res.ok).toBe(true);
       const body = await res.json();
@@ -91,14 +87,11 @@ describe('API Key Verification', () => {
       expect(typeof body.Result).toBe('string');
     }, 15000);
 
-    it('ONEMAP credentials can fetch an access token if set', async () => {
-      const email = process.env.ONEMAP_EMAIL;
-      const password = process.env.ONEMAP_EMAIL_PASSWORD;
-      if (!email || !password) return;
+    (onemapEmail && onemapPassword ? it : it.skip)('onemap login yields an access token', async () => {
       const res = await fetch('https://www.onemap.gov.sg/api/auth/post/getToken', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: onemapEmail, password: onemapPassword }),
       });
       expect(res.ok).toBe(true);
       const body = await res.json();
@@ -106,13 +99,11 @@ describe('API Key Verification', () => {
       expect(body.access_token.length).toBeGreaterThan(0);
     }, 15000);
 
-    it('TURNSTILE_SECRET_KEY is accepted by the siteverify endpoint if set', async () => {
-      const secret = process.env.TURNSTILE_SECRET_KEY;
-      if (!secret) return;
+    (turnstileSecret ? it : it.skip)('turnstile siteverify accepts the secret', async () => {
       const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ secret, response: 'integration-test-dummy-token' }),
+        body: new URLSearchParams({ secret: turnstileSecret!, response: 'integration-test-dummy-token' }),
       });
       expect(res.ok).toBe(true);
       const body = await res.json();
@@ -120,10 +111,8 @@ describe('API Key Verification', () => {
       expect(body['error-codes']).not.toContain('invalid-input-secret');
     }, 15000);
 
-    it('GOOGLE_MAPS_KEY is non-empty if set', () => {
-      const key = process.env.GOOGLE_MAPS_KEY;
-      if (key === undefined) return;
-      expect(key.trim().length).toBeGreaterThan(0);
+    (gmapsKey === undefined ? it.skip : it)('google maps key is non-empty', () => {
+      expect(gmapsKey!.trim().length).toBeGreaterThan(0);
     });
   });
 });

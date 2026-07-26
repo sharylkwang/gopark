@@ -14,3 +14,10 @@ export const availabilityTone = (pct: number, total: number) => {
   if (pct > 10) return { text: 'text-[#f59e0b]', bg: 'bg-[#f59e0b]/12' };
   return { text: 'text-[#ef4444]', bg: 'bg-[#ef4444]/12' };
 };
+
+export const lift = (offset: number | null | undefined, dragging?: boolean) =>
+  offset == null ? undefined : {
+    transform: `translate3d(0, ${-offset}px, 0)`,
+    transition: dragging ? 'opacity 0.2s linear' : 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s linear',
+    willChange: 'transform',
+  };

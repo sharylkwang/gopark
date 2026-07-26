@@ -1,9 +1,5 @@
 import { useState, useEffect } from 'react';
 
-const SEEN_KEY = 'gopark_intro_seen';
-const PLAY_MS = 2100;
-const LEAVE_MS = 450;
-
 const BOLT_PATH = 'M13 2 3 14h9l-1 8 10-12h-9l1-8z';
 
 const ARCS = [
@@ -13,18 +9,25 @@ const ARCS = [
   { d: 'M11 22 L9.8 25 L11.8 26.6 L10.2 29.4', delay: 0.5 },
 ];
 
-const SPARKS = Array.from({ length: 14 }, (_, i) => {
-  const angle = (i / 14) * Math.PI * 2;
-  return {
-    dx: `${Math.cos(angle) * (70 + (i % 4) * 26)}px`,
-    dy: `${Math.sin(angle) * (70 + (i % 3) * 30)}px`,
-    delay: 0.85 + (i % 5) * 0.05,
-    size: i % 3 === 0 ? 5 : 3,
-  };
-});
+const SPARKS = [
+  { dx: '70px', dy: '0px', delay: 0.85, size: 5 },
+  { dx: '86px', dy: '43px', delay: 0.93, size: 3 },
+  { dx: '76px', dy: '102px', delay: 0.98, size: 3 },
+  { dx: '33px', dy: '68px', delay: 1.04, size: 5 },
+  { dx: '-16px', dy: '97px', delay: 1.12, size: 3 },
+  { dx: '-60px', dy: '108px', delay: 0.88, size: 3 },
+  { dx: '-110px', dy: '30px', delay: 0.86, size: 5 },
+  { dx: '-148px', dy: '0px', delay: 1.0, size: 3 },
+  { dx: '-63px', dy: '-56px', delay: 0.94, size: 3 },
+  { dx: '-58px', dy: '-52px', delay: 1.08, size: 5 },
+  { dx: '-27px', dy: '-97px', delay: 0.85, size: 3 },
+  { dx: '33px', dy: '-127px', delay: 1.02, size: 3 },
+  { dx: '44px', dy: '-55px', delay: 0.9, size: 5 },
+  { dx: '86px', dy: '-43px', delay: 0.96, size: 3 },
+];
 
 function shouldSkip() {
-  if (sessionStorage.getItem(SEEN_KEY)) return true;
+  if (sessionStorage.getItem('gopark_intro_seen')) return true;
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
@@ -42,14 +45,14 @@ export function Intro() {
 
   useEffect(() => {
     if (phase !== 'playing') return;
-    sessionStorage.setItem(SEEN_KEY, '1');
-    const t = setTimeout(() => setPhase('leaving'), PLAY_MS);
+    sessionStorage.setItem('gopark_intro_seen', '1');
+    const t = setTimeout(() => setPhase('leaving'), 2100);
     return () => clearTimeout(t);
   }, [phase]);
 
   useEffect(() => {
     if (phase !== 'leaving') return;
-    const t = setTimeout(() => setPhase('gone'), LEAVE_MS);
+    const t = setTimeout(() => setPhase('gone'), 450);
     return () => clearTimeout(t);
   }, [phase]);
 

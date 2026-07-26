@@ -8,7 +8,6 @@ interface Props {
   selectedId: string | null;
   favorites: Set<string>;
   vehicleType: string;
-  durationHours: number;
   recommendedId: string | null;
   canFavorite?: boolean;
   onSelectCarpark: (id: string) => void;

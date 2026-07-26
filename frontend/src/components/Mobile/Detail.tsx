@@ -1,11 +1,11 @@
 import { ChevronLeft, Map, Navigation } from 'lucide-react';
-import { PopularTimes } from '../PopularTimes';
 import { AvailabilityBar } from '../AvailabilityBar';
+import { PopularTimes } from '../PopularTimes';
 import { TimeRange } from './TimeRange';
-import { timeAgo, formatParkDuration, formatTime12, parseClockTime, formatDuration, parseDurationSecs } from '../../utils/format';
+import { timeAgo, vehicleTotals, formatParkDuration, formatTime12, parseClockTime, formatDuration, parseDurationSecs } from '../../utils/format';
 import { estimateCost } from '../../utils/estimateCost';
 import { LOT_LABELS, LOT_ICONS, DAY_LABELS } from '../../utils/constants';
-import { cockpit } from './theme';
+import { cockpit, availabilityTone } from './theme';
 import type { CarparkDetail } from '../../types';
 import type { RouteResult } from '../../providers/google/routing';
 
@@ -27,6 +27,8 @@ export function MobileDetail({
   durationHours, vehicleType, driveRoute, walkRoute,
 }: Props) {
   const c = cockpit(darkMode);
+  const dt = vehicleTotals(detail.availability, vehicleType);
+  const tone = availabilityTone(dt.pct, dt.total);
   const cost = detail.rates?.length ? estimateCost(detail.rates, durationHours, vehicleType, arrivalTime) : null;
   const rates = detail.rates.filter(r => r.vehicleType === vehicleType);
   const destination = encodeURIComponent(detail.address || `${detail.name} Singapore`);
@@ -44,12 +46,25 @@ export function MobileDetail({
       <div className="stagger px-3 pt-3 space-y-3">
         <div>
           <h2 className={`text-base font-black leading-tight ${c.text}`}>{detail.name}</h2>
-          <p className={`text-[11px] font-medium mt-0.5 ${c.muted}`}>
-            {detail.address || detail.id}
+          <p className={`text-[11px] font-medium mt-0.5 ${c.muted}`}>{detail.address || detail.id} · {detail.agency}</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-1.5">
+          <Tile c={c} label={LOT_LABELS[vehicleType] ?? 'Lots'}>
+            {dt.available != null
+              ? <span className={tone.text}>{dt.available}{dt.total > 0 && <span className={`text-[11px] ${c.muted}`}>/{dt.total}</span>}</span>
+              : <span className={c.muted}>-</span>}
+          </Tile>
+          <Tile c={c} label="Est. cost">
+            {cost != null ? <span className="text-[#22c55e]">${cost.toFixed(2)}</span> : <span className={c.muted}>-</span>}
+          </Tile>
+          <Tile c={c} label={walkRoute ? 'Walk' : 'Drive'}>
             {walkRoute
-              ? ` · ${formatDuration(parseDurationSecs(walkRoute.duration))} walk`
-              : driveRoute ? ` · ${formatDuration(parseDurationSecs(driveRoute.duration))} drive` : ''}
-          </p>
+              ? formatDuration(parseDurationSecs(walkRoute.duration))
+              : driveRoute
+                ? formatDuration(parseDurationSecs(driveRoute.duration))
+                : <span className={c.muted}>-</span>}
+          </Tile>
         </div>
 
         <div className="grid grid-cols-2 gap-1.5">
@@ -155,4 +170,13 @@ function rateUnitLabel(r: CarparkDetail['rates'][number]) {
     : r.durationMins ? `per ${r.durationMins} min`
     : r.unit.replace(/_/g, ' ');
   return r.isFirst ? `First ${per.replace(/^per /, '')}` : per;
+}
+
+function Tile({ c, label, children }: { c: ReturnType<typeof cockpit>; label: string; children: React.ReactNode }) {
+  return (
+    <div className={`rounded-xl border px-2 py-2 text-center ${c.panel} ${c.line}`}>
+      <p className={`text-base font-black leading-none ${c.text}`}>{children}</p>
+      <p className={`text-[9px] font-black uppercase tracking-wider mt-1.5 truncate ${c.muted}`}>{label}</p>
+    </div>
+  );
 }

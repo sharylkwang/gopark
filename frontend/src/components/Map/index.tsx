@@ -18,14 +18,9 @@ import type { CarparkSummary, DestinationPoint, NearbyParking } from '../../type
 import type { TrafficIncident } from '../../providers/traffic';
 import type { LayoutMode } from '../../hooks/useLayoutMode';
 import type { MapEventHandlers } from '../../types/map';
+import { SPEED_COLORS } from '../../providers/google/routing';
 import type { RouteResult, SpeedInterval } from '../../providers/google/routing';
 import { formatDuration, parseDurationSecs } from '../../utils/format';
-
-const SPEED_COLORS: Record<string, string> = {
-  NORMAL: '#22c55e',
-  SLOW: '#f59e0b',
-  TRAFFIC_JAM: '#dc2626',
-};
 
 const TRAFFIC_DOT: Record<string, string> = {
   NORMAL: '#22c55e',
@@ -391,10 +386,8 @@ const PILL_HALF_W = 52;
 const PILL_HALF_H = 16;
 
 function pillsOverlap(map: L.Map, a: [number, number], b: [number, number]) {
-  const pa = map.latLngToContainerPoint(a);
-  const pb = map.latLngToContainerPoint(b);
-  return Math.abs(pa.x - pb.x) < PILL_HALF_W * 2 + 4
-    && Math.abs(pa.y - pb.y) < PILL_HALF_H * 2 + 4;
+  const pa = map.latLngToContainerPoint(a), pb = map.latLngToContainerPoint(b);
+  return Math.abs(pa.x - pb.x) < PILL_HALF_W * 2 + 4 && Math.abs(pa.y - pb.y) < PILL_HALF_H * 2 + 4;
 }
 
 function RouteLabels({ drivePolyline, driveRoute, walkPolyline, walkRoute }: {
@@ -578,6 +571,10 @@ export const MapView = memo(function MapView({
   const [buildings3D, setBuildings3D] = useState(false);
   const [buildingStatus, setBuildingStatus] = useState<BuildingStatus>({ state: 'ready', count: 0 });
   const [buildingRetry, setBuildingRetry] = useState(0);
+  const [uraConfigured, setUraConfigured] = useState(false);
+  const [showUraLots, setShowUraLots] = useState(false);
+
+  useEffect(() => { fetchUraStatus().then(setUraConfigured); }, []);
 
   const toggleBuildings = useCallback((on: boolean) => {
     setBuildings3D(on);
@@ -597,13 +594,7 @@ export const MapView = memo(function MapView({
   const [mode3D, setMode3D] = useState<Map3DMode | null>(null);
   const [mapCenter, setMapCenter] = useState<{ lat: number; lng: number }>({ lat: 1.3521, lng: 103.8198 });
   const [mapZoom, setMapZoom] = useState(12);
-  const [uraConfigured, setUraConfigured] = useState(false);
-  const [showUraLots, setShowUraLots] = useState(false);
   const tile = getTileProvider(tileId) ?? getTileProvider(DEFAULT_TILE)!;
-
-  useEffect(() => {
-    fetchUraStatus().then(setUraConfigured);
-  }, []);
 
   const handlePositionChange = useCallback((c: { lat: number; lng: number }, z: number) => {
     setMapCenter(c);
@@ -752,9 +743,9 @@ export const MapView = memo(function MapView({
           buildings3D={buildings3D} onBuildings3DChange={toggleBuildings}
           buildingStatus={buildingStatus} onRetryBuildings={() => setBuildingRetry(t => t + 1)}
           mapZoomLive={mapZoom}
+          mapCenter={mapCenter} mapZoom={mapZoom} layout={layout} darkMode={!!darkMode}
           uraOverlayAvailable={uraConfigured} uraOverlayEnabled={showUraLots}
-          onUraOverlayToggle={() => setShowUraLots((prev) => !prev)}
-          mapCenter={mapCenter} mapZoom={mapZoom} layout={layout} darkMode={!!darkMode} />
+          onUraOverlayToggle={() => setShowUraLots((prev) => !prev)} />
       )}
     </div>
   );

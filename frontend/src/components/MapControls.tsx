@@ -1,5 +1,5 @@
 import { Plus, Minus, MapPin, Route } from 'lucide-react';
-import { cockpit } from './Mobile/theme';
+import { cockpit, lift } from './Mobile/theme';
 
 interface MapControlsProps {
   darkMode: boolean;
@@ -20,17 +20,10 @@ export function MapControls({ darkMode, className, offset, dragging, visible = t
   const icon = darkMode ? 'text-white' : 'text-[#0d1013]';
   const card = `flex flex-col gap-1 p-1 rounded-2xl border shadow-xl backdrop-blur-lg ${c.raised} ${c.line} ${darkMode ? 'shadow-black/50' : 'shadow-black/15'}`;
   const btn = `h-9 w-9 grid place-items-center rounded-xl ${press} transition-colors`;
-  const lifted = offset != null;
 
   return (
     <div
-      style={lifted ? {
-        transform: `translate3d(0, ${-offset}px, 0)`,
-        transition: dragging
-          ? 'opacity 0.2s linear'
-          : 'transform 0.32s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s linear',
-        willChange: 'transform',
-      } : undefined}
+      style={lift(offset, dragging)}
       className={`absolute z-30 flex flex-col items-end gap-2 ${className} ${visible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
       {(onFocusPlace || onFitRoute) && (
         <div className={card}>

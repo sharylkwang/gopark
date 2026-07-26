@@ -4,38 +4,33 @@ import { computeWalkRoute, computeBfaRoute } from './routing.js';
 import { isLatLng } from '../../lib/coords.js';
 
 const router = Router();
+const msg = (e: unknown) => e instanceof Error ? e.message : 'Unknown error';
 
 router.post('/onemap/walk', async (req: Request, res: Response) => {
   const { origin, destination } = req.body;
-
   if (!isLatLng(origin) || !isLatLng(destination)) {
-    res.status(400).json({ error: 'Missing origin or destination coordinates' });
+    res.status(400).json({ error: 'need origin and destination' });
     return;
   }
 
   try {
-    const route = await computeWalkRoute(origin, destination);
-    res.json(route);
+    res.json(await computeWalkRoute(origin, destination));
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ error: message });
+    res.status(502).json({ error: msg(err) });
   }
 });
 
 router.post('/onemap/bfa', async (req: Request, res: Response) => {
   const { origin, destination } = req.body;
-
   if (!isLatLng(origin) || !isLatLng(destination)) {
-    res.status(400).json({ error: 'Missing origin or destination coordinates' });
+    res.status(400).json({ error: 'missing origin/destination coords' });
     return;
   }
 
   try {
-    const route = await computeBfaRoute(origin, destination);
-    res.json(route);
+    res.json(await computeBfaRoute(origin, destination));
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    res.status(502).json({ error: message });
+    res.status(502).json({ error: msg(err) });
   }
 });
 

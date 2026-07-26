@@ -7,8 +7,6 @@ import type { Map3DMode } from './layers/Google3DMap';
 import type { LayoutMode } from '../../hooks/useLayoutMode';
 import type { BuildingStatus } from './layers/OSMBuildingLayer';
 
-const BUILDINGS_MIN_ZOOM = 16;
-
 function hasGpu(): boolean {
   try {
     const canvas = document.createElement('canvas');
@@ -92,7 +90,7 @@ const MAP_3D_MODES: { id: Map3DMode; label: string; preview: string }[] = [
 ];
 
 export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DChange, buildings3D, onBuildings3DChange, buildingStatus, onRetryBuildings, mapZoomLive, mapCenter, mapZoom, layout = 'desktop', darkMode = false, sidebarOpen = true, uraOverlayAvailable, uraOverlayEnabled, onUraOverlayToggle }: Props) {
-  const belowMinZoom = (mapZoomLive ?? 20) < BUILDINGS_MIN_ZOOM;
+  const belowMinZoom = (mapZoomLive ?? 20) < 16;
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const gpuOk = useMemo(() => hasGpu(), []);
@@ -211,17 +209,17 @@ export function TileLayerSwitcher({ currentTile, onTileChange, mode3D, onMode3DC
                 <div className={`animate-fade-up mt-2 pt-2 border-t ${divider}`}>
                   {belowMinZoom ? (
                     <p className="flex items-center gap-1.5 text-[10px] font-semibold text-yellow-600 dark:text-yellow-500">
-                      <ZoomIn size={12} /> Zooming in to level {BUILDINGS_MIN_ZOOM}…
+                      <ZoomIn size={12} /> Zooming in to 16...
                     </p>
                   ) : buildingStatus.state === 'loading' ? (
                     <p className={`flex items-center gap-1.5 text-[10px] font-semibold ${subtle}`}>
                       <span className="h-3 w-3 rounded-full border-2 border-current border-t-transparent animate-spin" />
-                      Loading buildings…
+                      Loading buildings...
                     </p>
                   ) : buildingStatus.state === 'error' ? (
                     <div className="flex items-center justify-between gap-2">
                       <p className="flex items-center gap-1.5 text-[10px] font-semibold text-red-500">
-                        <AlertTriangle size={12} /> OpenStreetMap didn't respond
+                        <AlertTriangle size={12} /> OSM not responding
                       </p>
                       <button onClick={onRetryBuildings}
                         className="press shrink-0 flex items-center gap-1 h-6 px-2 rounded-md bg-yellow-400 text-[#0d1013] text-[10px] font-black">

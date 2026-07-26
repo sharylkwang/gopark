@@ -21,9 +21,7 @@ export function SuggestionList({ items, onSelect, darkMode, activeIndex, onHover
   const handleScroll = useCallback(() => {
     const el = listRef.current;
     if (!el || visibleCount >= items.length) return;
-    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) {
-      setVisibleCount(v => Math.min(v + PAGE_SIZE, items.length));
-    }
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 20) setVisibleCount(v => Math.min(v + PAGE_SIZE, items.length));
   }, [visibleCount, items.length]);
 
   return (
@@ -49,13 +47,7 @@ export function SuggestionList({ items, onSelect, darkMode, activeIndex, onHover
   );
 }
 
-export function useSuggestionKeys(
-  items: PlaceSuggestion[],
-  isOpen: boolean,
-  onSelect: (s: PlaceSuggestion) => void,
-  onSubmit: () => void,
-  onClose: () => void,
-) {
+export function useSuggestionKeys(items: PlaceSuggestion[], isOpen: boolean, onSelect: (s: PlaceSuggestion) => void, onSubmit: () => void, onClose: () => void) {
   const [activeIndex, setActiveIndex] = useState(-1);
 
   useEffect(() => { setActiveIndex(-1); }, [items, isOpen]);
@@ -64,16 +56,8 @@ export function useSuggestionKeys(
     if (e.key === 'Escape') { onClose(); return; }
 
     const usable = isOpen && items.length > 0;
-    if (e.key === 'ArrowDown' && usable) {
-      e.preventDefault();
-      setActiveIndex(i => (i + 1) % items.length);
-      return;
-    }
-    if (e.key === 'ArrowUp' && usable) {
-      e.preventDefault();
-      setActiveIndex(i => (i <= 0 ? items.length - 1 : i - 1));
-      return;
-    }
+    if (e.key === 'ArrowDown' && usable) { e.preventDefault(); setActiveIndex(i => (i + 1) % items.length); return; }
+    if (e.key === 'ArrowUp' && usable) { e.preventDefault(); setActiveIndex(i => (i <= 0 ? items.length - 1 : i - 1)); return; }
     if (e.key === 'Enter') {
       e.preventDefault();
       if (usable && activeIndex >= 0) onSelect(items[activeIndex]);

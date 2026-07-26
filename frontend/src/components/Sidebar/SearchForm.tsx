@@ -1,7 +1,8 @@
-import { Navigation, Search, Clock, X, Crosshair } from 'lucide-react';
+import { Navigation, Search, X, Crosshair } from 'lucide-react';
 import { SuggestionList, useSuggestionKeys } from '../SuggestionList';
+import { DurationChips } from '../DurationChips';
 import { VEHICLE_OPTIONS } from '../../utils/constants';
-import { formatClockTime, formatTime12, parseClockTime } from '../../utils/format';
+import { formatTime12, parseClockTime } from '../../utils/format';
 import type { PlaceSuggestion } from '../../types';
 
 interface Props {
@@ -108,30 +109,7 @@ export function SearchForm({
 
         <div>
           <label className={labelClass}>Park from {formatTime12(arrivalTime)} → {formatTime12(parseClockTime(parkUntil))}</label>
-          <div className="flex gap-1.5">
-            {[0.5, 1, 2, 3, 4, 6].map(h => {
-              const target = new Date(arrivalTime.getTime() + h * 3600000);
-              const val = formatClockTime(target);
-              const active = parkUntil === val;
-              return (
-                <button key={h} type="button" onClick={() => setParkUntil(val)}
-                  className={`flex-1 py-1.5 rounded-xl border text-[11px] font-black transition ${
-                    active
-                      ? dm ? 'bg-blue-600/80 border-blue-500 text-white' : 'bg-gray-900 border-gray-900 text-white'
-                      : dm ? 'bg-neutral-800/60 border-neutral-600/50 text-gray-400 hover:border-gray-400' : 'bg-white/50 border-gray-200/50 text-gray-500 hover:border-gray-400'
-                  }`}>
-                  {h < 1 ? '30m' : `${h}h`}
-                </button>
-              );
-            })}
-            <div className={`flex-1 relative rounded-xl border text-[11px] font-black ${dm ? 'bg-neutral-800/60 border-neutral-600/50 text-gray-400' : 'bg-white/50 border-gray-200/50 text-gray-500'}`}>
-              <span className="flex items-center justify-center h-full pointer-events-none">
-                <Clock size={11} className="mr-0.5" />Set
-              </span>
-              <input type="time" value={parkUntil} onChange={e => setParkUntil(e.target.value)}
-                className="absolute inset-0 opacity-0 cursor-pointer" />
-            </div>
-          </div>
+          <DurationChips arrivalTime={arrivalTime} parkUntil={parkUntil} setParkUntil={setParkUntil} dm={dm} />
         </div>
 
         <div className="flex gap-2 items-end">
