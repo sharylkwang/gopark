@@ -52,6 +52,7 @@ export function CameraFlyer({ selectedId, results, hasSearched, destinationPoint
     }
 
     if (destinationPoint) {
+      if (routePolyline && routePolyline.length > 1) return;
       map.flyTo([destinationPoint.lat, destinationPoint.lng], zoom.destination, {
         duration: 1.5,
         easeLinearity: 0.25,
