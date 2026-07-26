@@ -235,15 +235,24 @@ function schedule() {
   }, snapshotDelay);
 
   let lastTrendDay = '';
-  setInterval(async () => {
-    const now = new Date();
-    if (now.getHours() !== 0) return;
+  const catchUpTrends = async (now: Date) => {
     const day = now.toDateString();
     if (day === lastTrendDay || computingTrends) return;
     lastTrendDay = day;
     computingTrends = true;
     try { await runDailyTrends(now); } catch (e) { log.error('daily trends failed', e); }
     finally { computingTrends = false; }
+  };
+
+  recordSnapshots()
+    .catch(e => log.error('snapshot failed', e))
+    .then(() => catchUpTrends(new Date()))
+    .catch(e => log.error('trend catch-up failed', e));
+
+  setInterval(async () => {
+    const now = new Date();
+    if (now.getHours() !== 0) return;
+    await catchUpTrends(now);
   }, CRON.trendCheckInterval);
 }
 
