@@ -102,11 +102,19 @@ async function refreshAvailability() {
     const carparkIds = await prisma.carpark.findMany({ select: { id: true, sourceIds: true } });
     const sourceIdIndex = buildSourceIdIndex(carparkIds.map(cp => ({ id: cp.id, sourceIds: cp.sourceIds as Record<string, string> })));
 
+    const HEARTBEAT_MS = 5 * 60 * 1000;
+
     async function updateAvail(source: string, providerId: string, lotType: string, available: number | null, total: number | null) {
       for (const carparkId of resolveCarparkIds(sourceIdIndex, source, providerId)) {
         const existing = await prisma.availability.findUnique({ where: { carparkId_lotType: { carparkId, lotType } } });
         const write = planAvailabilityWrite(existing, { available, total });
-        if (!write) continue;
+        if (!write) {
+          if (existing && available != null && now.getTime() - existing.updatedAt.getTime() > HEARTBEAT_MS) {
+            await prisma.availability.update({ where: { carparkId_lotType: { carparkId, lotType } }, data: { updatedAt: now } });
+            touched.add(carparkId);
+          }
+          continue;
+        }
         await prisma.availability.upsert({
           where: { carparkId_lotType: { carparkId, lotType } },
           update: { available: write.available, total: write.total, updatedAt: now },

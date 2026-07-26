@@ -454,6 +454,21 @@ export default function GoParkApp() {
     } catch { return null; }
   };
 
+  const selectedWasBookableRef = useRef(false);
+
+  useEffect(() => {
+    if (!hasSearched || !selectedId) return;
+    const cur = searchResults.find(c => c.id === selectedId);
+    if (!cur) return;
+    const bookable = hasFreeLots(cur.availability, vehicleType);
+    if (bookable) { selectedWasBookableRef.current = true; return; }
+    if (!selectedWasBookableRef.current) return;
+    const next = searchResults.find(c => c.id !== selectedId && hasFreeLots(c.availability, vehicleType));
+    if (!next) return;
+    selectedWasBookableRef.current = false;
+    selectCarpark(next.id);
+  }, [searchResults, selectedId, vehicleType, hasSearched]);
+
   const selectCarpark = async (id: string) => {
     setSelectedId(id);
     fetchDetail(id).then(setDetail).catch(() => setDetail(null));
@@ -552,8 +567,16 @@ export default function GoParkApp() {
     return pl ? `${pl.length}:${pl[0].join()}:${pl[pl.length - 1].join()}` : '';
   }, [routes.drivePolyline, routes.walkPolyline]);
 
+  const lastFitKeyRef = useRef('');
+
   useEffect(() => {
     if (!routeSig) return;
+    const d = routes.drivePolyline;
+    const origin = d && d.length > 1 ? d[0].join() : '';
+    const dest = destinationRef.current;
+    const fitKey = `${dest ? `${dest.lat},${dest.lng}` : ''}|${origin}`;
+    if (fitKey === lastFitKeyRef.current) return;
+    lastFitKeyRef.current = fitKey;
     const t = setTimeout(() => fitRouteRef.current(), 400);
     return () => clearTimeout(t);
   }, [routeSig]);
