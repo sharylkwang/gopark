@@ -881,7 +881,7 @@ export default function GoParkApp() {
             {parkingHintPill && !pickMode && !chipsPanelOpen && (
               <div className="animate-fade-up px-3 pt-2">{parkingHintPill}</div>
             )}
-            {!pickMode && !chipsPanelOpen && (
+            {!pickMode && !chipsPanelOpen && floatingVisible && (
               <div className="animate-fade-up px-3 pt-1.5 [&>div]:rounded-full [&>div]:shadow-md">{trafficTicker(true)}</div>
             )}
           </div>
