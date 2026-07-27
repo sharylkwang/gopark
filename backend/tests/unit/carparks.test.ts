@@ -83,12 +83,24 @@ describe('carparks router', () => {
       expect(res.body[0].distance).toBeDefined();
     });
 
-    it('rejects bad lat/lng: non-numeric, out of range, or missing', async () => {
-      for (const q of ['?lat=abc&lng=xyz', '?lat=91&lng=103.8', '?lat=1.3&lng=181', '']) {
+    it('rejects non-numeric lat/lng', async () => {
+      const res = await request(app).get('/carparks/nearby?lat=abc&lng=xyz');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid coordinates');
+    });
+
+    it('rejects out-of-range lat/lng', async () => {
+      for (const q of ['?lat=91&lng=103.8', '?lat=1.3&lng=181']) {
         const res = await request(app).get(`/carparks/nearby${q}`);
         expect(res.status).toBe(400);
         expect(res.body.error).toBe('Invalid coordinates');
       }
+    });
+
+    it('rejects missing coordinates', async () => {
+      const res = await request(app).get('/carparks/nearby');
+      expect(res.status).toBe(400);
+      expect(res.body.error).toBe('Invalid coordinates');
     });
   });
 

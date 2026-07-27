@@ -50,7 +50,7 @@ export function PopularTimes({ carparkId, darkMode }: { carparkId: string; darkM
   if (loading) {
     return <div className={`h-24 rounded-xl animate-pulse ${tone('bg-white/5', 'bg-gray-100')}`} />;
   }
-  if (!trend || !hours.length) return null;
+  if (!trend || !hours.length || trend.sampleCount === 0) return null;
 
   const nowPct = day === today && nowHour >= START_HOUR && nowHour < END_HOUR
     ? hours.find(h => h.hour === nowHour)?.pct ?? null
