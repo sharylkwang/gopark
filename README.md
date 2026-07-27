@@ -86,5 +86,67 @@ Without the optional keys the app still works, you just lose Google tile styles 
 | SGCarMart | 1,100 | Weekday/Saturday/Sunday rates |
 | OneMotoring, GetGo, SgBikes | varies | Official, CBD, and motorcycle rates (AI-scraped) |
 
+## How we keep the code sane
+
+Some examples of the engineering principles we follow, with the actual code.
+
+**One job per function.** `estimateCost` only does parking math. It doesnt fetch anything, doesnt touch the UI, you give it rates and a duration and it gives you back a price. That's why we can use the exact same function for ranking carparks, the detail panel, and the mobile view without them drifting apart (thats the DRY part too).
+
+```ts
+export function estimateCost(rates: CarparkRate[], hours: number, vehicleType: string, startAt?: Date): number | null
+```
+
+**Merge only what you actually know.** Early on a source that only publishes capacity kept wiping out live counts from another source. So the merge is field by field now, each source only updates the fields it really has:
+
+```ts
+function mergeAvailability(cp: MergedCarpark, avail: Record<string, AvailabilityEntry>) {
+  for (const [lt, e] of Object.entries(avail)) {
+    const cur = cp.availability[lt];
+    if (!cur) {
+      cp.availability[lt] = { ...e };
+    } else {
+      if (e.available != null) cur.available = e.available;
+      if (e.total != null) cur.total = e.total;
+    }
+  }
+}
+```
+
+There are regression tests pinning this down so it cannot quietly come back.
+
+**Auth in one place.** Every private route goes through the same `requireAuth` middleware, it accepts the token from the Authorization header or the HttpOnly cookie and nothing else. Routes never do their own token checking.
+
+```ts
+export function requireAuth(req: AuthRequest, res: Response, next: NextFunction) {
+  const header = req.headers.authorization;
+  const cookieToken = req.cookies?.gopark_token;
+  ...
+  if (!token) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+```
+
+**Shared types instead of guessing shapes.** The frontend and the ranking and the map all pass around the same `CarparkSummary`, so if the shape changes the build breaks instead of the app breaking at runtime:
+
+```ts
+export interface CarparkSummary {
+  id: string;
+  name: string;
+  lat: number;
+  lng: number;
+  availability: Record<string, CarparkAvailability>;
+  distance?: number;
+  estimatedCost?: number | null;
+}
+```
+
+**Expect the outside world to fail.** All 7 carpark feeds are fetched with `Promise.allSettled`, one source going down just means we merge without it that cycle instead of the whole refresh dying:
+
+```ts
+const [govR, dmR, pkR, jpR, uraR] = await Promise.allSettled([fetchAvailability(), fetchDatamall(), fetchDump(), fetchJustparkAvailability(), fetchUraLive()]);
+```
+
+Same idea in the UI, if a route fetch fails we just clear the route line instead of crashing the map.
+
 ## Team
 NUS Orbital 2026
