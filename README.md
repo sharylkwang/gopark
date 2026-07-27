@@ -86,17 +86,17 @@ Without the optional keys the app still works, you just lose Google tile styles 
 | SGCarMart | 1,100 | Weekday/Saturday/Sunday rates |
 | OneMotoring, GetGo, SgBikes | varies | Official, CBD, and motorcycle rates (AI-scraped) |
 
-## How we keep the code sane
+## How we keep the code clean and standardised
 
 Some examples of the engineering principles we follow, with the actual code.
 
-**One job per function.** `estimateCost` only does parking math. It doesnt fetch anything, doesnt touch the UI, you give it rates and a duration and it gives you back a price. That's why we can use the exact same function for ranking carparks, the detail panel, and the mobile view without them drifting apart (thats the DRY part too).
+**One job per function.** `estimateCost` only does parking math. It doesnt fetch anything, doesnt touch the UI, it takes in rates and a duration and it gives you back a price. That's why we can use the exact same function for ranking carparks, the detail panel, and the mobile view without them drifting apart.
 
 ```ts
 export function estimateCost(rates: CarparkRate[], hours: number, vehicleType: string, startAt?: Date): number | null
 ```
 
-**Merge only what you actually know.** Early on a source that only publishes capacity kept wiping out live counts from another source. So the merge is field by field now, each source only updates the fields it really has:
+**Merge only what we actually know.** Early on a source that only publishes capacity kept wiping out live counts from another source. So the merge is field by field now, each source only updates the fields it really has:
 
 ```ts
 function mergeAvailability(cp: MergedCarpark, avail: Record<string, AvailabilityEntry>) {
@@ -112,8 +112,6 @@ function mergeAvailability(cp: MergedCarpark, avail: Record<string, Availability
 }
 ```
 
-There are regression tests pinning this down so it cannot quietly come back.
-
 **Auth in one place.** Every private route goes through the same `requireAuth` middleware, it accepts the token from the Authorization header or the HttpOnly cookie and nothing else. Routes never do their own token checking.
 
 ```ts
@@ -126,7 +124,7 @@ export function requireAuth(req: AuthRequest, res: Response, next: NextFunction)
   }
 ```
 
-**Shared types instead of guessing shapes.** The frontend and the ranking and the map all pass around the same `CarparkSummary`, so if the shape changes the build breaks instead of the app breaking at runtime:
+**Shared types instead of numerous shapes** The frontend and the ranking and the map all pass around the same `CarparkSummary`, so if the shape changes the build breaks instead of the app breaking at runtime:
 
 ```ts
 export interface CarparkSummary {
@@ -145,8 +143,6 @@ export interface CarparkSummary {
 ```ts
 const [govR, dmR, pkR, jpR, uraR] = await Promise.allSettled([fetchAvailability(), fetchDatamall(), fetchDump(), fetchJustparkAvailability(), fetchUraLive()]);
 ```
-
-Same idea in the UI, if a route fetch fails we just clear the route line instead of crashing the map.
 
 ## Team
 NUS Orbital 2026
