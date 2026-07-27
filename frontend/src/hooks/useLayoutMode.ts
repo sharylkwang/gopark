@@ -15,9 +15,17 @@ export function useLayoutMode() {
 
   useEffect(() => {
     const queries = [window.matchMedia(COMPACT), window.matchMedia(LANDSCAPE)];
-    const update = () => setMode(currentMode());
+    const typing = () => {
+      const el = document.activeElement;
+      return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
+    };
+    const update = () => { if (!typing()) setMode(currentMode()); };
     queries.forEach(q => q.addEventListener('change', update));
-    return () => queries.forEach(q => q.removeEventListener('change', update));
+    document.addEventListener('focusout', update);
+    return () => {
+      queries.forEach(q => q.removeEventListener('change', update));
+      document.removeEventListener('focusout', update);
+    };
   }, []);
 
   return mode;

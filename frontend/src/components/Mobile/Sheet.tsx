@@ -27,7 +27,9 @@ export function MobileSheet({ sheet, darkMode, summary, children }: Props) {
         {summary}
       </div>
 
-      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain sidebar-scroll pb-[env(safe-area-inset-bottom)]">
+      <div {...(sheet.snap === 'full' ? {} : sheet.handleProps)}
+        style={sheet.snap === 'full' ? undefined : { touchAction: 'none' }}
+        className={`flex-1 min-h-0 overscroll-contain sidebar-scroll pb-[env(safe-area-inset-bottom)] ${sheet.snap === 'full' ? 'overflow-y-auto' : 'overflow-hidden'}`}>
         {children}
       </div>
     </div>

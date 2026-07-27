@@ -455,12 +455,19 @@ export default function GoParkApp() {
   };
 
   const selectedWasBookableRef = useRef(false);
+  const lastSelectionKeyRef = useRef('');
 
   useEffect(() => {
     if (!hasSearched || !selectedId) return;
     const cur = searchResults.find(c => c.id === selectedId);
     if (!cur) return;
     const bookable = hasFreeLots(cur.availability, vehicleType);
+    const key = `${selectedId}|${vehicleType}`;
+    if (key !== lastSelectionKeyRef.current) {
+      lastSelectionKeyRef.current = key;
+      selectedWasBookableRef.current = bookable;
+      return;
+    }
     if (bookable) { selectedWasBookableRef.current = true; return; }
     if (!selectedWasBookableRef.current) return;
     const next = searchResults.find(c => c.id !== selectedId && hasFreeLots(c.availability, vehicleType));
