@@ -17,7 +17,7 @@ Mt
 1. I think need rework Geofence, it was applied to only parkaholic, but shld be applied to all as a pipeline preprocessing layer to handle new carpark or any new sources of data.
 2. Seeding of Data, currently its done by cached data/data.json, for pure speed on deployment env, but causes many merge conflicts between branches. Need think, maybe during CICD? or Deployment we have a Job that maintains a constant DB on the Deployment env (but need figure out how to handle for schema changes). Maybe a seperate branch for the DB?
 3. Maybe a timeline like breakdown of the cost of the carpark, so people know how the cost is being calcualted
-4. Maybe like AI-generated place descriptions (use LLM to describe carpark surroundings, nearby landmarks). Oh and maybe swap from GLM to Claude Wrapper for better Instructional based LLM Prompting. [Github](https://github.com/RichardAtCT/claude-code-openai-wrapper)
+4. Maybe like LLM-generated place descriptions (use the scraper's LLM to describe carpark surroundings, nearby landmarks).
 5. AI powered Carpark Usage Recording? Like how Maps does their plots of when it is busy? Maybe could integrate with the Carpark Planning for the area, so I know at the time of reaching which is usually busy and which is usually free so the carpark chosen can be the most optimal one. (Maybe can use the scraped data to train a model to predict carpark usage based on time of day, day of week, and other factors) (Or just go based on currently available data and build a algorithm)
 6. Headline for traffic incidents? Broken Traffic Lights, Road Closures, Accidents, etc. (Maybe can use LLM to summarize the traffic incidents and show it on the map) or just a simple news bar that shows latest traffic incidents in Singapore.
 

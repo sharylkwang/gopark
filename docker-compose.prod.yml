@@ -9,6 +9,7 @@ services:
         VITE_TURNSTILE_SITE_KEY: ${VITE_TURNSTILE_SITE_KEY}
         VITE_CAPTCHA_ENABLED: "true"
     container_name: gopark-nginx
+    restart: unless-stopped
     expose:
       - "80"
     depends_on:
@@ -19,6 +20,7 @@ services:
       context: .
       dockerfile: backend/Dockerfile.prod
     container_name: gopark-backend
+    restart: unless-stopped
     command: sh -c "npx prisma migrate deploy && npm start"
     env_file:
       - path: ./.env
@@ -45,6 +47,7 @@ services:
   gopark:
     image: postgis/postgis:15-3.4-alpine
     container_name: gopark
+    restart: unless-stopped
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password123
